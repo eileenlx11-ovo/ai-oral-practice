@@ -49,7 +49,7 @@ export function streamChat(audioBlob, scenario, history = [], sessionId = '', ca
   formData.append('history', JSON.stringify(history))
   formData.append('session_id', sessionId)
 
-  fetch(`${API_BASE}/api/chat/stream`, {
+  fetch(`${API_BASE}/api/stream`, {
     method: 'POST',
     body: formData,
     signal: controller.signal,

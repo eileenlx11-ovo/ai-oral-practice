@@ -130,7 +130,7 @@ async def chat(
         os.unlink(tmp.name)
 
 
-@app.post("/api/chat/stream")
+@app.post("/api/stream")
 async def chat_stream(
     audio: UploadFile = File(...),
     scenario: str = Form("smalltalk"),
@@ -199,22 +199,28 @@ async def chat_stream(
                         # Only TTS the reply portion (skip [CORRECTIONS] section)
                         if "[CORRECTIONS]" in full_reply:
                             break
-                        audio_url = await synthesize_sentence(sent["text"])
+                        # Strip LLM format markers
+                        clean = sent["text"].replace("[REPLY]", "").replace("[END]", "").strip()
+                        if not clean:
+                            continue
+                        audio_url = await synthesize_sentence(clean)
                         yield _sse("sentence", {
                             "index": sent["index"],
-                            "text": sent["text"],
+                            "text": clean,
                             "audio_url": audio_url,
                         })
 
             # Flush remaining buffer
             remaining = splitter.flush()
             if remaining and "[CORRECTIONS]" not in remaining["text"]:
-                audio_url = await synthesize_sentence(remaining["text"])
-                yield _sse("sentence", {
-                    "index": remaining["index"],
-                    "text": remaining["text"],
-                    "audio_url": audio_url,
-                })
+                clean = remaining["text"].replace("[REPLY]", "").replace("[END]", "").strip()
+                if clean:
+                    audio_url = await synthesize_sentence(clean)
+                    yield _sse("sentence", {
+                        "index": remaining["index"],
+                        "text": clean,
+                        "audio_url": audio_url,
+                    })
 
             # 3. Parse corrections from full reply
             reply_text, corrections = extract_corrections(full_reply)
