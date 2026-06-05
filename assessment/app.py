@@ -18,7 +18,7 @@ from openai import AsyncOpenAI
 
 from .scenarios import SCENARIOS, VOICES, get_system_prompt, build_custom_interview_prompt
 from .correction import extract_corrections
-from .scoring import assess_pronunciation
+from .scoring import assess_pronunciation, active_provider
 from .feedback import store
 from .streaming import SentenceSplitter, synthesize_sentence
 
@@ -388,11 +388,26 @@ async def assess(
         if result is None:
             raise HTTPException(
                 503,
-                "Pronunciation assessment unavailable (Azure Speech not configured)",
+                "Pronunciation assessment unavailable (no provider configured)",
             )
         return result
     finally:
         os.unlink(tmp.name)
+
+
+@app.get("/api/assess/status")
+async def assess_status():
+    """Report which pronunciation provider is currently active (or null).
+
+    Lets the frontend enable/disable the pronunciation feature and show
+    whether scores are real (azure/tencent) or placeholder (mock).
+    """
+    provider = active_provider()
+    return {
+        "available": provider is not None,
+        "provider": provider,
+        "is_mock": provider == "mock",
+    }
 
 
 # --- Session & Progress APIs ---

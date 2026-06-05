@@ -1,43 +1,64 @@
-"""Unit tests for pronunciation scoring module."""
+"""Unit tests for multi-provider pronunciation scoring."""
+import asyncio
 import pytest
-from unittest.mock import patch, MagicMock
+
+from assessment import scoring
+from assessment.scoring import mock as mock_provider
 
 
-def test_assess_returns_none_without_azure():
-    """Without Azure SDK configured, should return None gracefully."""
-    with patch("assessment.scoring.HAS_AZURE", False):
-        import asyncio
-        from assessment.scoring import assess_pronunciation
-        result = asyncio.run(assess_pronunciation("fake.wav", "hello world"))
-        assert result is None
+def test_mock_always_available():
+    assert mock_provider.available() is True
 
 
-def test_assess_returns_none_without_key():
-    """With Azure SDK but no API key, should return None."""
-    with patch("assessment.scoring.HAS_AZURE", True), \
-         patch("assessment.scoring.get_speech_config", return_value=None):
-        import asyncio
-        from assessment.scoring import assess_pronunciation
-        result = asyncio.run(assess_pronunciation("fake.wav", "hello world"))
-        assert result is None
-
-
-def test_result_schema():
-    """Verify expected output schema from a mocked successful assessment."""
-    mock_result = {
-        "accuracy_score": 85.0,
-        "fluency_score": 90.0,
-        "completeness_score": 100.0,
-        "pronunciation_score": 88.0,
-        "words": [
-            {"word": "hello", "accuracy_score": 92.0, "error_type": "None"},
-            {"word": "world", "accuracy_score": 78.0, "error_type": "Mispronunciation"},
-        ],
+def test_mock_assess_schema():
+    result = asyncio.run(mock_provider.assess("fake.wav", "Hello world today"))
+    assert set(result) >= {
+        "accuracy_score", "fluency_score", "completeness_score",
+        "pronunciation_score", "words", "provider",
     }
-    # Validate structure
-    assert "accuracy_score" in mock_result
-    assert "words" in mock_result
-    assert all(
-        "word" in w and "accuracy_score" in w and "error_type" in w
-        for w in mock_result["words"]
-    )
+    assert result["provider"] == "mock"
+    assert len(result["words"]) == 3
+    assert all(0 <= w["accuracy_score"] <= 100 for w in result["words"])
+    assert all(w["error_type"] in ("None", "Mispronunciation") for w in result["words"])
+
+
+def test_mock_is_deterministic():
+    a = asyncio.run(mock_provider.assess("x.wav", "the quick brown fox"))
+    b = asyncio.run(mock_provider.assess("y.wav", "the quick brown fox"))
+    assert a == b
+
+
+def test_dispatch_falls_back_to_mock(monkeypatch):
+    """With no real provider keys, dispatcher uses mock."""
+    monkeypatch.delenv("AZURE_SPEECH_KEY", raising=False)
+    monkeypatch.delenv("TENCENT_SECRET_ID", raising=False)
+    monkeypatch.delenv("TENCENT_SECRET_KEY", raising=False)
+    monkeypatch.setenv("PRONUNCIATION_ALLOW_MOCK", "1")
+    assert scoring.active_provider() == "mock"
+    result = asyncio.run(scoring.assess_pronunciation("fake.wav", "hello world"))
+    assert result is not None
+    assert result["provider"] == "mock"
+
+
+def test_dispatch_returns_none_when_mock_disabled(monkeypatch):
+    """Mock disabled + no real keys → None (endpoint should 503)."""
+    monkeypatch.delenv("AZURE_SPEECH_KEY", raising=False)
+    monkeypatch.delenv("TENCENT_SECRET_ID", raising=False)
+    monkeypatch.delenv("TENCENT_SECRET_KEY", raising=False)
+    monkeypatch.setenv("PRONUNCIATION_ALLOW_MOCK", "0")
+    assert scoring.active_provider() is None
+    result = asyncio.run(scoring.assess_pronunciation("fake.wav", "hello world"))
+    assert result is None
+
+
+def test_azure_unavailable_without_key(monkeypatch):
+    from assessment.scoring import azure
+    monkeypatch.delenv("AZURE_SPEECH_KEY", raising=False)
+    assert azure.available() is False
+
+
+def test_tencent_unavailable_without_keys(monkeypatch):
+    from assessment.scoring import tencent
+    monkeypatch.delenv("TENCENT_SECRET_ID", raising=False)
+    monkeypatch.delenv("TENCENT_SECRET_KEY", raising=False)
+    assert tencent.available() is False

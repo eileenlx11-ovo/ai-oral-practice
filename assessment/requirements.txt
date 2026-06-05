@@ -6,3 +6,5 @@ pydantic==2.7.4
 azure-cognitiveservices-speech==1.38.0
 python-dotenv==1.0.1
 edge-tts==6.1.12
+# Pronunciation fallback provider (domestic). Optional: import-guarded in scoring/tencent.py
+tencentcloud-sdk-python==3.0.1180
