@@ -144,18 +144,18 @@ async def asr_only(audio: UploadFile = File(...)):
 
 # --- Internal helpers ---
 
-# ASR client (Groq Whisper — free, fast, OpenAI-compatible)
+# ASR client (SiliconFlow — OpenAI-compatible, domestic)
 _asr_client = AsyncOpenAI(
-    api_key=os.getenv("GROQ_API_KEY", "") or "sk-placeholder",
-    base_url="https://api.groq.com/openai/v1",
+    api_key=os.getenv("SILICONFLOW_API_KEY", "") or "sk-placeholder",
+    base_url="https://api.siliconflow.cn/v1",
 )
 
 
 async def _transcribe(filepath: str) -> str:
-    """Transcribe audio file using Groq Whisper (free, fast)."""
+    """Transcribe audio file using SiliconFlow Whisper."""
     with open(filepath, "rb") as f:
         resp = await _asr_client.audio.transcriptions.create(
-            model="whisper-large-v3",
+            model="FunAudioLLM/SenseVoiceSmall",
             file=f,
             language="en",
         )
