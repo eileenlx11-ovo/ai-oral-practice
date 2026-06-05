@@ -19,19 +19,13 @@
 </template>
 
 <script setup>
-const scenarios = [
-  { id: 'interview', icon: '💼', name: 'Job Interview', description: '模拟英语面试场景，练习自我介绍和回答面试问题' },
-  { id: 'restaurant', icon: '🍽️', name: 'Restaurant', description: '模拟餐厅点餐，练习日常用餐对话' },
-  { id: 'meeting', icon: '📋', name: 'Business Meeting', description: '模拟商务会议，练习表达观点和讨论' },
-  { id: 'travel', icon: '✈️', name: 'Travel', description: '模拟旅行场景，练习问路、住酒店、买票等' },
-  { id: 'smalltalk', icon: '💬', name: 'Small Talk', description: '日常闲聊，练习自然的社交英语' },
-]
+import { CONFIG } from '../../shared/config'
+
+const scenarios = CONFIG.SCENARIOS
 </script>
 
 <style scoped>
-.home {
-  text-align: center;
-}
+.home { text-align: center; }
 
 h1 {
   font-size: 2rem;
@@ -64,19 +58,7 @@ h1 {
   box-shadow: 0 8px 24px rgba(31,78,121,0.15);
 }
 
-.icon {
-  font-size: 2.5rem;
-  display: block;
-  margin-bottom: 0.8rem;
-}
-
-.scenario-card h3 {
-  margin-bottom: 0.5rem;
-  color: #1f4e79;
-}
-
-.scenario-card p {
-  font-size: 0.9rem;
-  color: #666;
-}
+.icon { font-size: 2.5rem; display: block; margin-bottom: 0.8rem; }
+.scenario-card h3 { margin-bottom: 0.5rem; color: #1f4e79; }
+.scenario-card p { font-size: 0.9rem; color: #666; }
 </style>
