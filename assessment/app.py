@@ -13,12 +13,14 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 from openai import AsyncOpenAI
 
 from .scenarios import SCENARIOS, get_system_prompt
 from .correction import extract_corrections
 from .scoring import assess_pronunciation
 from .feedback import store
+from .streaming import SentenceSplitter, synthesize_sentence
 
 load_dotenv()
 
@@ -126,6 +128,127 @@ async def chat(
         }
     finally:
         os.unlink(tmp.name)
+
+
+@app.post("/api/chat/stream")
+async def chat_stream(
+    audio: UploadFile = File(...),
+    scenario: str = Form("smalltalk"),
+    history: str = Form("[]"),
+    session_id: str = Form(""),
+):
+    """
+    Streaming chat endpoint (SSE).
+    Same logic as /api/chat but streams results as they become available:
+    - event: asr → user transcription (immediate after ASR)
+    - event: sentence → each AI sentence + audio URL (as generated)
+    - event: corrections → grammar corrections (after full reply)
+    - event: done → final metadata
+    """
+    # Auto-create session
+    if not session_id:
+        session = store.create_session(scenario)
+        session_id = session["id"]
+
+    # Read audio
+    audio_bytes = await audio.read()
+    suffix = ".webm" if "webm" in (audio.content_type or "") else ".wav"
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp.write(audio_bytes)
+    tmp.close()
+
+    chat_history = json.loads(history)
+
+    async def event_generator():
+        try:
+            # 1. ASR
+            user_text = await _transcribe(tmp.name)
+            if not user_text.strip():
+                yield _sse("error", {"message": "No speech detected"})
+                return
+
+            yield _sse("asr", {"text": user_text})
+
+            # 2. LLM streaming + sentence-by-sentence TTS
+            system_prompt = get_system_prompt(scenario)
+            messages = [{"role": "system", "content": system_prompt}]
+            for msg in chat_history[-10:]:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+            messages.append({"role": "user", "content": user_text})
+
+            splitter = SentenceSplitter()
+            full_reply = ""
+
+            stream = await llm.chat.completions.create(
+                model=LLM_MODEL,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=512,
+                stream=True,
+            )
+
+            async for chunk in stream:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    token = delta.content
+                    full_reply += token
+
+                    # Check for complete sentences
+                    sentences = splitter.feed(token)
+                    for sent in sentences:
+                        # Only TTS the reply portion (skip [CORRECTIONS] section)
+                        if "[CORRECTIONS]" in full_reply:
+                            break
+                        audio_url = await synthesize_sentence(sent["text"])
+                        yield _sse("sentence", {
+                            "index": sent["index"],
+                            "text": sent["text"],
+                            "audio_url": audio_url,
+                        })
+
+            # Flush remaining buffer
+            remaining = splitter.flush()
+            if remaining and "[CORRECTIONS]" not in remaining["text"]:
+                audio_url = await synthesize_sentence(remaining["text"])
+                yield _sse("sentence", {
+                    "index": remaining["index"],
+                    "text": remaining["text"],
+                    "audio_url": audio_url,
+                })
+
+            # 3. Parse corrections from full reply
+            reply_text, corrections = extract_corrections(full_reply)
+
+            if corrections:
+                yield _sse("corrections", corrections)
+
+            # 4. Save to session
+            try:
+                store.add_turn(session_id, user_text, reply_text, corrections)
+            except ValueError:
+                pass
+
+            yield _sse("done", {
+                "session_id": session_id,
+                "full_reply": reply_text,
+            })
+
+        finally:
+            os.unlink(tmp.name)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+def _sse(event: str, data) -> str:
+    """Format a Server-Sent Event."""
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
 @app.post("/api/asr")

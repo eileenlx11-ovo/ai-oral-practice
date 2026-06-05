@@ -3,7 +3,7 @@
  * 将录音 Blob 发送到后端 ASR 接口，返回识别文本
  */
 
-const API_BASE = import.meta.env?.VITE_API_BASE || 'http://localhost:8000'
+const API_BASE = import.meta.env?.VITE_API_BASE || ''
 
 /**
  * 发送音频到后端进行语音识别
@@ -29,6 +29,93 @@ export async function sendAudioForChat(audioBlob, scenario, history = []) {
   }
 
   return res.json()
+}
+
+/**
+ * Streaming chat — sends audio and receives SSE events as response generates.
+ * @param {Blob} audioBlob - 录音 Blob
+ * @param {string} scenario - 场景 ID
+ * @param {Array} history - 对话历史
+ * @param {string} sessionId - 会话 ID (optional)
+ * @param {object} callbacks - { onASR, onSentence, onCorrections, onDone, onError }
+ * @returns {AbortController} - call .abort() to cancel the stream
+ */
+export function streamChat(audioBlob, scenario, history = [], sessionId = '', callbacks = {}) {
+  const controller = new AbortController()
+
+  const formData = new FormData()
+  formData.append('audio', audioBlob, 'recording.webm')
+  formData.append('scenario', scenario)
+  formData.append('history', JSON.stringify(history))
+  formData.append('session_id', sessionId)
+
+  fetch(`${API_BASE}/api/chat/stream`, {
+    method: 'POST',
+    body: formData,
+    signal: controller.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        callbacks.onError?.(err.detail || `请求失败 (${res.status})`)
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+
+        // Parse SSE events from buffer
+        const events = buffer.split('\n\n')
+        buffer = events.pop() // keep incomplete event in buffer
+
+        for (const raw of events) {
+          if (!raw.trim()) continue
+          const eventMatch = raw.match(/^event:\s*(.+)$/m)
+          const dataMatch = raw.match(/^data:\s*(.+)$/m)
+          if (!eventMatch || !dataMatch) continue
+
+          const eventType = eventMatch[1]
+          let data
+          try {
+            data = JSON.parse(dataMatch[1])
+          } catch {
+            continue
+          }
+
+          switch (eventType) {
+            case 'asr':
+              callbacks.onASR?.(data.text)
+              break
+            case 'sentence':
+              callbacks.onSentence?.(data)
+              break
+            case 'corrections':
+              callbacks.onCorrections?.(data)
+              break
+            case 'done':
+              callbacks.onDone?.(data)
+              break
+            case 'error':
+              callbacks.onError?.(data.message)
+              break
+          }
+        }
+      }
+    })
+    .catch((err) => {
+      if (err.name !== 'AbortError') {
+        callbacks.onError?.(err.message)
+      }
+    })
+
+  return controller
 }
 
 /**
