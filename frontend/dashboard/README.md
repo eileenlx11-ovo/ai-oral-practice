@@ -1,8 +1,18 @@
-# 进步看板
+# Progress Dashboard
 
-（朋友负责）
+Interactive progress visualization built with Vue 3 + Chart.js.
 
-## 模块职责
-- 历史评分趋势图表
-- 统计卡片展示
-- 课后总结报告页面
+## Features
+
+- Summary cards: total sessions, turns spoken, corrections received, avg pronunciation
+- Score trend line chart (pronunciation, fluency, accuracy over time)
+- Session history list with click-to-detail
+- Session detail modal: per-session report with common error patterns
+
+## Data Source
+
+Fetches from backend APIs:
+
+- `GET /api/progress` — aggregated metrics
+- `GET /api/sessions` — session list
+- `GET /api/sessions/:id/summary` — detailed report
