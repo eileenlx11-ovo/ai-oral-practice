@@ -92,7 +92,10 @@ const messages = ref([])
 const messagesRef = ref(null)
 const loadingGreeting = ref(true)
 const showRetry = ref(false)
-let sessionId = ''
+// Accept a pre-created session handed off from an external tool (e.g.
+// talent-agent's custom interview). When present, /api/stream reuses this
+// session and honors its custom interviewer prompt.
+let sessionId = route.query.session_id || ''
 let currentAbort = null
 let audioQueue = []
 let currentAudio = null
