@@ -70,6 +70,18 @@ def test_progress_empty(tmp_store):
     assert progress["avg_pronunciation"] is None
 
 
+def test_create_custom_session_stores_prompt(tmp_store):
+    session = tmp_store.create_session("interview", custom_prompt="SYS PROMPT")
+    assert session["custom_prompt"] == "SYS PROMPT"
+    loaded = tmp_store.get_session(session["id"])
+    assert loaded["custom_prompt"] == "SYS PROMPT"
+
+
+def test_create_session_defaults_custom_prompt_none(tmp_store):
+    session = tmp_store.create_session("smalltalk")
+    assert session["custom_prompt"] is None
+
+
 def test_progress_with_data(tmp_store):
     s1 = tmp_store.create_session("interview")
     tmp_store.add_turn(s1["id"], "u", "r", [], {"pronunciation_score": 70.0, "fluency_score": 75.0, "accuracy_score": 72.0})

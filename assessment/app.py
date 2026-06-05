@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from openai import AsyncOpenAI
 
-from .scenarios import SCENARIOS, VOICES, get_system_prompt
+from .scenarios import SCENARIOS, VOICES, get_system_prompt, build_custom_interview_prompt
 from .correction import extract_corrections
 from .scoring import assess_pronunciation
 from .feedback import store
@@ -155,6 +155,13 @@ async def chat_stream(
     if not session_id:
         session = store.create_session(scenario)
         session_id = session["id"]
+
+    # Resolve system prompt: session-level custom prompt overrides scenario prompt.
+    existing = store.get_session(session_id)
+    if existing and existing.get("custom_prompt"):
+        system_prompt = existing["custom_prompt"]
+    else:
+        system_prompt = get_system_prompt(scenario)
 
     # Read audio
     audio_bytes = await audio.read()
@@ -395,6 +402,29 @@ async def create_session(scenario: str = Form("smalltalk")):
     """Start a new practice session."""
     session = store.create_session(scenario)
     return {"session_id": session["id"]}
+
+
+@app.post("/api/sessions/custom")
+async def create_custom_session(
+    jd_text: str = Form(""),
+    resume_text: str = Form(""),
+    project_context: str = Form(""),
+):
+    """Start a customized interview session.
+
+    Builds an interviewer prompt from a job description, candidate background,
+    and/or project context. Designed to be called by external tools (e.g.
+    talent-agent). The resulting session_id is used with /api/stream as usual;
+    the stream endpoint will pick up this session's custom prompt automatically.
+    """
+    if not (jd_text.strip() or resume_text.strip() or project_context.strip()):
+        raise HTTPException(400, "At least one of jd_text, resume_text, or project_context is required")
+    prompt = build_custom_interview_prompt(jd_text, resume_text, project_context)
+    session = store.create_session("interview", custom_prompt=prompt)
+    return {
+        "session_id": session["id"],
+        "greeting": "Hello! Thanks for coming in today. I've reviewed the role and your background. To start, could you walk me through your experience and why this position interests you?",
+    }
 
 
 @app.post("/api/sessions/{session_id}/turns")

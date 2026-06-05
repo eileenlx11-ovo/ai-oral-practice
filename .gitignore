@@ -24,3 +24,5 @@ Thumbs.db
 
 # Data
 data/
+assessment/audio_cache/
+.claude/
