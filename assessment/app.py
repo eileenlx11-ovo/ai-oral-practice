@@ -44,9 +44,10 @@ app.add_middleware(
 # Serve cached TTS audio
 app.mount("/audio", StaticFiles(directory=str(AUDIO_DIR)), name="audio")
 
-# LLM client
+# LLM client (lazy — allows server to start without key for dev/testing)
+_api_key = os.getenv("LLM_API_KEY", "") or "sk-placeholder"
 llm = AsyncOpenAI(
-    api_key=os.getenv("LLM_API_KEY", ""),
+    api_key=_api_key,
     base_url=os.getenv("LLM_BASE_URL", "https://api.openai.com/v1"),
 )
 LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
