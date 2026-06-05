@@ -38,11 +38,8 @@
       <button
         class="record-btn"
         :class="{ active: isRecording, playing: state === 'PLAYING' }"
-        :disabled="state === 'PROCESSING'"
-        @mousedown="handlePress"
-        @mouseup="handleRelease"
-        @touchstart.prevent="handlePress"
-        @touchend.prevent="handleRelease"
+        :disabled="state === 'PROCESSING' || state === 'STREAMING'"
+        @click="handleToggle"
       >
         🎙️ {{ buttonText }}
       </button>
@@ -73,7 +70,13 @@ let currentAudio = null
 
 const { start, stop, isRecording } = useRecorder({
   silenceMs: CONFIG.AUDIO.VAD_SILENCE_MS,
-  onSilence: () => handleRelease(),
+  onSilence: async () => {
+    if (state.value !== 'RECORDING') return
+    const blob = await stop()
+    if (!blob) { state.value = 'IDLE'; return }
+    state.value = 'PROCESSING'
+    sendStreaming(blob)
+  },
 })
 
 const statusClass = computed(() => ({
@@ -84,37 +87,42 @@ const statusClass = computed(() => ({
 
 const statusText = computed(() => {
   switch (state.value) {
-    case 'RECORDING': return '🔴 录音中...'
+    case 'RECORDING': return '🔴 录音中（点击或静音自动停止）'
     case 'PROCESSING': return '⏳ 识别中...'
     case 'STREAMING': return '💬 生成中...'
-    case 'PLAYING': return '🔊 回复中（按住打断）'
-    default: return '⏸️ 按住说话'
+    case 'PLAYING': return '🔊 回复中（点击打断）'
+    default: return '⏸️ 点击开始录音'
   }
 })
 
 const buttonText = computed(() => {
   switch (state.value) {
-    case 'RECORDING': return '松开发送'
+    case 'RECORDING': return '点击停止'
     case 'PROCESSING': return '处理中...'
     case 'STREAMING': return '生成中...'
-    case 'PLAYING': return '按住打断'
-    default: return '按住说话'
+    case 'PLAYING': return '点击打断'
+    default: return '点击录音'
   }
 })
 
-async function handlePress() {
-  if (state.value === 'PROCESSING' || state.value === 'STREAMING') return
-  if (state.value === 'PLAYING') interrupt()
-  state.value = 'RECORDING'
-  await start()
-}
-
-async function handleRelease() {
-  if (!isRecording.value) return
-  const blob = await stop()
-  if (!blob) { state.value = 'IDLE'; return }
-  state.value = 'PROCESSING'
-  sendStreaming(blob)
+async function handleToggle() {
+  if (state.value === 'PLAYING') {
+    interrupt()
+    return
+  }
+  if (state.value === 'RECORDING') {
+    // Stop recording and send
+    const blob = await stop()
+    if (!blob) { state.value = 'IDLE'; return }
+    state.value = 'PROCESSING'
+    sendStreaming(blob)
+    return
+  }
+  // Start recording
+  if (state.value === 'IDLE') {
+    state.value = 'RECORDING'
+    await start()
+  }
 }
 
 function interrupt() {
