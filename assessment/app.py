@@ -73,14 +73,21 @@ async def chat(
     audio: UploadFile = File(...),
     scenario: str = Form("smalltalk"),
     history: str = Form("[]"),
+    session_id: str = Form(""),
 ):
     """
     Main conversation endpoint:
     1. ASR: transcribe user audio via Whisper API
     2. LLM: generate contextual reply with grammar corrections
     3. TTS: synthesize reply audio
-    Returns user_text, reply_text, corrections, reply_audio_url
+    4. Auto-save turn to session (if session_id provided)
+    Returns user_text, reply_text, corrections, reply_audio_url, session_id
     """
+    # Auto-create session if not provided
+    if not session_id:
+        session = store.create_session(scenario)
+        session_id = session["id"]
+
     # 1. Save uploaded audio to temp file
     audio_bytes = await audio.read()
     suffix = ".webm" if "webm" in (audio.content_type or "") else ".wav"
@@ -103,12 +110,19 @@ async def chat(
         # 4. TTS synthesis
         audio_url = await _synthesize_tts(reply_text)
 
+        # 5. Auto-save turn to session
+        try:
+            store.add_turn(session_id, user_text, reply_text, corrections)
+        except ValueError:
+            pass  # session not found, non-critical
+
         return {
             "user_text": user_text,
             "reply_text": reply_text,
             "reply_audio_url": audio_url,
             "corrections": corrections,
             "pronunciation": None,  # filled by /api/assess later
+            "session_id": session_id,
         }
     finally:
         os.unlink(tmp.name)
@@ -130,11 +144,18 @@ async def asr_only(audio: UploadFile = File(...)):
 
 # --- Internal helpers ---
 
+# ASR client (Groq Whisper — free, fast, OpenAI-compatible)
+_asr_client = AsyncOpenAI(
+    api_key=os.getenv("GROQ_API_KEY", "") or "sk-placeholder",
+    base_url="https://api.groq.com/openai/v1",
+)
+
+
 async def _transcribe(filepath: str) -> str:
-    """Transcribe audio file using OpenAI Whisper API."""
+    """Transcribe audio file using Groq Whisper (free, fast)."""
     with open(filepath, "rb") as f:
-        resp = await llm.audio.transcriptions.create(
-            model="whisper-1",
+        resp = await _asr_client.audio.transcriptions.create(
+            model="whisper-large-v3",
             file=f,
             language="en",
         )
@@ -171,17 +192,15 @@ async def _chat_with_correction(
 
 
 async def _synthesize_tts(text: str) -> str | None:
-    """Generate TTS audio via OpenAI TTS API. Returns URL path or None."""
+    """Generate TTS audio via edge-tts (free Microsoft voices). Returns URL path or None."""
     try:
+        import edge_tts
+
         filename = f"{uuid.uuid4().hex}.mp3"
         filepath = AUDIO_DIR / filename
 
-        resp = await llm.audio.speech.create(
-            model="tts-1",
-            voice="nova",
-            input=text,
-        )
-        resp.stream_to_file(str(filepath))
+        communicate = edge_tts.Communicate(text, voice="en-US-JennyNeural")
+        await communicate.save(str(filepath))
         return f"/audio/{filename}"
     except Exception:
         # TTS failure is non-critical; frontend falls back to text-only
