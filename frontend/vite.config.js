@@ -12,6 +12,10 @@ export default defineConfig({
       '@dashboard': path.resolve(__dirname, 'dashboard'),
     },
   },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
   server: {
     port: 3000,
     proxy: {

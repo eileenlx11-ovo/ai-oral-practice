@@ -1,5 +1,8 @@
 <template>
   <div class="chat-view">
+    <!-- Toast notification -->
+    <Toast :message="toast.message" :type="toast.type" @close="toast.message = ''" />
+
     <header class="chat-header">
       <button @click="$router.push('/')" class="back-btn">← 返回</button>
       <h2>{{ scenarioName }}</h2>
@@ -9,6 +12,14 @@
     </header>
 
     <div class="messages" ref="messagesRef">
+      <!-- Loading skeleton for initial greeting -->
+      <div v-if="loadingGreeting" class="message assistant">
+        <div class="bubble skeleton">
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line short"></div>
+        </div>
+      </div>
+
       <div
         v-for="(msg, i) in messages"
         :key="i"
@@ -32,6 +43,13 @@
           </div>
         </div>
       </div>
+
+      <!-- Processing indicator -->
+      <div v-if="state === 'PROCESSING'" class="message assistant">
+        <div class="bubble typing-indicator">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
     </div>
 
     <div class="controls">
@@ -43,16 +61,25 @@
       >
         🎙️ {{ buttonText }}
       </button>
+      <!-- Retry button on error -->
+      <button
+        v-if="showRetry"
+        class="retry-btn"
+        @click="retryLast"
+      >
+        🔄 重试
+      </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRecorder } from '../../voice/audio/useRecorder'
 import { streamChat } from '../../voice/asr/service'
 import { CONFIG } from '../../shared/config'
+import Toast from '../components/Toast.vue'
 
 const route = useRoute()
 const scenarioId = route.params.scenario
@@ -63,10 +90,21 @@ const scenarioName = scenario ? `${scenario.icon} ${scenario.name}` : scenarioId
 const state = ref('IDLE')
 const messages = ref([])
 const messagesRef = ref(null)
+const loadingGreeting = ref(true)
+const showRetry = ref(false)
 let sessionId = ''
 let currentAbort = null
 let audioQueue = []
 let currentAudio = null
+let lastBlob = null // For retry
+
+// Toast state
+const toast = reactive({ message: '', type: 'info' })
+
+function showToast(message, type = 'error') {
+  toast.message = message
+  toast.type = type
+}
 
 const { start, stop, isRecording } = useRecorder({
   silenceMs: CONFIG.AUDIO.VAD_SILENCE_MS,
@@ -112,7 +150,6 @@ async function handleToggle() {
     return
   }
   if (state.value === 'RECORDING') {
-    // Stop recording and send
     const blob = await stop()
     console.log('[toggle] stopped, blob:', blob?.size)
     if (!blob) { state.value = 'IDLE'; return }
@@ -120,8 +157,8 @@ async function handleToggle() {
     sendStreaming(blob)
     return
   }
-  // Start recording
   if (state.value === 'IDLE') {
+    showRetry.value = false
     state.value = 'RECORDING'
     try {
       await start()
@@ -129,10 +166,7 @@ async function handleToggle() {
     } catch (err) {
       console.error('[toggle] mic error:', err)
       state.value = 'IDLE'
-      messages.value.push({
-        role: 'assistant',
-        text: '⚠️ 麦克风权限被拒绝，请点击地址栏左侧的🔒图标，允许麦克风访问后刷新页面。',
-      })
+      showToast('麦克风权限被拒绝，请在浏览器设置中允许麦克风访问', 'warning')
       scrollToBottom()
     }
   }
@@ -145,7 +179,15 @@ function interrupt() {
   state.value = 'IDLE'
 }
 
+function retryLast() {
+  if (!lastBlob) return
+  showRetry.value = false
+  state.value = 'PROCESSING'
+  sendStreaming(lastBlob)
+}
+
 function sendStreaming(blob) {
+  lastBlob = blob // Save for retry
   console.log('[stream] sending blob:', blob.size, 'bytes')
   const history = messages.value
     .filter((m) => m.text && !m.text.startsWith('❌'))
@@ -191,10 +233,10 @@ function sendStreaming(blob) {
     },
     onError(msg) {
       console.error('[stream] ERROR:', msg)
-      messages.value.push({ role: 'user', text: `❌ ${msg}` })
+      showToast(msg || '网络请求失败，请检查网络连接', 'error')
+      showRetry.value = true
       state.value = 'IDLE'
       currentAbort = null
-      scrollToBottom()
     },
   })
 }
@@ -222,10 +264,13 @@ function scrollToBottom() {
 onMounted(async () => {
   try {
     const res = await fetch(`/api/scenarios/${scenarioId}`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
     messages.value.push({ role: 'assistant', text: data.greeting })
   } catch {
-    messages.value.push({ role: 'assistant', text: `Welcome! Let's practice English. Press and hold the button to speak.` })
+    messages.value.push({ role: 'assistant', text: `Welcome! Let's practice English. Press the button to speak.` })
+  } finally {
+    loadingGreeting.value = false
   }
 })
 
@@ -266,7 +311,7 @@ onUnmounted(() => { interrupt() })
 .corrected { font-weight: 600; }
 .explanation { opacity: 0.8; font-size: 0.8rem; margin-top: 0.1rem; }
 
-.controls { padding-top: 1rem; text-align: center; }
+.controls { padding-top: 1rem; text-align: center; display: flex; justify-content: center; gap: 0.75rem; }
 
 .record-btn {
   padding: 1rem 2.5rem; border-radius: 50px; border: 2px solid #1f4e79;
@@ -276,4 +321,40 @@ onUnmounted(() => { interrupt() })
 .record-btn.active { background: #e53935; border-color: #e53935; color: white; transform: scale(1.05); }
 .record-btn.playing { background: #1f4e79; border-color: #1f4e79; color: white; }
 .record-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.retry-btn {
+  padding: 0.75rem 1.5rem; border-radius: 50px; border: 2px solid #f57c00;
+  background: #fff3e0; color: #e65100; font-size: 0.95rem; cursor: pointer;
+  transition: all 0.2s;
+}
+.retry-btn:hover { background: #ffe0b2; }
+
+/* Loading skeleton */
+.skeleton { min-width: 200px; }
+.skeleton-line {
+  height: 0.9rem; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite;
+  border-radius: 4px; margin-bottom: 0.5rem;
+}
+.skeleton-line.short { width: 60%; }
+
+/* Typing indicator */
+.typing-indicator {
+  display: flex; gap: 4px; padding: 0.8rem 1.2rem; align-items: center;
+}
+.typing-indicator span {
+  width: 8px; height: 8px; border-radius: 50%; background: #999;
+  animation: typing 1.2s infinite;
+}
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes typing {
+  0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+  30% { opacity: 1; transform: scale(1); }
+}
 </style>
