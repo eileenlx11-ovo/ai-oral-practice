@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from openai import AsyncOpenAI
 
-from .scenarios import SCENARIOS, get_system_prompt
+from .scenarios import SCENARIOS, VOICES, get_system_prompt
 from .correction import extract_corrections
 from .scoring import assess_pronunciation
 from .feedback import store
@@ -60,6 +60,11 @@ LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
 @app.get("/api/scenarios")
 async def list_scenarios():
     return SCENARIOS
+
+
+@app.get("/api/voices")
+async def list_voices():
+    return VOICES
 
 
 @app.get("/api/scenarios/{scenario_id}")
@@ -136,6 +141,7 @@ async def chat_stream(
     scenario: str = Form("smalltalk"),
     history: str = Form("[]"),
     session_id: str = Form(""),
+    voice: str = Form("american_female"),
 ):
     """
     Streaming chat endpoint (SSE).
@@ -158,6 +164,7 @@ async def chat_stream(
     tmp.close()
 
     chat_history = json.loads(history)
+    tts_voice = VOICES.get(voice, VOICES["american_female"])["id"]
 
     async def event_generator():
         try:
@@ -196,14 +203,14 @@ async def chat_stream(
                     # Check for complete sentences
                     sentences = splitter.feed(token)
                     for sent in sentences:
-                        # Only TTS the reply portion (skip [CORRECTIONS] section)
-                        if "[CORRECTIONS]" in full_reply:
+                        # Stop emitting once we hit corrections section
+                        if "[CORRECTIONS]" in full_reply or "[END]" in full_reply:
                             break
-                        # Strip LLM format markers
-                        clean = sent["text"].replace("[REPLY]", "").replace("[END]", "").strip()
+                        # Strip LLM format markers and detect leaked corrections
+                        clean = _clean_sentence(sent["text"])
                         if not clean:
                             continue
-                        audio_url = await synthesize_sentence(clean)
+                        audio_url = await synthesize_sentence(clean, voice=tts_voice)
                         yield _sse("sentence", {
                             "index": sent["index"],
                             "text": clean,
@@ -212,10 +219,10 @@ async def chat_stream(
 
             # Flush remaining buffer
             remaining = splitter.flush()
-            if remaining and "[CORRECTIONS]" not in remaining["text"]:
-                clean = remaining["text"].replace("[REPLY]", "").replace("[END]", "").strip()
+            if remaining and "[CORRECTIONS]" not in remaining["text"] and "[END]" not in remaining["text"]:
+                clean = _clean_sentence(remaining["text"])
                 if clean:
-                    audio_url = await synthesize_sentence(clean)
+                    audio_url = await synthesize_sentence(clean, voice=tts_voice)
                     yield _sse("sentence", {
                         "index": remaining["index"],
                         "text": clean,
@@ -252,6 +259,24 @@ async def chat_stream(
     )
 
 
+def _clean_sentence(text: str) -> str:
+    """Strip format markers and detect leaked correction content."""
+    import re
+    # Remove format tags
+    text = text.replace("[REPLY]", "").replace("[END]", "").replace("[CORRECTIONS]", "")
+    # If it looks like a correction line (has → or starts with -"), skip it
+    if "→" in text or text.strip().startswith('- "') or text.strip() == "NONE":
+        return ""
+    # If it contains pipe-separated correction patterns, strip from first |
+    if " | " in text and ("→" in text or "mispronunciation" in text.lower()):
+        text = text.split(" | ")[0]
+    text = text.strip()
+    # Skip very short fragments
+    if len(text) < 4:
+        return ""
+    return text
+
+
 def _sse(event: str, data) -> str:
     """Format a Server-Sent Event."""
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
@@ -286,7 +311,6 @@ async def _transcribe(filepath: str) -> str:
         resp = await _asr_client.audio.transcriptions.create(
             model="FunAudioLLM/SenseVoiceSmall",
             file=f,
-            language="en",
         )
     return resp.text
 
