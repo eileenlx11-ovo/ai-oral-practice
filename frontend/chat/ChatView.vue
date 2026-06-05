@@ -71,7 +71,7 @@ let currentAudio = null
 const { start, stop, isRecording } = useRecorder({
   silenceMs: CONFIG.AUDIO.VAD_SILENCE_MS,
   onSilence: async () => {
-    if (state.value !== 'RECORDING') return
+    if (state.value !== 'RECORDING' || !isRecording.value) return
     const blob = await stop()
     if (!blob) { state.value = 'IDLE'; return }
     state.value = 'PROCESSING'
@@ -106,6 +106,7 @@ const buttonText = computed(() => {
 })
 
 async function handleToggle() {
+  console.log('[toggle] state:', state.value, 'isRecording:', isRecording.value)
   if (state.value === 'PLAYING') {
     interrupt()
     return
@@ -113,6 +114,7 @@ async function handleToggle() {
   if (state.value === 'RECORDING') {
     // Stop recording and send
     const blob = await stop()
+    console.log('[toggle] stopped, blob:', blob?.size)
     if (!blob) { state.value = 'IDLE'; return }
     state.value = 'PROCESSING'
     sendStreaming(blob)
@@ -121,7 +123,18 @@ async function handleToggle() {
   // Start recording
   if (state.value === 'IDLE') {
     state.value = 'RECORDING'
-    await start()
+    try {
+      await start()
+      console.log('[toggle] recording started')
+    } catch (err) {
+      console.error('[toggle] mic error:', err)
+      state.value = 'IDLE'
+      messages.value.push({
+        role: 'assistant',
+        text: '⚠️ 麦克风权限被拒绝，请点击地址栏左侧的🔒图标，允许麦克风访问后刷新页面。',
+      })
+      scrollToBottom()
+    }
   }
 }
 
@@ -133,6 +146,7 @@ function interrupt() {
 }
 
 function sendStreaming(blob) {
+  console.log('[stream] sending blob:', blob.size, 'bytes')
   const history = messages.value
     .filter((m) => m.text && !m.text.startsWith('❌'))
     .map((m) => ({ role: m.role, content: m.text }))
@@ -142,11 +156,13 @@ function sendStreaming(blob) {
 
   currentAbort = streamChat(blob, scenarioId, history, sessionId, {
     onASR(text) {
+      console.log('[stream] ASR:', text)
       messages.value.push({ role: 'user', text, corrections: [] })
       scrollToBottom()
       state.value = 'STREAMING'
     },
     onSentence(data) {
+      console.log('[stream] sentence:', data.text)
       if (aiMsgIndex === -1) {
         messages.value.push({ role: 'assistant', text: data.text, audio: data.audio_url, corrections: [] })
         aiMsgIndex = messages.value.length - 1
@@ -174,6 +190,7 @@ function sendStreaming(blob) {
       if (audioQueue.length === 0 && state.value !== 'PLAYING') state.value = 'IDLE'
     },
     onError(msg) {
+      console.error('[stream] ERROR:', msg)
       messages.value.push({ role: 'user', text: `❌ ${msg}` })
       state.value = 'IDLE'
       currentAbort = null
