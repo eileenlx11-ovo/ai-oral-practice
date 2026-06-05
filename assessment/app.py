@@ -17,6 +17,7 @@ from openai import AsyncOpenAI
 
 from .scenarios import SCENARIOS, get_system_prompt
 from .correction import extract_corrections
+from .scoring import assess_pronunciation
 
 load_dotenv()
 
@@ -183,3 +184,31 @@ async def _synthesize_tts(text: str) -> str | None:
     except Exception:
         # TTS failure is non-critical; frontend falls back to text-only
         return None
+
+
+@app.post("/api/assess")
+async def assess(
+    audio: UploadFile = File(...),
+    reference_text: str = Form(...),
+):
+    """
+    Pronunciation assessment endpoint.
+    Compares user audio against a reference text using Azure Speech SDK.
+    Returns per-word accuracy scores and overall metrics.
+    """
+    audio_bytes = await audio.read()
+    suffix = ".wav" if "wav" in (audio.content_type or "") else ".webm"
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    tmp.write(audio_bytes)
+    tmp.close()
+
+    try:
+        result = await assess_pronunciation(tmp.name, reference_text)
+        if result is None:
+            raise HTTPException(
+                503,
+                "Pronunciation assessment unavailable (Azure Speech not configured)",
+            )
+        return result
+    finally:
+        os.unlink(tmp.name)
