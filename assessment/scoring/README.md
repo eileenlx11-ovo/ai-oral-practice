@@ -1,8 +1,14 @@
-# 发音评测与语法纠错
+# Pronunciation Scoring
 
-（朋友负责）
+Azure Speech Pronunciation Assessment integration.
 
-## 模块职责
-- 音素级发音打分
-- 流利度 / 语调评估
-- 语法 & 表达纠错
+## API
+
+- `POST /api/assess` — Evaluate pronunciation of a known reference text
+  - Input: `audio` (file), `reference_text` (str)
+  - Output: `PronunciationScore` (accuracy, fluency, completeness, per-word scores)
+
+## Implementation
+
+Uses Azure Cognitive Services Speech SDK for phoneme-level assessment.
+Scoring dimensions: accuracy, fluency, completeness, prosody.

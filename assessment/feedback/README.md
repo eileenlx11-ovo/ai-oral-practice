@@ -1,8 +1,13 @@
-# 课后总结与进步追踪
+# Feedback & Progress Tracking
 
-（朋友负责）
+Post-session summaries and longitudinal progress data.
 
-## 模块职责
-- 课后总结报告生成
-- 历史评分趋势
-- 进步数据统计
+## API
+
+- `GET /api/sessions` — List all past practice sessions with scores
+- `GET /api/sessions/:id/summary` — Detailed session report
+- `GET /api/progress` — Aggregated progress metrics over time
+
+## Data
+
+Sessions stored as JSON files in `data/sessions/` (MVP, upgrade to SQLite if needed).
