@@ -11,9 +11,9 @@ export const CONFIG = {
     VAD_SILENCE_MS: 1500, // 静音超过此时间自动截断
   },
 
-  // API 端点
+  // API endpoints (proxied by Vite in dev, Nginx in prod)
   API: {
-    BASE_URL: import.meta.env?.VITE_API_BASE || 'http://localhost:8000',
+    BASE_URL: import.meta.env?.VITE_API_BASE || '',
     CHAT: '/api/chat',
     ASSESS: '/api/assess',
     SCENARIOS: '/api/scenarios',
