@@ -18,6 +18,7 @@ from openai import AsyncOpenAI
 from .scenarios import SCENARIOS, get_system_prompt
 from .correction import extract_corrections
 from .scoring import assess_pronunciation
+from .feedback import store
 
 load_dotenv()
 
@@ -212,3 +213,60 @@ async def assess(
         return result
     finally:
         os.unlink(tmp.name)
+
+
+# --- Session & Progress APIs ---
+
+@app.post("/api/sessions")
+async def create_session(scenario: str = Form("smalltalk")):
+    """Start a new practice session."""
+    session = store.create_session(scenario)
+    return {"session_id": session["id"]}
+
+
+@app.post("/api/sessions/{session_id}/turns")
+async def add_session_turn(
+    session_id: str,
+    user_text: str = Form(...),
+    reply_text: str = Form(...),
+    corrections: str = Form("[]"),
+    pronunciation: str = Form("null"),
+):
+    """Record a conversation turn to the session."""
+    try:
+        corr_list = json.loads(corrections)
+        pron_data = json.loads(pronunciation)
+        turn = store.add_turn(session_id, user_text, reply_text, corr_list, pron_data)
+        return turn
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.post("/api/sessions/{session_id}/end")
+async def end_session(session_id: str):
+    """End session and get summary report."""
+    try:
+        return store.end_session(session_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.get("/api/sessions")
+async def list_sessions(limit: int = 20, offset: int = 0):
+    """List past practice sessions."""
+    return store.list_sessions(limit=limit, offset=offset)
+
+
+@app.get("/api/sessions/{session_id}/summary")
+async def get_session_summary(session_id: str):
+    """Get detailed summary for a specific session."""
+    try:
+        return store.get_summary(session_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@app.get("/api/progress")
+async def get_progress():
+    """Get aggregated progress metrics across all sessions."""
+    return store.get_progress()
