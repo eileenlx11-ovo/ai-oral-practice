@@ -5,6 +5,7 @@ import App from './App.vue'
 const routes = [
   { path: '/', name: 'Home', component: () => import('../chat/HomeView.vue') },
   { path: '/chat/:scenario', name: 'Chat', component: () => import('../chat/ChatView.vue') },
+  { path: '/pronunciation', name: 'Pronunciation', component: () => import('../pronunciation/PronunciationView.vue') },
   { path: '/dashboard', name: 'Dashboard', component: () => import('../dashboard/DashboardView.vue') },
 ]
 
