@@ -1,9 +1,10 @@
 """Pronunciation assessment — multi-provider dispatcher.
 
-Tries providers in priority order and returns the first real result:
-    Azure (strongest: prosody + phoneme + miscue)
-      → Tencent SOE (domestic fallback, China-accessible)
-      → mock (always available; lets the UI work with no keys)
+Two tiers:
+  - Standard (daily practice): Tencent SOE → mock
+    Lower latency, generous quota, word-level scoring.
+  - Advanced (detailed diagnosis): Azure → SOE → mock
+    Prosody + miscue detection + phoneme scoring. Uses Azure F0 quota.
 
 Each provider module exposes:
     available() -> bool
@@ -19,8 +20,10 @@ import os
 
 from . import azure, tencent, mock
 
-# Order = preference. mock is last so it only fires when nothing else can.
-_PROVIDERS = [azure, tencent, mock]
+# Standard: SOE first (low latency, quota-friendly), mock as fallback.
+_STANDARD_PROVIDERS = [tencent, mock]
+# Advanced: Azure first (prosody + miscue), SOE and mock as fallback.
+_ADVANCED_PROVIDERS = [azure, tencent, mock]
 
 
 def _allow_mock() -> bool:
@@ -30,9 +33,10 @@ def _allow_mock() -> bool:
     return os.getenv("PRONUNCIATION_ALLOW_MOCK", "1") != "0"
 
 
-def active_provider() -> str | None:
+def active_provider(advanced: bool = False) -> str | None:
     """Name of the provider that would handle a request right now (or None)."""
-    for p in _PROVIDERS:
+    providers = _ADVANCED_PROVIDERS if advanced else _STANDARD_PROVIDERS
+    for p in providers:
         if p is mock and not _allow_mock():
             continue
         if p.available():
@@ -40,10 +44,17 @@ def active_provider() -> str | None:
     return None
 
 
-async def assess_pronunciation(audio_path: str, reference_text: str) -> dict | None:
-    """Run assessment through the first available provider. Returns None if
-    none can serve (real providers unconfigured AND mock disabled)."""
-    for p in _PROVIDERS:
+async def assess_pronunciation(
+    audio_path: str, reference_text: str, *, advanced: bool = False
+) -> dict | None:
+    """Run assessment through the first available provider.
+
+    advanced=False (default): daily practice, SOE priority.
+    advanced=True: detailed diagnosis with prosody/miscue (Azure priority).
+    Returns None if no provider can serve.
+    """
+    providers = _ADVANCED_PROVIDERS if advanced else _STANDARD_PROVIDERS
+    for p in providers:
         if p is mock and not _allow_mock():
             continue
         if not p.available():

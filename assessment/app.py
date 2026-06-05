@@ -371,11 +371,13 @@ async def _synthesize_tts(text: str) -> str | None:
 async def assess(
     audio: UploadFile = File(...),
     reference_text: str = Form(...),
+    advanced: str = Form("false"),
 ):
     """
     Pronunciation assessment endpoint.
-    Compares user audio against a reference text using Azure Speech SDK.
-    Returns per-word accuracy scores and overall metrics.
+
+    advanced=false (default): SOE priority, daily practice.
+    advanced=true: Azure priority, prosody + miscue detailed diagnosis.
     """
     audio_bytes = await audio.read()
     suffix = ".wav" if "wav" in (audio.content_type or "") else ".webm"
@@ -383,8 +385,9 @@ async def assess(
     tmp.write(audio_bytes)
     tmp.close()
 
+    use_advanced = advanced.lower() in ("true", "1", "yes")
     try:
-        result = await assess_pronunciation(tmp.name, reference_text)
+        result = await assess_pronunciation(tmp.name, reference_text, advanced=use_advanced)
         if result is None:
             raise HTTPException(
                 503,
@@ -397,16 +400,19 @@ async def assess(
 
 @app.get("/api/assess/status")
 async def assess_status():
-    """Report which pronunciation provider is currently active (or null).
+    """Report which pronunciation providers are active for each tier.
 
-    Lets the frontend enable/disable the pronunciation feature and show
-    whether scores are real (azure/tencent) or placeholder (mock).
+    standard: daily practice (SOE priority).
+    advanced: detailed diagnosis (Azure priority, has prosody/miscue).
     """
-    provider = active_provider()
+    std = active_provider(advanced=False)
+    adv = active_provider(advanced=True)
     return {
-        "available": provider is not None,
-        "provider": provider,
-        "is_mock": provider == "mock",
+        "available": std is not None,
+        "provider": std,
+        "is_mock": std == "mock",
+        "advanced_available": adv is not None and adv != "mock",
+        "advanced_provider": adv,
     }
 
 
