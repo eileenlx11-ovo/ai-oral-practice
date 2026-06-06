@@ -102,6 +102,9 @@ export function streamChat(audioBlob, scenario, history = [], sessionId = '', ca
             case 'feedback':
               callbacks.onFeedback?.(data)
               break
+            case 'pronunciation':
+              callbacks.onPronunciation?.(data)
+              break
             case 'done':
               callbacks.onDone?.(data)
               break

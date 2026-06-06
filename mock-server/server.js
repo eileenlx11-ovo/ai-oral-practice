@@ -209,6 +209,16 @@ app.get('/api/scenarios/:id', (req, res) => {
   res.json(s)
 })
 
+app.get('/api/scenarios/:id/sentences', (req, res) => {
+  const mockSentences = {
+    coffee_shop: ["I'd like a medium latte with oat milk, please.", "Could I also get a blueberry muffin to go?", "Do you have any seasonal specials today?"],
+    interview: ["I have three years of experience in software development.", "My biggest strength is my ability to learn quickly.", "I led a team of five engineers on that project."],
+    default: ["I would like to practice my English pronunciation.", "Could you help me with this, please?", "Thank you for your time today."],
+  }
+  const sentences = mockSentences[req.params.id] || mockSentences.default
+  res.json({ scenario_id: req.params.id, sentences })
+})
+
 // --- ASR (transcription only) ---
 app.post('/api/asr', upload.single('audio'), (req, res) => {
   // Simulate delay
@@ -292,10 +302,13 @@ app.post('/api/assess', upload.single('audio'), (req, res) => {
 
   setTimeout(() => {
     res.json({
-      overall: Math.floor(70 + Math.random() * 25),
+      pronunciation_score: Math.floor(70 + Math.random() * 25),
+      accuracy_score: Math.floor(65 + Math.random() * 30),
+      fluency_score: Math.floor(60 + Math.random() * 35),
+      completeness_score: Math.floor(75 + Math.random() * 25),
       words: words.map((w) => ({
         word: w,
-        accuracy: Math.floor(60 + Math.random() * 40),
+        accuracy_score: Math.floor(55 + Math.random() * 45),
         error_type: Math.random() > 0.8 ? 'mispronunciation' : 'none',
       })),
     })
@@ -343,6 +356,7 @@ app.post('/api/sessions/:id/end', (req, res) => {
       { pattern: 'Subject-verb agreement', count: 2 },
       { pattern: 'Article usage', count: 1 },
     ],
+    report: '本次面试练习表现不错，共完成6轮对话。主要问题集中在主谓一致和冠词使用上，建议多关注第三人称单数的动词变化。整体流利度良好，继续保持每天练习的节奏！',
   })
 })
 

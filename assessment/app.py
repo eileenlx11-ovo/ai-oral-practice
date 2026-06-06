@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from openai import AsyncOpenAI
-from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, build_custom_interview_prompt
+from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, get_practice_sentences, build_custom_interview_prompt
 from .characters import get_character
 from .correction import extract_corrections
 from .scoring import assess_pronunciation, active_provider
@@ -87,6 +87,13 @@ async def get_scenario(scenario_id: str):
             character = get_character(scenario_id)
             return {**s, "character": character}
     raise HTTPException(404, f"Scenario '{scenario_id}' not found")
+
+
+@app.get("/api/scenarios/{scenario_id}/sentences")
+async def get_sentences(scenario_id: str):
+    """Get pronunciation practice sentences for a scenario."""
+    sentences = get_practice_sentences(scenario_id)
+    return {"scenario_id": scenario_id, "sentences": sentences}
 
 
 @app.post("/api/chat")
@@ -388,6 +395,39 @@ async def _synthesize_tts(text: str) -> str | None:
         return None
 
 
+async def _generate_session_report(summary: dict) -> str:
+    """Generate a narrative session report using LLM."""
+    try:
+        prompt = f"""Based on this English practice session data, write a brief coaching report in Chinese (3-5 sentences).
+
+Session info:
+- Scenario: {summary.get('scenario', 'unknown')}
+- Total turns: {summary.get('total_turns', 0)}
+- Total corrections: {summary.get('total_corrections', 0)}
+- Common errors: {summary.get('common_errors', [])}
+- Avg pronunciation: {summary.get('avg_pronunciation', 'N/A')}
+- Avg fluency: {summary.get('avg_fluency', 'N/A')}
+
+Write:
+1. One sentence summarizing overall performance
+2. One sentence about the main pattern of errors (if any)
+3. One specific, actionable suggestion for improvement
+Keep it encouraging but honest. Output only the report text, no headers."""
+
+        resp = await llm.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5,
+            max_tokens=300,
+        )
+        return resp.choices[0].message.content or ""
+    except Exception:
+        # Fallback if LLM unavailable
+        turns = summary.get('total_turns', 0)
+        corrections = summary.get('total_corrections', 0)
+        return f"本次练习共进行了 {turns} 轮对话，收到 {corrections} 条语法建议。继续保持练习节奏！"
+
+
 @app.post("/api/assess")
 async def assess(
     audio: UploadFile = File(...),
@@ -489,9 +529,14 @@ async def add_session_turn(
 
 @app.post("/api/sessions/{session_id}/end")
 async def end_session(session_id: str):
-    """End session and get summary report."""
+    """End session and get summary report with LLM-generated narrative."""
     try:
-        return store.end_session(session_id)
+        summary = store.end_session(session_id)
+
+        # Generate narrative report via LLM
+        report = await _generate_session_report(summary)
+        summary["report"] = report
+        return summary
     except ValueError as e:
         raise HTTPException(404, str(e))
 

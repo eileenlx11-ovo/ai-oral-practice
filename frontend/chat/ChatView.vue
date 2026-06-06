@@ -107,6 +107,50 @@
       >
         🔄 重试
       </button>
+
+      <!-- End session button -->
+      <button
+        v-if="state === 'IDLE' && turnCount >= 3"
+        class="end-btn"
+        @click="endSession"
+      >
+        📋 结束练习
+      </button>
+    </div>
+
+    <!-- Session Report Modal -->
+    <div v-if="showReport" class="modal-overlay" @click.self="showReport = false">
+      <div class="modal">
+        <h3>📋 本次练习报告</h3>
+        <div class="report-stats">
+          <div class="stat">
+            <span class="stat-value">{{ reportData.total_turns || 0 }}</span>
+            <span class="stat-label">对话轮次</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">{{ reportData.total_corrections || 0 }}</span>
+            <span class="stat-label">语法建议</span>
+          </div>
+          <div class="stat" v-if="reportData.avg_pronunciation">
+            <span class="stat-value">{{ reportData.avg_pronunciation?.toFixed(0) }}</span>
+            <span class="stat-label">发音评分</span>
+          </div>
+        </div>
+        <div v-if="reportData.report" class="report-narrative">
+          <p>{{ reportData.report }}</p>
+        </div>
+        <div v-if="reportData.common_errors?.length" class="report-errors">
+          <h4>常见问题：</h4>
+          <ul>
+            <li v-for="e in reportData.common_errors" :key="e.pattern">
+              {{ e.pattern }} (×{{ e.count }})
+            </li>
+          </ul>
+        </div>
+        <button class="modal-close-btn" @click="showReport = false; $router.push('/')">
+          返回首页
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -156,6 +200,10 @@ const correctionCount = computed(() =>
 
 // Toast state
 const toast = reactive({ message: '', type: 'info' })
+
+// Session report
+const showReport = ref(false)
+const reportData = ref({})
 
 function showToast(message, type = 'error') {
   toast.message = message
@@ -356,6 +404,21 @@ function scrollToBottom() {
   nextTick(() => { if (messagesRef.value) messagesRef.value.scrollTop = messagesRef.value.scrollHeight })
 }
 
+async function endSession() {
+  if (!sessionId) return
+  try {
+    const res = await fetch(`/api/sessions/${sessionId}/end`, { method: 'POST' })
+    if (res.ok) {
+      reportData.value = await res.json()
+      showReport.value = true
+    } else {
+      showToast('获取报告失败', 'error')
+    }
+  } catch {
+    showToast('网络错误', 'error')
+  }
+}
+
 onMounted(async () => {
   try {
     const res = await fetch(`/api/scenarios/${scenarioId}`)
@@ -521,4 +584,42 @@ onUnmounted(() => {
   0%, 100% { box-shadow: 0 0 0 0 rgba(31,78,121,0.4); }
   50% { box-shadow: 0 0 0 8px rgba(31,78,121,0); }
 }
+
+.end-btn {
+  padding: 0.6rem 1rem;
+  border-radius: 50px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.end-btn:hover { border-color: #1f4e79; color: #1f4e79; }
+
+/* Report modal */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.modal {
+  background: white; border-radius: 16px; padding: 2rem; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;
+}
+.modal h3 { color: #1f4e79; margin-bottom: 1.2rem; }
+.report-stats { display: flex; justify-content: center; gap: 2rem; margin-bottom: 1.5rem; }
+.stat { text-align: center; }
+.stat-value { display: block; font-size: 1.8rem; font-weight: 700; color: #1f4e79; }
+.stat-label { font-size: 0.8rem; color: #888; }
+.report-narrative {
+  background: #f8f9ff; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;
+  font-size: 0.9rem; line-height: 1.6; color: #333;
+}
+.report-errors { margin-bottom: 1rem; }
+.report-errors h4 { font-size: 0.9rem; color: #e65100; margin-bottom: 0.5rem; }
+.report-errors ul { padding-left: 1.2rem; }
+.report-errors li { font-size: 0.85rem; color: #555; margin-bottom: 0.3rem; }
+.modal-close-btn {
+  width: 100%; padding: 0.7rem; background: #1f4e79; color: white;
+  border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem;
+}
+.modal-close-btn:hover { background: #2a6399; }
 </style>
