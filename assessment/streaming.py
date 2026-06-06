@@ -74,7 +74,9 @@ def _azure_tts_available() -> bool:
 
 
 def _siliconflow_tts_available() -> bool:
-    return bool(os.getenv("SILICONFLOW_API_KEY", ""))
+    # Disabled: CosyVoice2 has non-native English pronunciation.
+    # Use edge-tts (Microsoft Neural) or Azure Speech for natural EN voices.
+    return False
 
 
 async def _synthesize_siliconflow(text: str, voice: str) -> str | None:

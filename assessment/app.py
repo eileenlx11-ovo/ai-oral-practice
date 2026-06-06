@@ -23,6 +23,7 @@ from .scoring import assess_pronunciation, active_provider
 from .feedback import store
 from .streaming import SentenceSplitter, synthesize_sentence
 from .hints import build_hint_messages
+from .grading import grade_session
 from .level_test import LEVEL_TEST_QUESTIONS, build_assessment_messages
 from .user_profile import profile_store, DEFAULT_USER_ID
 from .integrations.talent_agent import get_talent_agent
@@ -348,24 +349,49 @@ async def asr_only(audio: UploadFile = File(...)):
 
 # --- Internal helpers ---
 
-# ASR client (SiliconFlow — OpenAI-compatible, domestic)
+# ASR client — configurable provider (Groq Whisper / SiliconFlow / custom)
+_asr_base_url = os.getenv("ASR_BASE_URL", "https://api.groq.com/openai/v1")
+_asr_api_key = os.getenv("ASR_API_KEY") or os.getenv("GROQ_API_KEY") or os.getenv("SILICONFLOW_API_KEY") or "sk-placeholder"
+
+# Groq needs proxy in China; httpx picks up standard env vars (HTTPS_PROXY / ALL_PROXY)
+import httpx as _httpx
+_asr_http_client = None
+_proxy_url = os.getenv("HTTPS_PROXY") or os.getenv("ALL_PROXY") or os.getenv("HTTP_PROXY")
+if _proxy_url and "groq" in _asr_base_url:
+    _asr_http_client = _httpx.AsyncClient(proxy=_proxy_url)
+
 _asr_client = AsyncOpenAI(
-    api_key=os.getenv("SILICONFLOW_API_KEY", "") or "sk-placeholder",
-    base_url="https://api.siliconflow.cn/v1",
+    api_key=_asr_api_key,
+    base_url=_asr_base_url,
+    http_client=_asr_http_client,
 )
 
 
 async def _transcribe(filepath: str) -> str:
-    """Transcribe audio file via SiliconFlow ASR."""
-    model = os.getenv("ASR_MODEL", "FunAudioLLM/SenseVoiceSmall")
+    """Transcribe audio file via configured ASR provider (default: Groq Whisper)."""
+    model = os.getenv("ASR_MODEL", "whisper-large-v3-turbo")
     with open(filepath, "rb") as f:
         resp = await _asr_client.audio.transcriptions.create(
             model=model,
             file=f,
             language="en",
-            prompt="English oral practice conversation.",
+            response_format="verbose_json",
+            timestamp_granularities=["word"],
         )
-    return resp.text
+    # Store word-level timestamps if available (for fluency analysis)
+    if hasattr(resp, 'words') and resp.words:
+        _transcribe._last_words = resp.words
+    else:
+        _transcribe._last_words = None
+
+    # Return text — handle both object and dict response formats
+    if hasattr(resp, 'text'):
+        return resp.text
+    if isinstance(resp, dict):
+        return resp.get('text', '')
+    return str(resp)
+
+_transcribe._last_words = None
 
 
 async def _chat_with_correction(
@@ -547,13 +573,22 @@ async def add_session_turn(
 
 @app.post("/api/sessions/{session_id}/end")
 async def end_session(session_id: str):
-    """End session and get summary report with LLM-generated narrative."""
+    """End session and get summary report with LLM-generated narrative + grading."""
     try:
         summary = store.end_session(session_id)
 
         # Generate narrative report via LLM
         report = await _generate_session_report(summary)
         summary["report"] = report
+
+        # Generate 5-dimension grading
+        session_data = store.get_session(session_id)
+        if session_data:
+            grading = await grade_session(session_data, llm, LLM_MODEL)
+            summary["grading"] = grading
+        else:
+            summary["grading"] = None
+
         return summary
     except ValueError as e:
         raise HTTPException(404, str(e))

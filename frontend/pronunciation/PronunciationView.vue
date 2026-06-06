@@ -111,6 +111,39 @@
           </button>
         </div>
       </div>
+
+      <!-- Summary panel (shown after all sentences are done) -->
+      <div v-if="showSummary" class="summary-panel">
+        <h3>📊 本次练习总结</h3>
+        <div class="summary-scores">
+          <div class="summary-item">
+            <span class="summary-value" :class="scoreClass(avgScore('pronunciation_score'))">{{ avgScore('pronunciation_score') }}</span>
+            <span class="summary-label">平均总分</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-value" :class="scoreClass(avgScore('accuracy_score'))">{{ avgScore('accuracy_score') }}</span>
+            <span class="summary-label">平均准确度</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-value" :class="scoreClass(avgScore('fluency_score'))">{{ avgScore('fluency_score') }}</span>
+            <span class="summary-label">平均流利度</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-value" :class="scoreClass(avgScore('completeness_score'))">{{ avgScore('completeness_score') }}</span>
+            <span class="summary-label">平均完整度</span>
+          </div>
+        </div>
+        <div class="summary-detail">
+          <p>共练习 <strong>{{ Object.keys(results).length }}</strong> / {{ sentences.length }} 句</p>
+          <p v-if="weakWords.length">
+            <span class="weak-title">需加强的单词：</span>
+            <span v-for="w in weakWords" :key="w" class="weak-word">{{ w }}</span>
+          </p>
+        </div>
+        <button class="summary-btn" @click="selectedScenario = null; showSummary = false; result = null">
+          返回选择场景
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -129,6 +162,7 @@ const results = ref({})
 const result = ref(null)
 const isProcessing = ref(false)
 const isPlaying = ref(false)
+const showSummary = ref(false)
 let currentAudio = null
 
 const toast = reactive({ message: '', type: 'info' })
@@ -242,11 +276,33 @@ function nextSentence() {
     currentIndex.value++
     result.value = results.value[currentIndex.value] || null
   } else {
-    // Done - could navigate back
-    toast.message = '全部完成！做得好！'
-    toast.type = 'success'
+    // All done — show summary
+    showSummary.value = true
+    currentIndex.value = -1
+    result.value = null
   }
 }
+
+function avgScore(key) {
+  const vals = Object.values(results.value).map(r => r[key]).filter(v => v != null)
+  if (!vals.length) return '--'
+  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+}
+
+const weakWords = computed(() => {
+  const words = []
+  Object.values(results.value).forEach(r => {
+    if (r.words) {
+      r.words.forEach(w => {
+        if (w.accuracy_score != null && w.accuracy_score < 60 && w.word) {
+          words.push(w.word)
+        }
+      })
+    }
+  })
+  // Deduplicate
+  return [...new Set(words)].slice(0, 15)
+})
 
 function scoreClass(score) {
   if (score == null) return ''
@@ -413,4 +469,67 @@ function wordClass(w) {
   font-size: 0.95rem;
 }
 .next-btn:hover { background: #2a6399; }
+
+/* Summary panel */
+.summary-panel {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  text-align: center;
+}
+.summary-panel h3 {
+  color: #1f4e79;
+  margin-bottom: 1.2rem;
+}
+.summary-scores {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 1.2rem;
+  flex-wrap: wrap;
+}
+.summary-item { text-align: center; }
+.summary-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f4e79;
+}
+.summary-value.good { color: #2e7d32; }
+.summary-value.ok { color: #f57c00; }
+.summary-value.poor { color: #c62828; }
+.summary-label {
+  font-size: 0.8rem;
+  color: #888;
+}
+.summary-detail {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #555;
+}
+.weak-title {
+  font-weight: 600;
+  color: #e65100;
+}
+.weak-word {
+  display: inline-block;
+  background: #fce4ec;
+  color: #c62828;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  margin: 0.2rem;
+  font-size: 0.85rem;
+}
+.summary-btn {
+  padding: 0.7rem 1.5rem;
+  background: #1f4e79;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+.summary-btn:hover { background: #2a6399; }
 </style>
