@@ -213,6 +213,9 @@ class SessionStore:
         path.write_text(json.dumps(session, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def _load(self, session_id: str) -> dict | None:
+        # Sanitize session_id to prevent path traversal
+        if not session_id or "/" in session_id or "\\" in session_id or ".." in session_id:
+            return None
         path = self.data_dir / f"{session_id}.json"
         if not path.exists():
             return None

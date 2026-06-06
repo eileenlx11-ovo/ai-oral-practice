@@ -1,14 +1,13 @@
 """
 Streaming helpers for real-time chat:
 - Sentence splitter for LLM stream output
-- Parallel TTS synthesis per sentence
+- Parallel TTS synthesis per sentence (Azure Speech SDK primary, edge-tts fallback)
 """
 import re
+import os
 import uuid
 import asyncio
 from pathlib import Path
-
-import edge_tts
 
 # Sentence boundary pattern: split on . ! ? followed by space or end
 _SENTENCE_END = re.compile(r'(?<=[.!?])\s+|(?<=[.!?])$')
@@ -35,7 +34,6 @@ class SentenceSplitter:
         self._buffer += token
         sentences = []
 
-        # Look for sentence boundaries
         while True:
             match = _SENTENCE_END.search(self._buffer)
             if not match:
@@ -67,15 +65,68 @@ class SentenceSplitter:
         return None
 
 
-async def synthesize_sentence(text: str, voice: str = "en-US-JennyNeural") -> str:
-    """
-    Synthesize a single sentence to MP3 via edge-tts.
-    Returns the URL path (e.g. /audio/xxx.mp3).
-    ~200-400ms per sentence.
-    """
+def _azure_tts_available() -> bool:
+    try:
+        import azure.cognitiveservices.speech  # noqa: F401
+        return bool(os.getenv("AZURE_SPEECH_KEY", ""))
+    except ImportError:
+        return False
+
+
+async def _synthesize_azure(text: str, voice: str) -> str | None:
+    """Synthesize with Azure Speech SDK."""
+    import azure.cognitiveservices.speech as speechsdk
+
+    key = os.getenv("AZURE_SPEECH_KEY", "")
+    region = os.getenv("AZURE_SPEECH_REGION", "eastasia")
+    config = speechsdk.SpeechConfig(subscription=key, region=region)
+    config.speech_synthesis_voice_name = voice
+    config.set_speech_synthesis_output_format(
+        speechsdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3
+    )
+
     filename = f"{uuid.uuid4().hex}.mp3"
     filepath = AUDIO_DIR / filename
+    audio_config = speechsdk.audio.AudioOutputConfig(filename=str(filepath))
+    synthesizer = speechsdk.SpeechSynthesizer(
+        speech_config=config, audio_config=audio_config
+    )
 
-    communicate = edge_tts.Communicate(text, voice=voice)
-    await communicate.save(str(filepath))
-    return f"/audio/{filename}"
+    def _do():
+        result = synthesizer.speak_text_async(text).get()
+        if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
+            return f"/audio/{filename}"
+        return None
+
+    return await asyncio.to_thread(_do)
+
+
+async def _synthesize_edge(text: str, voice: str) -> str | None:
+    """Fallback: edge-tts (free but may be blocked by Microsoft)."""
+    try:
+        import edge_tts
+        filename = f"{uuid.uuid4().hex}.mp3"
+        filepath = AUDIO_DIR / filename
+        communicate = edge_tts.Communicate(text, voice=voice)
+        await communicate.save(str(filepath))
+        return f"/audio/{filename}"
+    except Exception:
+        return None
+
+
+async def synthesize_sentence(text: str, voice: str = "en-US-JennyNeural") -> str:
+    """
+    Synthesize a single sentence to MP3.
+    Azure Speech SDK first, edge-tts fallback.
+    Returns URL path (e.g. /audio/xxx.mp3) or empty string on total failure.
+    """
+    if _azure_tts_available():
+        url = await _synthesize_azure(text, voice)
+        if url:
+            return url
+
+    url = await _synthesize_edge(text, voice)
+    if url:
+        return url
+
+    return ""

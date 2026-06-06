@@ -1,0 +1,30 @@
+# Production: speak.projfit.top
+# nginx (host) reverse-proxies → frontend:9006 → backend:9007 (internal)
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9006:80"
+    depends_on:
+      - backend
+
+  backend:
+    build: ./assessment
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9007:8000"
+    env_file: .env
+    environment:
+      - PRONUNCIATION_ALLOW_MOCK=0
+      - CORS_ORIGINS=https://speak.projfit.top,https://projfit.top
+    volumes:
+      - backend_audio:/app/assessment/audio_cache
+      - backend_data:/app/assessment/data
+
+volumes:
+  backend_audio:
+  backend_data:

@@ -41,9 +41,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="AI Oral Practice API", lifespan=lifespan)
 
+_cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -58,6 +60,19 @@ llm = AsyncOpenAI(
     base_url=os.getenv("LLM_BASE_URL", "https://api.openai.com/v1"),
 )
 LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+
+# Audio upload size limit (10MB ≈ 5 min webm)
+_MAX_AUDIO_BYTES = 10 * 1024 * 1024
+
+
+async def _read_audio(audio: UploadFile) -> bytes:
+    """Read and validate uploaded audio size."""
+    data = await audio.read()
+    if len(data) > _MAX_AUDIO_BYTES:
+        raise HTTPException(413, "Audio file too large (max 10MB)")
+    if len(data) < 100:
+        raise HTTPException(400, "Audio file too small or empty")
+    return data
 
 
 # --- Routes ---
@@ -117,7 +132,7 @@ async def chat(
         session_id = session["id"]
 
     # 1. Save uploaded audio to temp file
-    audio_bytes = await audio.read()
+    audio_bytes = await _read_audio(audio)
     suffix = ".webm" if "webm" in (audio.content_type or "") else ".wav"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     tmp.write(audio_bytes)
@@ -185,7 +200,7 @@ async def chat_stream(
         system_prompt = get_system_prompt(scenario)
 
     # Read audio
-    audio_bytes = await audio.read()
+    audio_bytes = await _read_audio(audio)
     suffix = ".webm" if "webm" in (audio.content_type or "") else ".wav"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     tmp.write(audio_bytes)
@@ -320,7 +335,7 @@ def _sse(event: str, data) -> str:
 @app.post("/api/asr")
 async def asr_only(audio: UploadFile = File(...)):
     """Transcribe audio without triggering LLM dialogue."""
-    audio_bytes = await audio.read()
+    audio_bytes = await _read_audio(audio)
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".webm")
     tmp.write(audio_bytes)
     tmp.close()
@@ -341,11 +356,13 @@ _asr_client = AsyncOpenAI(
 
 
 async def _transcribe(filepath: str) -> str:
-    """Transcribe audio file using SiliconFlow Whisper."""
+    """Transcribe audio file via SiliconFlow ASR (Whisper large-v3-turbo)."""
+    model = os.getenv("ASR_MODEL", "FunAudioLLM/SenseVoiceSmall")
     with open(filepath, "rb") as f:
         resp = await _asr_client.audio.transcriptions.create(
-            model="FunAudioLLM/SenseVoiceSmall",
+            model=model,
             file=f,
+            language="en",
         )
     return resp.text
 
@@ -440,7 +457,7 @@ async def assess(
     advanced=false (default): SOE priority, daily practice.
     advanced=true: Azure priority, prosody + miscue detailed diagnosis.
     """
-    audio_bytes = await audio.read()
+    audio_bytes = await _read_audio(audio)
     suffix = ".wav" if "wav" in (audio.content_type or "") else ".webm"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     tmp.write(audio_bytes)

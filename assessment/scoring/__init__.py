@@ -20,8 +20,8 @@ import os
 
 from . import azure, tencent, mock
 
-# Standard: SOE first (low latency, quota-friendly), mock as fallback.
-_STANDARD_PROVIDERS = [tencent, mock]
+# Standard: SOE first (low latency, quota-friendly), Azure fallback, mock last.
+_STANDARD_PROVIDERS = [tencent, azure, mock]
 # Advanced: Azure first (prosody + miscue), SOE and mock as fallback.
 _ADVANCED_PROVIDERS = [azure, tencent, mock]
 
@@ -59,7 +59,10 @@ async def assess_pronunciation(
             continue
         if not p.available():
             continue
-        result = await p.assess(audio_path, reference_text)
+        try:
+            result = await p.assess(audio_path, reference_text)
+        except Exception:
+            continue
         if result is not None:
             return result
     return None
