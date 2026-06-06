@@ -246,7 +246,22 @@ TTS 单句合成失败不会终止 SSE；对应 `sentence.audio_url` 可能为 `
 **Response:** `{ "session_id": "uuid" }`
 
 ### POST /api/sessions/custom — 创建自定义面试会话
-**Request:** `jd_text`, `resume_text`, `project_context` 至少一个非空。
+**Request:** `jd_text`, `resume_text`, `project_context` 至少一个非空；`language` 可选，`en` / `zh`。
+返回 `redirect_url`，可直接跳转到 `/chat/interview?session_id=...`。
+
+### GET /api/sessions/:id/handoff
+外部系统或自定义面试 session 的聊天初始化元数据。该 session 必须属于当前用户/游客。
+
+**Response:**
+```json
+{
+  "session_id": "...",
+  "scenario": "interview",
+  "greeting": "Hello...",
+  "language": "en",
+  "character": { "name": "Sarah", "role": "..." }
+}
+```
 
 ### GET /api/sessions — 列表
 **Query:** `limit`, `offset`
@@ -382,6 +397,34 @@ TTS 单句合成失败不会终止 SSE；对应 `sentence.audio_url` 可能为 `
 
 ### POST /api/integrations/talent-agent/interview-prep
 字段：`jd_text`, `language`。
+
+### POST /api/integrations/talent-agent/oral-interview-session
+用 Talent Agent 的 JD 分析结果创建口语模拟面试 session，并返回可跳转 URL。
+
+**Request:** `multipart/form-data`
+| Field | Type | Description |
+|-------|------|-------------|
+| jd_text | string | 可选，岗位描述 |
+| resume_text | string | 可选，候选人背景 |
+| project_context | string | 可选，项目经历 |
+| language | string | `en` / `zh`，默认 `en` |
+
+`jd_text` / `resume_text` / `project_context` 至少一项非空。中文模式会让面试官用中文提问，但当前语音识别主链路仍默认英文，完整中文 ASR 属于后续增强项。
+
+**Response:**
+```json
+{
+  "session_id": "abc123",
+  "redirect_url": "/chat/interview?session_id=abc123",
+  "greeting": "Hello...",
+  "language": "en",
+  "talent_agent": {
+    "key_skills": ["Python"],
+    "focus_areas": ["async design"],
+    "difficulty_level": "intermediate"
+  }
+}
+```
 
 ### POST /api/integrations/talent-agent/sync
 字段：`session_id`，必须属于当前用户/游客。

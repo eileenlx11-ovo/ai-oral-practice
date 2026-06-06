@@ -306,15 +306,17 @@ def build_custom_interview_prompt(
     jd_text: str = "",
     resume_text: str = "",
     project_context: str = "",
+    language: str = "en",
 ) -> str:
     """Build an interviewer system prompt customized to a specific role/candidate.
 
     Any field may be empty; only provided sections are injected. Intended to be
     fed externally (e.g. by talent-agent) via POST /api/sessions/custom.
     """
+    interview_language = "Chinese" if language == "zh" else "English"
     parts = [
         "You are a professional interviewer at a tech company conducting a "
-        "job interview in English."
+        f"job interview in {interview_language}."
     ]
     if jd_text.strip():
         parts.append(f"JOB DESCRIPTION the candidate is applying for:\n{jd_text.strip()[:_CUSTOM_FIELD_CAP]}")
@@ -328,7 +330,9 @@ def build_custom_interview_prompt(
     parts.append(
         "Ask focused, progressively deeper questions that probe whether the "
         "candidate fits THIS role and can substantiate THEIR claimed experience. "
-        "One question at a time. Be professional but friendly."
+        f"One question at a time. Be professional but friendly. Keep the whole "
+        f"interview in {interview_language} unless the candidate explicitly asks "
+        "to switch language."
     )
     context = "\n\n".join(parts)
     return f"{_BASE_INSTRUCTION}\n\nSCENARIO CONTEXT:\n{context}"

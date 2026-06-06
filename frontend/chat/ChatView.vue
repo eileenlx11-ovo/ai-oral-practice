@@ -507,10 +507,10 @@ async function endSession() {
 
 onMounted(async () => {
   try {
-    const res = await fetch(`/api/scenarios/${scenarioId}`)
+    const res = await fetch(sessionId ? `/api/sessions/${sessionId}/handoff` : `/api/scenarios/${scenarioId}`)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
-    messages.value.push({ role: 'assistant', text: data.greeting })
+    messages.value.push({ role: 'assistant', text: data.greeting || t('chat.fallbackGreeting') })
     if (data.character) {
       characterName.value = data.character.name
       characterAvatar.value = data.character.avatar || scenario?.icon || '💬'

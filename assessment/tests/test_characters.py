@@ -61,3 +61,48 @@ def test_switch_session_character_updates_session_and_requires_owner(tmp_path, m
     session = test_store.get_session(session_id)
     assert session["scenario"] == "coffee_shop"
     assert session["voice"] == "british_female"
+
+
+def test_talent_agent_oral_interview_session_creates_custom_prompt(tmp_path, monkeypatch):
+    class FakeTalentAgent:
+        async def get_interview_context(self, jd_text, language):
+            return {
+                "key_skills": ["Python", "FastAPI"],
+                "focus_areas": ["async design"],
+                "difficulty_level": "intermediate",
+            }
+
+    test_store = SessionStore(data_dir=tmp_path)
+    monkeypatch.setattr(app_module, "store", test_store)
+    monkeypatch.setattr(app_module, "get_talent_agent", lambda: FakeTalentAgent())
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/integrations/talent-agent/oral-interview-session",
+        data={
+            "jd_text": "Backend intern role",
+            "resume_text": "Built an oral practice app",
+            "project_context": "SSE voice interview workflow",
+            "language": "zh",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["session_id"]
+    assert body["redirect_url"] == f"/chat/interview?session_id={body['session_id']}"
+    assert body["language"] == "zh"
+
+    session = test_store.get_session(body["session_id"])
+    assert session["scenario"] == "interview"
+    assert session["language"] == "zh"
+    assert session["greeting"].startswith("你好")
+    assert "job interview in Chinese" in session["custom_prompt"]
+    assert "Backend intern role" in session["custom_prompt"]
+    assert "Talent-agent key skills: Python, FastAPI" in session["custom_prompt"]
+    assert "Talent-agent focus areas: async design" in session["custom_prompt"]
+
+    handoff = client.get(f"/api/sessions/{body['session_id']}/handoff")
+    assert handoff.status_code == 200
+    assert handoff.json()["greeting"].startswith("你好")
+    assert handoff.json()["language"] == "zh"

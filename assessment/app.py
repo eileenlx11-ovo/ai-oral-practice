@@ -745,6 +745,7 @@ async def create_custom_session(
     jd_text: str = Form(""),
     resume_text: str = Form(""),
     project_context: str = Form(""),
+    language: str = Form("en"),
     user: dict | None = Depends(get_optional_user),
 ):
     """Start a customized interview session.
@@ -756,11 +757,19 @@ async def create_custom_session(
     """
     if not (jd_text.strip() or resume_text.strip() or project_context.strip()):
         raise HTTPException(400, "At least one of jd_text, resume_text, or project_context is required")
-    prompt = build_custom_interview_prompt(jd_text, resume_text, project_context)
+    prompt = build_custom_interview_prompt(jd_text, resume_text, project_context, language)
     session = store.create_session("interview", custom_prompt=prompt, user_id=_user_id(user))
+    greeting = (
+        "你好，欢迎参加这次模拟面试。我已经了解了岗位和你的背景。"
+        "先请你简单介绍一下自己，并说明为什么对这个职位感兴趣。"
+        if language == "zh"
+        else "Hello! Thanks for coming in today. I've reviewed the role and your background. To start, could you walk me through your experience and why this position interests you?"
+    )
+    store.update_session_fields(session["id"], greeting=greeting, language=language)
     return {
         "session_id": session["id"],
-        "greeting": "Hello! Thanks for coming in today. I've reviewed the role and your background. To start, could you walk me through your experience and why this position interests you?",
+        "greeting": greeting,
+        "redirect_url": f"/chat/interview?session_id={session['id']}",
     }
 
 
@@ -782,6 +791,26 @@ async def add_session_turn(
         return turn
     except ValueError as e:
         raise HTTPException(404, str(e))
+
+
+@app.get("/api/sessions/{session_id}/handoff")
+async def get_session_handoff(
+    session_id: str,
+    user: dict | None = Depends(get_optional_user),
+):
+    """Return initial chat metadata for a pre-created external handoff session."""
+    session = _require_session_owner(session_id, user)
+    scenario = session.get("scenario", "interview")
+    character = get_character(scenario)
+    return {
+        "session_id": session_id,
+        "scenario": scenario,
+        "greeting": session.get("greeting") or (
+            "Hello! Thanks for coming in today. Could you start by introducing yourself?"
+        ),
+        "language": session.get("language", "en"),
+        "character": character,
+    }
 
 
 @app.post("/api/sessions/{session_id}/character")
@@ -985,6 +1014,66 @@ async def talent_agent_interview_prep(
     if "error" in result and not result.get("key_skills"):
         raise HTTPException(503, f"Talent agent unavailable: {result['error']}")
     return result
+
+
+@app.post("/api/integrations/talent-agent/oral-interview-session")
+async def talent_agent_oral_interview_session(
+    jd_text: str = Form(""),
+    resume_text: str = Form(""),
+    project_context: str = Form(""),
+    language: str = Form("en"),
+    user: dict | None = Depends(get_optional_user),
+):
+    """Create an oral mock interview session from talent-agent context."""
+    if language not in {"en", "zh"}:
+        raise HTTPException(400, "language must be 'en' or 'zh'")
+    if not (jd_text.strip() or resume_text.strip() or project_context.strip()):
+        raise HTTPException(400, "At least one interview context field is required")
+
+    prep = None
+    if jd_text.strip():
+        client = get_talent_agent()
+        prep = await client.get_interview_context(jd_text, language)
+
+    prompt_parts = [project_context.strip()]
+    if prep and "error" not in prep:
+        key_skills = ", ".join(prep.get("key_skills", [])[:8])
+        focus_areas = ", ".join(prep.get("focus_areas", [])[:8])
+        talent_context = "\n".join(
+            part for part in [
+                f"Talent-agent key skills: {key_skills}" if key_skills else "",
+                f"Talent-agent focus areas: {focus_areas}" if focus_areas else "",
+                f"Difficulty: {prep.get('difficulty_level')}" if prep.get("difficulty_level") else "",
+            ] if part
+        )
+        if talent_context:
+            prompt_parts.append(talent_context)
+
+    prompt = build_custom_interview_prompt(
+        jd_text=jd_text,
+        resume_text=resume_text,
+        project_context="\n\n".join(part for part in prompt_parts if part),
+        language=language,
+    )
+    session = store.create_session("interview", custom_prompt=prompt, user_id=_user_id(user))
+    greeting = (
+        "你好，欢迎参加这次岗位口语模拟面试。我们会围绕 JD、你的背景和项目经历展开。请先用 1 分钟介绍你自己。"
+        if language == "zh"
+        else "Hello, welcome to your role-focused oral mock interview. We'll use the JD, your background, and your project context. Please start with a one-minute self-introduction."
+    )
+    store.update_session_fields(
+        session["id"],
+        greeting=greeting,
+        language=language,
+        talent_agent=prep,
+    )
+    return {
+        "session_id": session["id"],
+        "redirect_url": f"/chat/interview?session_id={session['id']}",
+        "greeting": greeting,
+        "language": language,
+        "talent_agent": prep,
+    }
 
 
 @app.post("/api/integrations/talent-agent/sync")
