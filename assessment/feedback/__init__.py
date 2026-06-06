@@ -21,7 +21,12 @@ class SessionStore:
         self.data_dir = data_dir
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
-    def create_session(self, scenario: str, custom_prompt: str | None = None) -> dict:
+    def create_session(
+        self,
+        scenario: str,
+        custom_prompt: str | None = None,
+        user_id: str = "default_user",
+    ) -> dict:
         """Start a new practice session.
 
         custom_prompt: optional full system prompt that overrides the scenario
@@ -29,6 +34,7 @@ class SessionStore:
         """
         session = {
             "id": uuid.uuid4().hex[:12],
+            "user_id": user_id,
             "scenario": scenario,
             "custom_prompt": custom_prompt,
             "started_at": datetime.now(timezone.utc).isoformat(),
@@ -95,12 +101,19 @@ class SessionStore:
     def get_session(self, session_id: str) -> dict | None:
         return self._load(session_id)
 
-    def list_sessions(self, limit: int = 20, offset: int = 0) -> list[dict]:
+    def list_sessions(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        user_id: str | None = None,
+    ) -> list[dict]:
         """List sessions sorted by most recent first."""
         sessions = []
         for f in sorted(self.data_dir.glob("*.json"), reverse=True):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
+                if user_id is not None and data.get("user_id", "default_user") != user_id:
+                    continue
                 sessions.append(self._to_summary_item(data))
             except (json.JSONDecodeError, KeyError):
                 continue
@@ -134,12 +147,14 @@ class SessionStore:
             "common_errors": self._extract_common_errors(session),
         }
 
-    def get_progress(self) -> dict:
+    def get_progress(self, user_id: str | None = None) -> dict:
         """Aggregate progress metrics across all sessions."""
         all_sessions = []
         for f in sorted(self.data_dir.glob("*.json")):
             try:
                 data = json.loads(f.read_text(encoding="utf-8"))
+                if user_id is not None and data.get("user_id", "default_user") != user_id:
+                    continue
                 all_sessions.append(data)
             except (json.JSONDecodeError, KeyError):
                 continue
@@ -201,6 +216,7 @@ class SessionStore:
         scores = session["scores"]
         return {
             "session_id": session["id"],
+            "user_id": session.get("user_id", "default_user"),
             "scenario": session["scenario"],
             "started_at": session["started_at"],
             "turns": len(session["turns"]),

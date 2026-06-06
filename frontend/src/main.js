@@ -10,7 +10,7 @@ const routes = [
   { path: '/pronunciation', name: 'Pronunciation', component: () => import('../pronunciation/PronunciationView.vue') },
   { path: '/dashboard', name: 'Dashboard', component: () => import('../dashboard/DashboardView.vue') },
   { path: '/assessment', name: 'Assessment', component: () => import('../assessment/LevelTest.vue') },
-  { path: '/settings', name: 'Settings', component: () => import('../settings/SettingsView.vue') },
+  { path: '/settings', name: 'Settings', component: () => import('../settings/SettingsView.vue'), meta: { requiresAuth: true } },
 ]
 
 const router = createRouter({
@@ -21,9 +21,9 @@ const router = createRouter({
 // Auth guard — redirect to login if not authenticated (skip for guest routes)
 router.beforeEach((to) => {
   if (to.meta.guest) return true
-  // Allow unauthenticated access (skip-auth mode) — don't force login
-  // Users can use the app without auth, but features like progress tracking
-  // will be tied to "default_user" unless they sign in
+  if (to.meta.requiresAuth && !isAuthenticated.value) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
   return true
 })
 

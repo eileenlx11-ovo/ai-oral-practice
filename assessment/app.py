@@ -5,6 +5,7 @@ Enhanced with: hint system, level assessment, character memory, talent-agent int
 """
 import os
 import json
+import shutil
 import tempfile
 import uuid
 from pathlib import Path
@@ -30,7 +31,7 @@ from .feedback import store
 from .streaming import SentenceSplitter, synthesize_sentence
 from .hints import build_hint_messages
 from .level_test import LEVEL_TEST_QUESTIONS, build_assessment_messages
-from .user_profile import profile_store, DEFAULT_USER_ID
+from .user_profile import DEFAULT_USER_ID, profile_store
 from .integrations.talent_agent import get_talent_agent
 
 load_dotenv()
@@ -69,6 +70,18 @@ LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
 
 # Audio upload size limit (10MB ≈ 5 min webm)
 _MAX_AUDIO_BYTES = 10 * 1024 * 1024
+_MAX_TTS_TEXT_CHARS = 500
+
+
+def _user_id(user: dict | None) -> str:
+    return user["id"] if user else DEFAULT_USER_ID
+
+
+def _require_session_owner(session_id: str, user: dict | None) -> dict:
+    session = store.get_session(session_id)
+    if session is None or session.get("user_id", DEFAULT_USER_ID) != _user_id(user):
+        raise HTTPException(404, "Session not found")
+    return session
 
 
 async def _read_audio(audio: UploadFile) -> bytes:
@@ -249,6 +262,7 @@ async def chat(
     scenario: str = Form("smalltalk"),
     history: str = Form("[]"),
     session_id: str = Form(""),
+    user: dict | None = Depends(get_optional_user),
 ):
     """
     Main conversation endpoint:
@@ -260,8 +274,10 @@ async def chat(
     """
     # Auto-create session if not provided
     if not session_id:
-        session = store.create_session(scenario)
+        session = store.create_session(scenario, user_id=_user_id(user))
         session_id = session["id"]
+    else:
+        _require_session_owner(session_id, user)
 
     # 1. Save uploaded audio to temp file
     audio_bytes = await _read_audio(audio)
@@ -310,6 +326,7 @@ async def chat_stream(
     history: str = Form("[]"),
     session_id: str = Form(""),
     voice: str = Form("american_female"),
+    user: dict | None = Depends(get_optional_user),
 ):
     """
     Streaming chat endpoint (SSE).
@@ -321,8 +338,10 @@ async def chat_stream(
     """
     # Auto-create session
     if not session_id:
-        session = store.create_session(scenario)
+        session = store.create_session(scenario, user_id=_user_id(user))
         session_id = session["id"]
+    else:
+        _require_session_owner(session_id, user)
 
     # Resolve system prompt: session-level custom prompt overrides scenario prompt.
     existing = store.get_session(session_id)
@@ -419,7 +438,7 @@ async def chat_stream(
             # 4. Save to session & update affinity
             try:
                 store.add_turn(session_id, user_text, reply_text, corrections)
-                profile_store.increment_affinity(DEFAULT_USER_ID, scenario)
+                profile_store.increment_affinity(_user_id(user), scenario)
             except ValueError:
                 pass
 
@@ -481,6 +500,12 @@ async def asr_only(audio: UploadFile = File(...)):
 @app.post("/api/tts")
 async def text_to_speech(text: str = Form(...)):
     """Generate TTS audio for reference text demo playback."""
+    text = text.strip()
+    if not text:
+        raise HTTPException(400, "Text is required")
+    if len(text) > _MAX_TTS_TEXT_CHARS:
+        raise HTTPException(413, f"Text too long (max {_MAX_TTS_TEXT_CHARS} characters)")
+
     url = await synthesize_sentence(text)
     if not url:
         raise HTTPException(503, "TTS unavailable")
@@ -637,15 +662,28 @@ async def assess_status():
         "is_mock": std == "mock",
         "advanced_available": adv is not None and adv != "mock",
         "advanced_provider": adv,
+        "providers": {
+            "tencent_configured": bool(
+                (os.getenv("TENCENT_APP_ID") or os.getenv("TENCENT_APPID"))
+                and os.getenv("TENCENT_SECRET_ID")
+                and os.getenv("TENCENT_SECRET_KEY")
+            ),
+            "azure_configured": bool(os.getenv("AZURE_SPEECH_KEY")),
+            "mock_enabled": os.getenv("PRONUNCIATION_ALLOW_MOCK", "1") != "0",
+        },
+        "ffmpeg_available": shutil.which("ffmpeg") is not None,
     }
 
 
 # --- Session & Progress APIs ---
 
 @app.post("/api/sessions")
-async def create_session(scenario: str = Form("smalltalk")):
+async def create_session(
+    scenario: str = Form("smalltalk"),
+    user: dict | None = Depends(get_optional_user),
+):
     """Start a new practice session."""
-    session = store.create_session(scenario)
+    session = store.create_session(scenario, user_id=_user_id(user))
     return {"session_id": session["id"]}
 
 
@@ -654,6 +692,7 @@ async def create_custom_session(
     jd_text: str = Form(""),
     resume_text: str = Form(""),
     project_context: str = Form(""),
+    user: dict | None = Depends(get_optional_user),
 ):
     """Start a customized interview session.
 
@@ -665,7 +704,7 @@ async def create_custom_session(
     if not (jd_text.strip() or resume_text.strip() or project_context.strip()):
         raise HTTPException(400, "At least one of jd_text, resume_text, or project_context is required")
     prompt = build_custom_interview_prompt(jd_text, resume_text, project_context)
-    session = store.create_session("interview", custom_prompt=prompt)
+    session = store.create_session("interview", custom_prompt=prompt, user_id=_user_id(user))
     return {
         "session_id": session["id"],
         "greeting": "Hello! Thanks for coming in today. I've reviewed the role and your background. To start, could you walk me through your experience and why this position interests you?",
@@ -679,8 +718,10 @@ async def add_session_turn(
     reply_text: str = Form(...),
     corrections: str = Form("[]"),
     pronunciation: str = Form("null"),
+    user: dict | None = Depends(get_optional_user),
 ):
     """Record a conversation turn to the session."""
+    _require_session_owner(session_id, user)
     try:
         corr_list = json.loads(corrections)
         pron_data = json.loads(pronunciation)
@@ -691,8 +732,12 @@ async def add_session_turn(
 
 
 @app.post("/api/sessions/{session_id}/end")
-async def end_session(session_id: str):
+async def end_session(
+    session_id: str,
+    user: dict | None = Depends(get_optional_user),
+):
     """End session and get summary report with LLM-generated narrative."""
+    _require_session_owner(session_id, user)
     try:
         summary = store.end_session(session_id)
 
@@ -705,14 +750,22 @@ async def end_session(session_id: str):
 
 
 @app.get("/api/sessions")
-async def list_sessions(limit: int = 20, offset: int = 0):
+async def list_sessions(
+    limit: int = 20,
+    offset: int = 0,
+    user: dict | None = Depends(get_optional_user),
+):
     """List past practice sessions."""
-    return store.list_sessions(limit=limit, offset=offset)
+    return store.list_sessions(limit=limit, offset=offset, user_id=_user_id(user))
 
 
 @app.get("/api/sessions/{session_id}/summary")
-async def get_session_summary(session_id: str):
+async def get_session_summary(
+    session_id: str,
+    user: dict | None = Depends(get_optional_user),
+):
     """Get detailed summary for a specific session."""
+    _require_session_owner(session_id, user)
     try:
         return store.get_summary(session_id)
     except ValueError as e:
@@ -720,9 +773,9 @@ async def get_session_summary(session_id: str):
 
 
 @app.get("/api/progress")
-async def get_progress():
+async def get_progress(user: dict | None = Depends(get_optional_user)):
     """Get aggregated progress metrics across all sessions."""
-    return store.get_progress()
+    return store.get_progress(user_id=_user_id(user))
 
 
 # --- Hint System ---
@@ -772,6 +825,7 @@ async def get_level_test_questions():
 @app.post("/api/level-test/assess")
 async def assess_level(
     responses: str = Form(...),
+    user: dict | None = Depends(get_optional_user),
 ):
     """
     Evaluate user's level based on their responses to test questions.
@@ -798,7 +852,7 @@ async def assess_level(
         assessment = json.loads(raw)
 
         # Save to user profile
-        profile = profile_store.update_level(DEFAULT_USER_ID, assessment)
+        profile = profile_store.update_level(_user_id(user), assessment)
 
         return {"assessment": assessment, "profile": profile}
     except (json.JSONDecodeError, Exception) as e:
@@ -808,16 +862,20 @@ async def assess_level(
 # --- User Profile ---
 
 @app.get("/api/profile")
-async def get_profile():
+async def get_profile(user: dict | None = Depends(get_optional_user)):
     """Get current user profile (level, strengths, weaknesses, affinity)."""
-    return profile_store.get_or_create(DEFAULT_USER_ID)
+    return profile_store.get_or_create(_user_id(user))
 
 
 @app.get("/api/profile/memory/{scenario_id}")
-async def get_character_memory(scenario_id: str):
+async def get_character_memory(
+    scenario_id: str,
+    user: dict | None = Depends(get_optional_user),
+):
     """Get conversation memories for a specific character."""
-    memories = profile_store.get_memory(DEFAULT_USER_ID, scenario_id)
-    affinity = profile_store.get_affinity_level(DEFAULT_USER_ID, scenario_id)
+    uid = _user_id(user)
+    memories = profile_store.get_memory(uid, scenario_id)
+    affinity = profile_store.get_affinity_level(uid, scenario_id)
     return {"memories": memories, "affinity_level": affinity}
 
 
@@ -847,11 +905,12 @@ async def talent_agent_interview_prep(
 
 
 @app.post("/api/integrations/talent-agent/sync")
-async def talent_agent_sync(session_id: str = Form(...)):
+async def talent_agent_sync(
+    session_id: str = Form(...),
+    user: dict | None = Depends(get_optional_user),
+):
     """Sync a completed practice session to talent-agent."""
-    session = store.get_session(session_id)
-    if session is None:
-        raise HTTPException(404, "Session not found")
+    _require_session_owner(session_id, user)
 
     summary = store.get_summary(session_id)
     client = get_talent_agent()

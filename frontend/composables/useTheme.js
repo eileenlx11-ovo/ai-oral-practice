@@ -4,6 +4,7 @@ const STORAGE_KEY = 'oral_practice_theme'
 const theme = ref(localStorage.getItem(STORAGE_KEY) || 'system')
 const systemDark = ref(false)
 let mediaQuery = null
+let handleChange = null
 
 const resolvedTheme = computed(() => {
   if (theme.value === 'system') return systemDark.value ? 'dark' : 'light'
@@ -26,12 +27,17 @@ export function useTheme() {
     systemDark.value = mediaQuery.matches
     applyTheme()
 
-    const handleChange = (event) => {
+    handleChange = (event) => {
       systemDark.value = event.matches
       applyTheme()
     }
     mediaQuery.addEventListener('change', handleChange)
-    onUnmounted(() => mediaQuery?.removeEventListener('change', handleChange))
+  })
+
+  onUnmounted(() => {
+    if (mediaQuery && handleChange) {
+      mediaQuery.removeEventListener('change', handleChange)
+    }
   })
 
   return { theme, resolvedTheme, setTheme }

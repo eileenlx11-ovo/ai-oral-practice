@@ -1,31 +1,31 @@
 <template>
   <div class="settings-page">
     <header class="settings-header">
-      <button @click="$router.back()" class="back-btn">← 返回</button>
-      <h1>设置</h1>
+      <button @click="$router.back()" class="back-btn">← {{ t('settings.back') }}</button>
+      <h1>{{ t('settings.title') }}</h1>
     </header>
 
     <div class="settings-sections">
       <!-- Profile section -->
       <section class="settings-section">
-        <h2 class="section-title">👤 个人信息</h2>
+        <h2 class="section-title">👤 {{ t('settings.profile') }}</h2>
         <div class="setting-item">
-          <label>昵称</label>
+          <label>{{ t('settings.nickname') }}</label>
           <div class="input-row">
-            <input v-model="nickname" type="text" placeholder="你的昵称" />
-            <button class="save-btn" :disabled="saving" @click="saveSettings">保存</button>
+            <input v-model="nickname" type="text" :placeholder="t('settings.nicknamePlaceholder')" />
+            <button class="save-btn" :disabled="saving" @click="saveSettings">{{ t('settings.save') }}</button>
           </div>
         </div>
         <div class="setting-item" v-if="userInfo">
-          <label>账号</label>
-          <span class="setting-value">{{ userInfo.email || userInfo.phone || '游客' }}</span>
+          <label>{{ t('settings.account') }}</label>
+          <span class="setting-value">{{ userInfo.email || userInfo.phone || t('settings.guest') }}</span>
         </div>
       </section>
 
       <!-- Voice preference -->
       <section class="settings-section">
-        <h2 class="section-title">🎙️ 口音偏好</h2>
-        <p class="section-desc">选择 AI 回复的发音口音，对话中也可临时切换</p>
+        <h2 class="section-title">🎙️ {{ t('settings.voicePreference') }}</h2>
+        <p class="section-desc">{{ t('settings.voiceDesc') }}</p>
         <div class="voice-grid">
           <button
             v-for="v in voices" :key="v.key"
@@ -33,8 +33,8 @@
             @click="selectedVoice = v.key"
           >
             <span class="voice-flag">{{ v.flag }}</span>
-            <span class="voice-label">{{ v.label }}</span>
-            <button class="voice-preview" @click.stop="previewVoice(v.key)" title="试听">
+            <span class="voice-label">{{ t(v.labelKey) }}</span>
+            <button class="voice-preview" @click.stop="previewVoice(v.key)" :title="t('settings.preview')">
               🔊
             </button>
           </button>
@@ -43,22 +43,22 @@
 
       <!-- Theme -->
       <section class="settings-section">
-        <h2 class="section-title">🎨 外观主题</h2>
+        <h2 class="section-title">🎨 {{ t('settings.theme') }}</h2>
         <div class="theme-options">
           <button
-            v-for="t in themes" :key="t.value"
-            class="theme-btn" :class="{ active: selectedTheme === t.value }"
-            @click="selectedTheme = t.value"
+            v-for="themeOption in themes" :key="themeOption.value"
+            class="theme-btn" :class="{ active: selectedTheme === themeOption.value }"
+            @click="selectedTheme = themeOption.value"
           >
-            <span class="theme-icon">{{ t.icon }}</span>
-            <span>{{ t.label }}</span>
+            <span class="theme-icon">{{ themeOption.icon }}</span>
+            <span>{{ t(themeOption.labelKey) }}</span>
           </button>
         </div>
       </section>
 
       <!-- Language -->
       <section class="settings-section">
-        <h2 class="section-title">🌐 界面语言</h2>
+        <h2 class="section-title">🌐 {{ t('settings.language') }}</h2>
         <div class="lang-options">
           <button
             class="lang-btn" :class="{ active: selectedLocale === 'zh' }"
@@ -69,20 +69,20 @@
             @click="selectedLocale = 'en'"
           >English</button>
         </div>
-        <p class="section-tip">💡 推荐使用英文界面，获得沉浸式学习体验</p>
+        <p class="section-tip">💡 {{ t('settings.languageTip') }}</p>
       </section>
 
       <!-- Account actions -->
       <section class="settings-section">
-        <h2 class="section-title">⚙️ 账号</h2>
-        <button class="action-btn danger" @click="handleLogout">退出登录</button>
+        <h2 class="section-title">⚙️ {{ t('settings.account') }}</h2>
+        <button class="action-btn danger" @click="handleLogout">{{ t('settings.logout') }}</button>
       </section>
     </div>
 
     <!-- Save floating button -->
     <div v-if="hasChanges" class="save-bar">
       <button class="save-all-btn" :disabled="saving" @click="saveSettings">
-        {{ saving ? '保存中...' : '保存设置' }}
+        {{ saving ? t('settings.saving') : t('settings.saveSettings') }}
       </button>
     </div>
   </div>
@@ -92,23 +92,26 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { currentUser, getAuthHeaders, logout, isAuthenticated } from '../composables/useAuth'
+import { useI18n } from '../composables/useI18n'
+import { setTheme } from '../composables/useTheme'
 
 const router = useRouter()
+const { t, setLocale } = useI18n()
 
 const voices = [
-  { key: 'american_female', label: '美式女声', flag: '🇺🇸' },
-  { key: 'american_male', label: '美式男声', flag: '🇺🇸' },
-  { key: 'british_female', label: '英式女声', flag: '🇬🇧' },
-  { key: 'british_male', label: '英式男声', flag: '🇬🇧' },
-  { key: 'indian_female', label: '印度女声', flag: '🇮🇳' },
-  { key: 'indian_male', label: '印度男声', flag: '🇮🇳' },
-  { key: 'australian_female', label: '澳洲女声', flag: '🇦🇺' },
+  { key: 'american_female', labelKey: 'settings.voices.americanFemale', flag: '🇺🇸' },
+  { key: 'american_male', labelKey: 'settings.voices.americanMale', flag: '🇺🇸' },
+  { key: 'british_female', labelKey: 'settings.voices.britishFemale', flag: '🇬🇧' },
+  { key: 'british_male', labelKey: 'settings.voices.britishMale', flag: '🇬🇧' },
+  { key: 'indian_female', labelKey: 'settings.voices.indianFemale', flag: '🇮🇳' },
+  { key: 'indian_male', labelKey: 'settings.voices.indianMale', flag: '🇮🇳' },
+  { key: 'australian_female', labelKey: 'settings.voices.australianFemale', flag: '🇦🇺' },
 ]
 
 const themes = [
-  { value: 'light', label: '浅色', icon: '☀️' },
-  { value: 'dark', label: '深色', icon: '🌙' },
-  { value: 'system', label: '跟随系统', icon: '💻' },
+  { value: 'light', labelKey: 'settings.themes.light', icon: '☀️' },
+  { value: 'dark', labelKey: 'settings.themes.dark', icon: '🌙' },
+  { value: 'system', labelKey: 'settings.themes.system', icon: '💻' },
 ]
 
 const nickname = ref('')
@@ -135,7 +138,7 @@ onMounted(async () => {
     selectedVoice.value = localStorage.getItem('oral_practice_voice') || 'american_female'
     selectedTheme.value = localStorage.getItem('oral_practice_theme') || 'system'
     selectedLocale.value = localStorage.getItem('oral_practice_locale') || 'zh'
-    nickname.value = '游客'
+    nickname.value = t('settings.guest')
     original = { nickname: nickname.value, voice: selectedVoice.value, theme: selectedTheme.value, locale: selectedLocale.value }
     return
   }
@@ -155,7 +158,8 @@ onMounted(async () => {
 async function saveSettings() {
   saving.value = true
   // Apply theme immediately
-  applyTheme(selectedTheme.value)
+  setTheme(selectedTheme.value)
+  setLocale(selectedLocale.value)
   localStorage.setItem('oral_practice_voice', selectedVoice.value)
   localStorage.setItem('oral_practice_theme', selectedTheme.value)
   localStorage.setItem('oral_practice_locale', selectedLocale.value)
@@ -172,14 +176,6 @@ async function saveSettings() {
   }
   original = { nickname: nickname.value, voice: selectedVoice.value, theme: selectedTheme.value, locale: selectedLocale.value }
   saving.value = false
-}
-
-function applyTheme(theme) {
-  let resolved = theme
-  if (theme === 'system') {
-    resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  }
-  document.documentElement.setAttribute('data-theme', resolved)
 }
 
 function previewVoice(voiceKey) {
