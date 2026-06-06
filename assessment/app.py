@@ -356,13 +356,14 @@ _asr_client = AsyncOpenAI(
 
 
 async def _transcribe(filepath: str) -> str:
-    """Transcribe audio file via SiliconFlow ASR (Whisper large-v3-turbo)."""
+    """Transcribe audio file via SiliconFlow ASR."""
     model = os.getenv("ASR_MODEL", "FunAudioLLM/SenseVoiceSmall")
     with open(filepath, "rb") as f:
         resp = await _asr_client.audio.transcriptions.create(
             model=model,
             file=f,
             language="en",
+            prompt="English oral practice conversation.",
         )
     return resp.text
 
