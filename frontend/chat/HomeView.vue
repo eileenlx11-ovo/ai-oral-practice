@@ -5,7 +5,7 @@
       <h1 class="hero-title">
         <span class="hero-wave">👋</span> Ready to practice?
       </h1>
-      <p class="hero-subtitle">选择场景，开始 AI 英语口语对话</p>
+      <p class="hero-subtitle">{{ t('home.hero.subtitle') }}</p>
     </section>
 
     <!-- Quick actions -->
@@ -13,16 +13,16 @@
       <button class="action-card pronunciation" @click="$router.push('/pronunciation')">
         <span class="action-icon">🎯</span>
         <div class="action-info">
-          <span class="action-title">发音评测</span>
-          <span class="action-desc">跟读打分</span>
+          <span class="action-title">{{ t('home.actions.pronunciation') }}</span>
+          <span class="action-desc">{{ t('home.actions.pronunciationDesc') }}</span>
         </div>
         <span class="action-arrow">→</span>
       </button>
       <button v-if="!hasLevel" class="action-card assessment" @click="$router.push('/assessment')">
         <span class="action-icon">🎓</span>
         <div class="action-info">
-          <span class="action-title">水平评估</span>
-          <span class="action-desc">3分钟测试</span>
+          <span class="action-title">{{ t('home.actions.assessment') }}</span>
+          <span class="action-desc">{{ t('home.actions.assessmentDesc') }}</span>
         </div>
         <span class="action-arrow">→</span>
       </button>
@@ -50,7 +50,7 @@
           :class="{ active: activeDifficulty === d.id, [d.id]: true }"
           @click="activeDifficulty = activeDifficulty === d.id ? 'all' : d.id"
         >
-          {{ d.label }}
+          {{ t(d.labelKey) }}
         </button>
       </div>
     </div>
@@ -82,7 +82,7 @@
 
     <!-- Empty state -->
     <div v-if="filteredScenarios.length === 0" class="empty-state">
-      <p>😅 没有找到匹配的场景，试试其他筛选条件</p>
+      <p>😅 {{ t('home.empty') }}</p>
     </div>
   </div>
 </template>
@@ -90,7 +90,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { CONFIG } from '../../shared/config'
+import { useI18n } from '../composables/useI18n'
 
+const { t } = useI18n()
 const categories = CONFIG.CATEGORIES
 const activeCategory = ref('all')
 const activeDifficulty = ref('all')
@@ -98,14 +100,13 @@ const scenarios = ref(CONFIG.SCENARIOS)
 const hasLevel = ref(false)
 
 const difficulties = [
-  { id: 'beginner', label: '入门' },
-  { id: 'intermediate', label: '中级' },
-  { id: 'advanced', label: '高级' },
+  { id: 'beginner', labelKey: 'home.difficulty.beginner' },
+  { id: 'intermediate', labelKey: 'home.difficulty.intermediate' },
+  { id: 'advanced', labelKey: 'home.difficulty.advanced' },
 ]
 
 function diffLabel(d) {
-  const map = { beginner: '入门', intermediate: '中级', advanced: '高级' }
-  return map[d] || d
+  return t(`home.difficulty.${d}`, d)
 }
 
 const filteredScenarios = computed(() => {

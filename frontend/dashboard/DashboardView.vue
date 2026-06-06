@@ -1,31 +1,31 @@
 <template>
   <div class="dashboard">
     <Toast :message="toast.message" :type="toast.type" @close="toast.message = ''" />
-    <h1>📊 Progress Dashboard</h1>
+    <h1>📊 {{ t('dashboard.title') }}</h1>
 
     <!-- Summary Cards -->
     <div class="summary-cards" v-if="progress">
       <div class="card">
         <span class="card-value">{{ progress.total_sessions }}</span>
-        <span class="card-label">Sessions</span>
+        <span class="card-label">{{ t('dashboard.sessions') }}</span>
       </div>
       <div class="card">
         <span class="card-value">{{ progress.total_turns }}</span>
-        <span class="card-label">Turns Spoken</span>
+        <span class="card-label">{{ t('dashboard.turnsSpoken') }}</span>
       </div>
       <div class="card">
         <span class="card-value">{{ progress.total_corrections }}</span>
-        <span class="card-label">Corrections</span>
+        <span class="card-label">{{ t('dashboard.corrections') }}</span>
       </div>
       <div class="card highlight">
         <span class="card-value">{{ formatScore(progress.avg_pronunciation) }}</span>
-        <span class="card-label">Avg Pronunciation</span>
+        <span class="card-label">{{ t('dashboard.avgPronunciation') }}</span>
       </div>
     </div>
 
     <!-- Score Trend Chart -->
     <div class="chart-section" v-if="hasScoreData">
-      <h2>Score Trends</h2>
+      <h2>{{ t('dashboard.scoreTrends') }}</h2>
       <div class="chart-container">
         <Line :data="trendChartData" :options="trendChartOptions" />
       </div>
@@ -33,9 +33,9 @@
 
     <!-- Session History -->
     <div class="history-section">
-      <h2>Practice History</h2>
+      <h2>{{ t('dashboard.practiceHistory') }}</h2>
       <div v-if="sessions.length === 0" class="empty-state">
-        <p>No practice sessions yet. Start a conversation to see your progress!</p>
+        <p>{{ t('dashboard.empty') }}</p>
       </div>
       <div v-else class="session-list">
         <div
@@ -49,7 +49,7 @@
             <span class="session-date">{{ formatDate(s.started_at) }}</span>
           </div>
           <div class="session-stats">
-            <span>{{ s.turns }} turns</span>
+            <span>{{ s.turns }} {{ t('dashboard.turns') }}</span>
             <span v-if="s.avg_pronunciation" class="score-badge">
               🎯 {{ s.avg_pronunciation.toFixed(0) }}
             </span>
@@ -64,36 +64,36 @@
     <!-- Session Detail Modal -->
     <div v-if="selectedSummary" class="modal-overlay" @click.self="selectedSummary = null">
       <div class="modal">
-        <h3>Session Report</h3>
+        <h3>{{ t('dashboard.sessionReport') }}</h3>
         <div class="report-grid">
           <div class="report-item">
-            <label>Scenario</label>
+            <label>{{ t('dashboard.scenario') }}</label>
             <span>{{ selectedSummary.scenario }}</span>
           </div>
           <div class="report-item">
-            <label>Duration</label>
-            <span>{{ selectedSummary.total_turns }} turns</span>
+            <label>{{ t('dashboard.duration') }}</label>
+            <span>{{ selectedSummary.total_turns }} {{ t('dashboard.turns') }}</span>
           </div>
           <div class="report-item">
-            <label>Pronunciation</label>
+            <label>{{ t('dashboard.pronunciation') }}</label>
             <span>{{ formatScore(selectedSummary.avg_pronunciation) }}</span>
           </div>
           <div class="report-item">
-            <label>Fluency</label>
+            <label>{{ t('dashboard.fluency') }}</label>
             <span>{{ formatScore(selectedSummary.avg_fluency) }}</span>
           </div>
           <div class="report-item">
-            <label>Accuracy</label>
+            <label>{{ t('dashboard.accuracy') }}</label>
             <span>{{ formatScore(selectedSummary.avg_accuracy) }}</span>
           </div>
           <div class="report-item">
-            <label>Corrections</label>
+            <label>{{ t('dashboard.corrections') }}</label>
             <span>{{ selectedSummary.total_corrections }}</span>
           </div>
         </div>
 
         <div v-if="selectedSummary.common_errors && selectedSummary.common_errors.length" class="common-errors">
-          <h4>Common Error Patterns</h4>
+          <h4>{{ t('dashboard.commonErrorPatterns') }}</h4>
           <ul>
             <li v-for="e in selectedSummary.common_errors" :key="e.pattern">
               {{ e.pattern }} <span class="error-count">(×{{ e.count }})</span>
@@ -101,7 +101,7 @@
           </ul>
         </div>
 
-        <button class="close-btn" @click="selectedSummary = null">Close</button>
+        <button class="close-btn" @click="selectedSummary = null">{{ t('dashboard.close') }}</button>
       </div>
     </div>
   </div>
@@ -121,10 +121,12 @@ import {
   Legend,
 } from 'chart.js'
 import { CONFIG } from '../../shared/config'
+import { useI18n } from '../composables/useI18n'
 import Toast from '../components/Toast.vue'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
+const { t } = useI18n()
 const API = CONFIG.API.BASE_URL
 const progress = ref(null)
 const sessions = ref([])
@@ -205,12 +207,12 @@ async function viewSession(sessionId) {
   try {
     const res = await fetch(`${API}/api/sessions/${sessionId}/summary`)
     if (!res.ok) {
-      showToast(`加载会话详情失败 (${res.status})`)
+      showToast(`${t('dashboard.loadSessionFailed')} (${res.status})`)
       return
     }
     selectedSummary.value = await res.json()
   } catch {
-    showToast('网络错误，无法加载会话详情')
+    showToast(t('dashboard.networkFailed'))
   }
 }
 
@@ -221,13 +223,13 @@ onMounted(async () => {
       fetch(`${API}/api/sessions`),
     ])
     if (!progRes.ok || !sessRes.ok) {
-      showToast('加载数据失败，请稍后刷新重试')
+      showToast(t('dashboard.loadDataFailed'))
       return
     }
     progress.value = await progRes.json()
     sessions.value = await sessRes.json()
   } catch {
-    showToast('网络错误，无法连接服务器')
+    showToast(t('dashboard.serverFailed'))
   }
 })
 </script>

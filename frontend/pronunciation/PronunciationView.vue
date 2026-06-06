@@ -3,13 +3,13 @@
     <Toast :message="toast.message" :type="toast.type" @close="toast.message = ''" />
 
     <header class="page-header">
-      <button @click="$router.push('/')" class="back-btn">← 返回</button>
-      <h1>🎯 发音练习</h1>
+      <button @click="$router.push('/')" class="back-btn">← {{ t('chat.back') }}</button>
+      <h1>🎯 {{ t('pronunciation.title') }}</h1>
     </header>
 
     <!-- Scenario selection -->
     <div v-if="!selectedScenario" class="scenario-picker">
-      <p class="subtitle">选择一个场景，练习该场景下的常用句子</p>
+      <p class="subtitle">{{ t('pronunciation.subtitle') }}</p>
       <div class="scenario-grid">
         <div
           v-for="s in scenarios"
@@ -46,10 +46,10 @@
       <!-- Active sentence practice -->
       <div v-if="currentIndex >= 0" class="active-practice">
         <div class="reference-text">
-          <p class="label">跟读这句话：</p>
+          <p class="label">{{ t('pronunciation.readThis') }}</p>
           <p class="text">{{ sentences[currentIndex] }}</p>
           <button class="demo-btn" :disabled="playingDemo" @click="playDemo">
-            {{ playingDemo ? '播放中...' : '听标准发音' }}
+            {{ playingDemo ? t('pronunciation.playing') : t('pronunciation.listenDemo') }}
           </button>
         </div>
 
@@ -71,25 +71,25 @@
               <span class="score-value" :class="scoreClass(result.pronunciation_score)">
                 {{ result.pronunciation_score?.toFixed(0) }}
               </span>
-              <span class="score-label">总分</span>
+              <span class="score-label">{{ t('pronunciation.total') }}</span>
             </div>
             <div class="score-item">
               <span class="score-value" :class="scoreClass(result.accuracy_score)">
                 {{ result.accuracy_score?.toFixed(0) }}
               </span>
-              <span class="score-label">准确度</span>
+              <span class="score-label">{{ t('pronunciation.accuracy') }}</span>
             </div>
             <div class="score-item">
               <span class="score-value" :class="scoreClass(result.fluency_score)">
                 {{ result.fluency_score?.toFixed(0) }}
               </span>
-              <span class="score-label">流利度</span>
+              <span class="score-label">{{ t('pronunciation.fluency') }}</span>
             </div>
             <div class="score-item">
               <span class="score-value" :class="scoreClass(result.completeness_score)">
                 {{ result.completeness_score?.toFixed(0) }}
               </span>
-              <span class="score-label">完整度</span>
+              <span class="score-label">{{ t('pronunciation.completeness') }}</span>
             </div>
           </div>
 
@@ -107,7 +107,7 @@
           </div>
 
           <button class="next-btn" @click="nextSentence">
-            {{ currentIndex < sentences.length - 1 ? '下一句 →' : '🎉 完成！' }}
+            {{ currentIndex < sentences.length - 1 ? t('pronunciation.next') : `🎉 ${t('pronunciation.done')}` }}
           </button>
         </div>
       </div>
@@ -119,9 +119,11 @@
 import { ref, reactive, computed } from 'vue'
 import { useRecorder } from '../../voice/audio/useRecorder'
 import { classifyError } from '../composables/useErrorHandler'
+import { useI18n } from '../composables/useI18n'
 import { CONFIG } from '../../shared/config'
 import Toast from '../components/Toast.vue'
 
+const { t } = useI18n()
 const scenarios = CONFIG.SCENARIOS
 const selectedScenario = ref(null)
 const sentences = ref([])
@@ -144,9 +146,9 @@ const { start, stop, isRecording } = useRecorder({
 })
 
 const recordBtnText = computed(() => {
-  if (isProcessing.value) return '评分中...'
-  if (isRecording.value) return '停止录音'
-  return '开始跟读'
+  if (isProcessing.value) return t('pronunciation.processing')
+  if (isRecording.value) return t('pronunciation.stop')
+  return t('pronunciation.start')
 })
 
 async function selectScenario(s) {
@@ -186,7 +188,7 @@ async function handleRecord() {
     try {
       await start()
     } catch {
-      toast.message = '麦克风权限被拒绝'
+      toast.message = t('pronunciation.micDenied')
       toast.type = 'warning'
     }
   }
@@ -254,7 +256,7 @@ async function playDemo() {
   } catch {
     isPlaying.value = false
     playingDemo.value = false
-    toast.message = '标准发音播放失败'
+    toast.message = t('pronunciation.demoFailed')
     toast.type = 'warning'
   }
 }
@@ -265,7 +267,7 @@ function nextSentence() {
     result.value = results.value[currentIndex.value] || null
   } else {
     // Done - could navigate back
-    toast.message = '全部完成！做得好！'
+    toast.message = t('pronunciation.allDone')
     toast.type = 'success'
   }
 }
