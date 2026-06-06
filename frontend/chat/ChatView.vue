@@ -268,7 +268,8 @@ const characterPersonality = ref('')
 const scenarioObjective = ref('')
 
 // Side panels (desktop gutters / mobile drawers)
-const showSidePanels = ref(true)
+// Side panels: shown by default on desktop, collapsed into a drawer on mobile
+const showSidePanels = ref(typeof window !== 'undefined' ? window.innerWidth > 768 : true)
 
 // Elapsed session timer (pure frontend)
 const elapsedSec = ref(0)
@@ -1272,8 +1273,5 @@ async function toggleTranslate(msg) {
   .bubble { max-width: 85%; }
   .char-line2 { display: none; }
   .char-switcher, .char-popover { left: var(--space-3); right: var(--space-3); width: auto; }
-  /* Lift controls above the fixed mobile tab-bar */
-  .controls { padding-bottom: calc(var(--space-3) + 64px); }
-  .vad-popover { bottom: calc(72px + 64px); }
 }
 </style>
