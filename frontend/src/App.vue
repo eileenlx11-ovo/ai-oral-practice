@@ -302,7 +302,7 @@ main:has(.chat-view) {
   /* Immersive chat: reserve space for the fixed tab-bar instead of full-bleed bottom */
   main:has(.chat-view) {
     padding: 0;
-    padding-bottom: 64px;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 }
 </style>
