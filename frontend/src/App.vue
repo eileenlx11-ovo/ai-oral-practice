@@ -166,6 +166,14 @@ main {
   padding-bottom: calc(var(--space-8) + 80px); /* Room for tab bar on mobile */
 }
 
+/* Immersive routes (chat) go full-bleed: no padding, no max-width cap, no overflow */
+main:has(.chat-view) {
+  max-width: none;
+  padding: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* --- Page transition --- */
 .page-enter-active,
 .page-leave-active {

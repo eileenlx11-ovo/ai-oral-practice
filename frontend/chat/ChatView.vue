@@ -662,11 +662,10 @@ async function toggleTranslate(msg) {
   position: relative;
   display: flex;
   flex-direction: column;
-  /* Immersive: fill the viewport below the navbar; only .messages scrolls */
-  height: calc(100dvh - 73px);
-  margin: calc(-1 * var(--space-8));
-  margin-bottom: calc(-1 * (var(--space-8) + 80px));
-  border-radius: 0;
+  /* Fills <main> (which is flex:1 = viewport minus navbar). The global
+     `main:has(.chat-view)` rule zeroes main's padding so this is full-bleed,
+     with no navbar magic number. Only .messages scrolls. */
+  height: 100%;
   overflow: hidden;
   animation: fade-in var(--transition-base) both;
 }
@@ -1246,11 +1245,6 @@ async function toggleTranslate(msg) {
 }
 
 @media (max-width: 768px) {
-  .chat-view {
-    height: calc(100dvh - 60px);
-    margin: calc(-1 * var(--space-4));
-    margin-bottom: calc(-1 * 100px);
-  }
   .mobile-only { display: flex; }
   .chat-body {
     grid-template-columns: 1fr;
@@ -1277,5 +1271,8 @@ async function toggleTranslate(msg) {
   .bubble { max-width: 85%; }
   .char-line2 { display: none; }
   .char-switcher, .char-popover { left: var(--space-3); right: var(--space-3); width: auto; }
+  /* Lift controls above the fixed mobile tab-bar */
+  .controls { padding-bottom: calc(var(--space-3) + 64px); }
+  .vad-popover { bottom: calc(72px + 64px); }
 }
 </style>
