@@ -60,7 +60,16 @@
     <div v-else-if="phase === 'result'" class="result">
       <h1>评估结果</h1>
       <div class="level-badge">{{ result.level }}</div>
+      <p class="level-desc">{{ levelDescriptions[result.level] }}</p>
       <p class="summary">{{ result.summary }}</p>
+
+      <!-- Level scale reference -->
+      <div class="level-scale">
+        <div v-for="lv in levelScale" :key="lv.level" class="level-step" :class="{ active: lv.level === result.level }">
+          <span class="step-badge">{{ lv.level }}</span>
+          <span class="step-label">{{ lv.label }}</span>
+        </div>
+      </div>
 
       <div class="scores-grid">
         <div class="score-item">
@@ -122,6 +131,22 @@ const responses = ref([])
 const currentTranscript = ref('')
 const isProcessing = ref(false)
 const result = ref({})
+
+const levelScale = [
+  { level: 'A1', label: '入门' },
+  { level: 'A2', label: '初级' },
+  { level: 'B1', label: '中级' },
+  { level: 'B2', label: '中高级' },
+  { level: 'C1', label: '高级' },
+]
+
+const levelDescriptions = {
+  A1: '能理解和使用日常基础短语，进行简单自我介绍',
+  A2: '能处理简单日常任务，用简短句子描述个人背景和经历',
+  B1: '能独立应对旅行中的大部分情况，描述经历和表达观点',
+  B2: '能流利自如地与母语者交流，就广泛话题展开详细讨论',
+  C1: '能灵活有效地运用语言，表达复杂观点并进行学术/专业讨论',
+}
 const toast = reactive({ message: '', type: 'info' })
 
 const { start, stop, isRecording } = useRecorder({
@@ -362,7 +387,45 @@ async function submitAssessment() {
   background: #f0f7ff;
   padding: 1rem 2rem;
   border-radius: 12px;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.level-desc {
+  color: #555;
+  font-size: 0.9rem;
+  margin-bottom: 0.8rem;
+}
+
+.level-scale {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.level-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  opacity: 0.5;
+  transition: all 0.2s;
+}
+.level-step.active {
+  opacity: 1;
+  background: #e3f2fd;
+  transform: scale(1.1);
+}
+.step-badge {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1f4e79;
+}
+.step-label {
+  font-size: 0.7rem;
+  color: #888;
 }
 
 .summary { color: #666; margin-bottom: 1.5rem; }
