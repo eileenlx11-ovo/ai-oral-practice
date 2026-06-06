@@ -43,6 +43,12 @@
           </div>
         </div>
 
+        <!-- Demo mode: show verification code -->
+        <div v-if="devCode" class="demo-code-banner">
+          <span class="demo-badge">演示模式</span>
+          <span class="demo-code">验证码：<strong>{{ devCode }}</strong></span>
+        </div>
+
         <p v-if="error" class="error-msg">{{ error }}</p>
 
         <button type="submit" class="submit-btn" :disabled="loading">
@@ -102,6 +108,7 @@ import { useI18n } from '../composables/useI18n'
 
 const router = useRouter()
 const { t } = useI18n()
+const redirectTo = () => router.currentRoute.value.query.redirect || '/'
 const mode = ref('phone')
 const email = ref('')
 const password = ref('')
@@ -112,6 +119,7 @@ const error = ref('')
 const loading = ref(false)
 const sendingCode = ref(false)
 const codeCooldown = ref(0)
+const devCode = ref('')  // Show code in demo mode
 let cooldownTimer = null
 
 function switchMode(m) {
@@ -129,9 +137,9 @@ async function handleSendCode() {
   sendingCode.value = true
   try {
     const result = await sendCode(phone.value)
-    // Dev mode: show code in console
+    // Dev/demo mode: show code on screen
     if (result._dev_code) {
-      console.log('[DEV] Verification code:', result._dev_code)
+      devCode.value = result._dev_code
     }
     startCooldown()
   } catch (e) {
@@ -156,7 +164,7 @@ async function handlePhoneLogin() {
   loading.value = true
   try {
     await phoneLogin(phone.value, smsCode.value)
-    router.push('/')
+    router.push(redirectTo())
   } catch (e) {
     error.value = e.message || t('auth.verifyFailed')
   } finally {
@@ -170,7 +178,7 @@ async function handleEmailLogin() {
   loading.value = true
   try {
     await login(email.value, password.value)
-    router.push('/')
+    router.push(redirectTo())
   } catch (e) {
     error.value = e.message || t('auth.loginFailed')
   } finally {
@@ -184,7 +192,7 @@ async function handleRegister() {
   loading.value = true
   try {
     await register(email.value, password.value, nickname.value)
-    router.push('/')
+    router.push(redirectTo())
   } catch (e) {
     error.value = e.message || t('auth.registerFailed')
   } finally {
@@ -357,6 +365,37 @@ onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
 }
 
 .skip-btn:hover { color: var(--color-primary); }
+
+.demo-code-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-success-light);
+  border: 1px solid var(--color-success);
+  border-radius: var(--radius-md);
+  animation: scale-in var(--transition-base) both;
+}
+
+.demo-badge {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: white;
+  background: var(--color-success);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.demo-code {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.demo-code strong {
+  font-size: var(--text-lg);
+  letter-spacing: 2px;
+  color: var(--color-success);
+}
 
 @media (max-width: 768px) {
   .auth-card {
