@@ -206,7 +206,7 @@ async def chat_stream(
             yield _sse("asr", {"text": user_text})
 
             # 2. LLM streaming + sentence-by-sentence TTS
-            system_prompt = get_system_prompt(scenario)
+            # NOTE: reuse the outer system_prompt (respects session custom_prompt)
             messages = [{"role": "system", "content": system_prompt}]
             for msg in chat_history[-10:]:
                 messages.append({"role": msg["role"], "content": msg["content"]})

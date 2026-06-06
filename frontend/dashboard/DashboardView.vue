@@ -1,5 +1,6 @@
 <template>
   <div class="dashboard">
+    <Toast :message="toast.message" :type="toast.type" @close="toast.message = ''" />
     <h1>📊 Progress Dashboard</h1>
 
     <!-- Summary Cards -->
@@ -107,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -120,6 +121,7 @@ import {
   Legend,
 } from 'chart.js'
 import { CONFIG } from '../../shared/config'
+import Toast from '../components/Toast.vue'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
@@ -127,6 +129,12 @@ const API = CONFIG.API.BASE_URL
 const progress = ref(null)
 const sessions = ref([])
 const selectedSummary = ref(null)
+const toast = reactive({ message: '', type: 'info' })
+
+function showToast(message, type = 'error') {
+  toast.message = message
+  toast.type = type
+}
 
 const hasScoreData = computed(() => {
   return progress.value?.score_history?.some((s) => s.avg_pronunciation !== null)
@@ -196,9 +204,13 @@ function getScenarioIcon(id) {
 async function viewSession(sessionId) {
   try {
     const res = await fetch(`${API}/api/sessions/${sessionId}/summary`)
+    if (!res.ok) {
+      showToast(`加载会话详情失败 (${res.status})`)
+      return
+    }
     selectedSummary.value = await res.json()
   } catch {
-    // silent fail
+    showToast('网络错误，无法加载会话详情')
   }
 }
 
@@ -208,10 +220,14 @@ onMounted(async () => {
       fetch(`${API}/api/progress`),
       fetch(`${API}/api/sessions`),
     ])
+    if (!progRes.ok || !sessRes.ok) {
+      showToast('加载数据失败，请稍后刷新重试')
+      return
+    }
     progress.value = await progRes.json()
     sessions.value = await sessRes.json()
   } catch {
-    // API not available; show empty state
+    showToast('网络错误，无法连接服务器')
   }
 })
 </script>
