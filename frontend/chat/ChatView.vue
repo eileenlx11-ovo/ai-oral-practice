@@ -662,10 +662,11 @@ async function toggleTranslate(msg) {
   position: relative;
   display: flex;
   flex-direction: column;
-  /* Fills <main> (which is flex:1 = viewport minus navbar). The global
-     `main:has(.chat-view)` rule zeroes main's padding so this is full-bleed,
-     with no navbar magic number. Only .messages scrolls. */
-  height: 100%;
+  /* Flex-fills <main> (itself flex:1 = viewport minus navbar). The global
+     `main:has(.chat-view)` rule zeroes padding and makes main a flex column,
+     so no navbar magic number is needed. Only .messages scrolls. */
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   animation: fade-in var(--transition-base) both;
 }

@@ -166,12 +166,15 @@ main {
   padding-bottom: calc(var(--space-8) + 80px); /* Room for tab bar on mobile */
 }
 
-/* Immersive routes (chat) go full-bleed: no padding, no max-width cap, no overflow */
+/* Immersive routes (chat) go full-bleed: no padding, no max-width cap.
+   Make main a flex container so the chat shell can flex:1 to fill it. */
 main:has(.chat-view) {
   max-width: none;
   padding: 0;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* --- Page transition --- */
