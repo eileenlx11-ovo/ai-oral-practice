@@ -17,9 +17,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
 from openai import AsyncOpenAI
 from .auth import (
-    create_user, get_user_by_email, verify_password,
-    issue_jwt, get_current_user, get_optional_user,
+    create_user, create_user_by_phone, get_user_by_email, get_user_by_id,
+    update_user, verify_password, issue_jwt, get_current_user, get_optional_user,
+    PHONE_RE,
 )
+from .sms import send_verification_code, verify_code
 from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, get_practice_sentences, build_custom_interview_prompt
 from .characters import get_character
 from .correction import extract_corrections
@@ -111,7 +113,85 @@ async def login(email: str = Form(...), password: str = Form(...)):
 @app.get("/api/auth/me")
 async def get_me(user: dict = Depends(get_current_user)):
     """Get current authenticated user profile."""
-    return {"id": user["id"], "email": user["email"], "nickname": user["nickname"]}
+    return {
+        "id": user["id"],
+        "email": user.get("email"),
+        "phone": user.get("phone"),
+        "nickname": user["nickname"],
+    }
+
+
+@app.post("/api/auth/send-code")
+async def send_code(phone: str = Form(...)):
+    """Send SMS verification code to a phone number."""
+    if not PHONE_RE.match(phone):
+        raise HTTPException(400, "请输入有效的手机号")
+    result = await send_verification_code(phone)
+    if not result["success"]:
+        raise HTTPException(429, result["error"])
+    # In dev mode, return the code for testing
+    resp = {"success": True}
+    if "_dev_code" in result:
+        resp["_dev_code"] = result["_dev_code"]
+    return resp
+
+
+@app.post("/api/auth/phone-login")
+async def phone_login(phone: str = Form(...), code: str = Form(...)):
+    """Login or register via phone + SMS verification code."""
+    if not PHONE_RE.match(phone):
+        raise HTTPException(400, "请输入有效的手机号")
+    if not verify_code(phone, code):
+        raise HTTPException(401, "验证码错误或已过期")
+    user = create_user_by_phone(phone)
+    token = issue_jwt(user["id"])
+    return {"token": token, "user": {"id": user["id"], "phone": user.get("phone"), "nickname": user["nickname"]}}
+
+
+# --- Settings Routes ---
+
+@app.get("/api/settings")
+async def get_settings(user: dict = Depends(get_current_user)):
+    """Get user settings."""
+    settings = user.get("settings", {})
+    return {
+        "nickname": user.get("nickname", ""),
+        "voice": settings.get("voice", "american_female"),
+        "locale": settings.get("locale", "zh"),
+        "theme": settings.get("theme", "system"),
+    }
+
+
+@app.put("/api/settings")
+async def update_settings(
+    user: dict = Depends(get_current_user),
+    nickname: str = Form(None),
+    voice: str = Form(None),
+    locale: str = Form(None),
+    theme: str = Form(None),
+):
+    """Update user settings."""
+    changed = False
+    if nickname is not None and nickname.strip():
+        user["nickname"] = nickname.strip()
+        changed = True
+
+    settings = user.get("settings", {})
+    if voice is not None and voice in VOICES:
+        settings["voice"] = voice
+        changed = True
+    if locale is not None and locale in ("zh", "en"):
+        settings["locale"] = locale
+        changed = True
+    if theme is not None and theme in ("light", "dark", "system"):
+        settings["theme"] = theme
+        changed = True
+
+    if changed:
+        user["settings"] = settings
+        update_user(user)
+
+    return {"success": True, "nickname": user["nickname"], "voice": settings.get("voice", "american_female"), "locale": settings.get("locale", "zh"), "theme": settings.get("theme", "system")}
 
 
 # --- Routes ---
@@ -131,6 +211,19 @@ async def list_categories():
 @app.get("/api/voices")
 async def list_voices():
     return VOICES
+
+
+@app.get("/api/tts-preview")
+async def tts_preview(voice: str = "american_female", text: str = "Hello! This is how I sound."):
+    """Generate a TTS preview for the given voice and text."""
+    voice_id = VOICES.get(voice, VOICES["american_female"])["id"]
+    try:
+        audio_id = uuid.uuid4().hex
+        out_path = AUDIO_DIR / f"{audio_id}.mp3"
+        await synthesize_sentence(text, str(out_path), voice_id)
+        return FileResponse(str(out_path), media_type="audio/mpeg")
+    except Exception:
+        raise HTTPException(500, "TTS preview failed")
 
 
 @app.get("/api/scenarios/{scenario_id}")

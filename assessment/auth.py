@@ -1,12 +1,13 @@
 """
 Lightweight JWT authentication for AI Oral Practice.
-Simplified from talent-agent auth — email/password with PBKDF2 + HS256 JWT.
+Simplified from talent-agent auth — email/password + phone/SMS with PBKDF2 + HS256 JWT.
 No email verification or password reset (MVP for contest demo).
 """
 import hashlib
 import hmac
 import json
 import os
+import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -21,6 +22,8 @@ JWT_SECRET = os.getenv("JWT_SECRET", "oral-practice-dev-secret-change-in-prod")
 # File-based user storage (MVP — no DB dependency)
 USERS_DIR = Path(__file__).parent / "data" / "users"
 USERS_DIR.mkdir(parents=True, exist_ok=True)
+
+PHONE_RE = re.compile(r"^1[3-9]\d{9}$")
 
 
 def hash_password(password: str) -> str:
@@ -54,14 +57,40 @@ def decode_jwt(token: str) -> dict:
 
 # --- User CRUD (file-based) ---
 
-def _user_path(email: str) -> Path:
-    """Safe filename from email."""
-    safe = email.lower().replace("@", "_at_").replace(".", "_")
+def _user_path_for_id(user_id: str) -> Path:
+    """Safe filename from user_id (email or phone)."""
+    safe = user_id.lower().replace("@", "_at_").replace(".", "_").replace("+", "_")
     return USERS_DIR / f"{safe}.json"
+
+
+def _user_path(email: str) -> Path:
+    return _user_path_for_id(email)
 
 
 def get_user_by_email(email: str) -> Optional[dict]:
     path = _user_path(email)
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def get_user_by_phone(phone: str) -> Optional[dict]:
+    """Look up user by phone number."""
+    path = _user_path_for_id(f"phone_{phone}")
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def get_user_by_id(user_id: str) -> Optional[dict]:
+    """Look up user by their id field (email or phone_xxx)."""
+    path = _user_path_for_id(user_id)
     if not path.exists():
         return None
     try:
@@ -87,6 +116,31 @@ def create_user(email: str, password: str, nickname: str = "") -> dict:
     return user
 
 
+def create_user_by_phone(phone: str) -> dict:
+    """Create or return existing user by phone. Auto-registers on first login."""
+    existing = get_user_by_phone(phone)
+    if existing:
+        return existing
+    user_id = f"phone_{phone}"
+    user = {
+        "id": user_id,
+        "phone": phone,
+        "nickname": f"用户{phone[-4:]}",
+        "created_at": datetime.now(UTC).isoformat(),
+    }
+    _user_path_for_id(user_id).write_text(
+        json.dumps(user, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return user
+
+
+def update_user(user: dict) -> None:
+    """Persist updated user data back to file."""
+    _user_path_for_id(user["id"]).write_text(
+        json.dumps(user, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
 # --- FastAPI dependencies ---
 
 def _extract_token(request: Request) -> Optional[str]:
@@ -109,7 +163,7 @@ async def get_current_user(request: Request) -> dict:
     except jwt.InvalidTokenError:
         raise HTTPException(401, "Invalid token")
 
-    user = get_user_by_email(payload["sub"])
+    user = get_user_by_id(payload["sub"])
     if not user:
         raise HTTPException(401, "User not found")
     return user
@@ -122,6 +176,6 @@ async def get_optional_user(request: Request) -> Optional[dict]:
         return None
     try:
         payload = decode_jwt(token)
-        return get_user_by_email(payload["sub"])
+        return get_user_by_id(payload["sub"])
     except (jwt.InvalidTokenError, KeyError):
         return None

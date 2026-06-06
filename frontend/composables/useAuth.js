@@ -66,3 +66,30 @@ export async function register(email, password, nickname = '') {
 export function logout() {
   clearAuth()
 }
+
+export async function sendCode(phone) {
+  const formData = new FormData()
+  formData.append('phone', phone)
+
+  const res = await fetch('/api/auth/send-code', { method: 'POST', body: formData })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || '发送验证码失败')
+  }
+  return await res.json()
+}
+
+export async function phoneLogin(phone, code) {
+  const formData = new FormData()
+  formData.append('phone', phone)
+  formData.append('code', code)
+
+  const res = await fetch('/api/auth/phone-login', { method: 'POST', body: formData })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || '验证码错误或已过期')
+  }
+  const data = await res.json()
+  setAuth(data.token, data.user)
+  return data.user
+}

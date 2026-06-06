@@ -4,99 +4,197 @@
       <div class="auth-header">
         <span class="auth-logo">🎙️</span>
         <h1>SpeakFlow</h1>
-        <p class="auth-subtitle">AI 英语口语陪练</p>
+        <p class="auth-subtitle">{{ t('auth.subtitle') }}</p>
       </div>
 
-      <!-- Tab switch -->
+      <!-- Tab switch: phone / login / register -->
       <div class="auth-tabs">
-        <button
-          class="tab" :class="{ active: mode === 'login' }"
-          @click="mode = 'login'; error = ''"
-        >登录</button>
-        <button
-          class="tab" :class="{ active: mode === 'register' }"
-          @click="mode = 'register'; error = ''"
-        >注册</button>
+        <button class="tab" :class="{ active: mode === 'phone' }" @click="switchMode('phone')">{{ t('auth.phone') }}</button>
+        <button class="tab" :class="{ active: mode === 'login' }" @click="switchMode('login')">{{ t('auth.emailLogin') }}</button>
+        <button class="tab" :class="{ active: mode === 'register' }" @click="switchMode('register')">{{ t('auth.register') }}</button>
       </div>
 
-      <form @submit.prevent="handleSubmit" class="auth-form">
-        <div v-if="mode === 'register'" class="field">
-          <label for="nickname">昵称</label>
+      <!-- Phone SMS login -->
+      <form v-if="mode === 'phone'" @submit.prevent="handlePhoneLogin" class="auth-form">
+        <div class="field">
+          <label for="phone">{{ t('auth.phone') }}</label>
           <input
-            id="nickname" v-model="nickname" type="text"
-            placeholder="你的名字" autocomplete="name"
+            id="phone" v-model="phone" type="tel" required
+            :placeholder="t('auth.phonePlaceholder')" autocomplete="tel"
+            maxlength="11"
           />
         </div>
 
         <div class="field">
-          <label for="email">邮箱</label>
-          <input
-            id="email" v-model="email" type="email" required
-            placeholder="your@email.com" autocomplete="email"
-          />
-        </div>
-
-        <div class="field">
-          <label for="password">密码</label>
-          <input
-            id="password" v-model="password" type="password" required
-            :placeholder="mode === 'register' ? '至少 6 位' : '输入密码'"
-            autocomplete="current-password"
-          />
+          <label for="sms-code">{{ t('auth.code') }}</label>
+          <div class="code-row">
+            <input
+              id="sms-code" v-model="smsCode" type="text" required
+              :placeholder="t('auth.codePlaceholder')" autocomplete="one-time-code"
+              maxlength="6" inputmode="numeric"
+            />
+            <button
+              type="button" class="send-code-btn"
+              :disabled="codeCooldown > 0 || sendingCode"
+              @click="handleSendCode"
+            >
+              {{ sendingCode ? t('auth.sending') : codeCooldown > 0 ? `${codeCooldown}s` : t('auth.sendCode') }}
+            </button>
+          </div>
         </div>
 
         <p v-if="error" class="error-msg">{{ error }}</p>
 
         <button type="submit" class="submit-btn" :disabled="loading">
-          {{ loading ? '请稍候...' : (mode === 'login' ? '登录' : '注册') }}
+          {{ loading ? t('auth.waiting') : t('auth.loginOrRegister') }}
+        </button>
+      </form>
+
+      <!-- Email login -->
+      <form v-if="mode === 'login'" @submit.prevent="handleEmailLogin" class="auth-form">
+        <div class="field">
+          <label for="email">{{ t('auth.email') }}</label>
+          <input id="email" v-model="email" type="email" required placeholder="your@email.com" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="password">{{ t('auth.password') }}</label>
+          <input id="password" v-model="password" type="password" required :placeholder="t('auth.passwordPlaceholder')" autocomplete="current-password" />
+        </div>
+        <p v-if="error" class="error-msg">{{ error }}</p>
+        <button type="submit" class="submit-btn" :disabled="loading">
+          {{ loading ? t('auth.waiting') : t('app.nav.login') }}
+        </button>
+      </form>
+
+      <!-- Email register -->
+      <form v-if="mode === 'register'" @submit.prevent="handleRegister" class="auth-form">
+        <div class="field">
+          <label for="reg-nickname">{{ t('auth.nickname') }}</label>
+          <input id="reg-nickname" v-model="nickname" type="text" :placeholder="t('auth.nicknamePlaceholder')" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label for="reg-email">{{ t('auth.email') }}</label>
+          <input id="reg-email" v-model="email" type="email" required placeholder="your@email.com" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="reg-password">{{ t('auth.password') }}</label>
+          <input id="reg-password" v-model="password" type="password" required :placeholder="t('auth.newPasswordPlaceholder')" autocomplete="new-password" />
+        </div>
+        <p v-if="error" class="error-msg">{{ error }}</p>
+        <button type="submit" class="submit-btn" :disabled="loading">
+          {{ loading ? t('auth.waiting') : t('auth.register') }}
         </button>
       </form>
 
       <!-- Skip for demo -->
       <button class="skip-btn" @click="skipAuth">
-        跳过，先体验 →
+        {{ t('auth.skip') }}
       </button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { login, register } from '../composables/useAuth'
+import { login, register, phoneLogin, sendCode } from '../composables/useAuth'
+import { useI18n } from '../composables/useI18n'
 
 const router = useRouter()
-const mode = ref('login')
+const { t } = useI18n()
+const mode = ref('phone')
 const email = ref('')
 const password = ref('')
 const nickname = ref('')
+const phone = ref('')
+const smsCode = ref('')
 const error = ref('')
 const loading = ref(false)
+const sendingCode = ref(false)
+const codeCooldown = ref(0)
+let cooldownTimer = null
 
-async function handleSubmit() {
+function switchMode(m) {
+  mode.value = m
+  error.value = ''
+}
+
+// --- Phone SMS flow ---
+async function handleSendCode() {
+  if (!phone.value || phone.value.length !== 11) {
+    error.value = t('auth.invalidPhone')
+    return
+  }
+  error.value = ''
+  sendingCode.value = true
+  try {
+    const result = await sendCode(phone.value)
+    // Dev mode: show code in console
+    if (result._dev_code) {
+      console.log('[DEV] Verification code:', result._dev_code)
+    }
+    startCooldown()
+  } catch (e) {
+    error.value = e.message || t('auth.sendFailed')
+  } finally {
+    sendingCode.value = false
+  }
+}
+
+function startCooldown() {
+  codeCooldown.value = 60
+  cooldownTimer = setInterval(() => {
+    codeCooldown.value--
+    if (codeCooldown.value <= 0) clearInterval(cooldownTimer)
+  }, 1000)
+}
+
+async function handlePhoneLogin() {
+  if (!phone.value || phone.value.length !== 11) { error.value = t('auth.invalidPhone'); return }
+  if (!smsCode.value || smsCode.value.length !== 6) { error.value = t('auth.invalidCode'); return }
   error.value = ''
   loading.value = true
   try {
-    if (mode.value === 'login') {
-      await login(email.value, password.value)
-    } else {
-      if (password.value.length < 6) {
-        error.value = '密码至少 6 位'
-        return
-      }
-      await register(email.value, password.value, nickname.value)
-    }
+    await phoneLogin(phone.value, smsCode.value)
     router.push('/')
   } catch (e) {
-    error.value = e.message || '操作失败，请重试'
+    error.value = e.message || t('auth.verifyFailed')
   } finally {
     loading.value = false
   }
 }
 
-function skipAuth() {
-  router.push('/')
+// --- Email flows ---
+async function handleEmailLogin() {
+  error.value = ''
+  loading.value = true
+  try {
+    await login(email.value, password.value)
+    router.push('/')
+  } catch (e) {
+    error.value = e.message || t('auth.loginFailed')
+  } finally {
+    loading.value = false
+  }
 }
+
+async function handleRegister() {
+  if (password.value.length < 6) { error.value = t('auth.passwordTooShort'); loading.value = false; return }
+  error.value = ''
+  loading.value = true
+  try {
+    await register(email.value, password.value, nickname.value)
+    router.push('/')
+  } catch (e) {
+    error.value = e.message || t('auth.registerFailed')
+  } finally {
+    loading.value = false
+  }
+}
+
+function skipAuth() { router.push('/') }
+
+onUnmounted(() => { if (cooldownTimer) clearInterval(cooldownTimer) })
 </script>
 
 <style scoped>
@@ -111,7 +209,7 @@ function skipAuth() {
 
 .auth-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   background: var(--color-surface);
   border-radius: var(--radius-xl);
   padding: var(--space-8);
@@ -152,12 +250,13 @@ function skipAuth() {
 
 .tab {
   flex: 1;
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-text-secondary);
   transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 
 .tab.active {
@@ -192,6 +291,7 @@ function skipAuth() {
   font-family: inherit;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   outline: none;
+  width: 100%;
 }
 
 .field input:focus {
@@ -200,6 +300,30 @@ function skipAuth() {
 }
 
 .field input::placeholder { color: var(--color-text-muted); }
+
+.code-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.code-row input {
+  flex: 1;
+}
+
+.send-code-btn {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-primary-50);
+  color: var(--color-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+  min-width: 100px;
+}
+
+.send-code-btn:hover:not(:disabled) { background: var(--color-primary-100); }
+.send-code-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .error-msg {
   color: var(--color-error);
@@ -233,4 +357,14 @@ function skipAuth() {
 }
 
 .skip-btn:hover { color: var(--color-primary); }
+
+@media (max-width: 768px) {
+  .auth-card {
+    max-width: none;
+    border-radius: var(--radius-lg);
+    padding: var(--space-6);
+  }
+
+  .tab { font-size: var(--text-xs); padding: var(--space-2); }
+}
 </style>
