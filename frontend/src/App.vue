@@ -20,6 +20,13 @@
           <span>进度</span>
         </router-link>
       </div>
+      <div class="nav-auth">
+        <template v-if="isAuthenticated">
+          <span class="user-badge">{{ currentUser?.nickname || '用户' }}</span>
+          <button class="logout-btn" @click="handleLogout">退出</button>
+        </template>
+        <router-link v-else to="/login" class="login-btn">登录</router-link>
+      </div>
     </nav>
 
     <!-- Main content -->
@@ -48,6 +55,18 @@
     </nav>
   </div>
 </template>
+
+<script setup>
+import { isAuthenticated, currentUser, logout } from '../composables/useAuth'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+function handleLogout() {
+  logout()
+  router.push('/login')
+}
+</script>
 
 <style>
 @import '../styles/variables.css';
@@ -192,6 +211,42 @@ main {
 .tab-label {
   font-weight: 500;
 }
+
+/* --- Auth nav --- */
+.nav-auth {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.user-badge {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-primary-50);
+  border-radius: var(--radius-full);
+}
+
+.logout-btn {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+}
+.logout-btn:hover { color: var(--color-error); }
+
+.login-btn {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-primary);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-full);
+  transition: all var(--transition-fast);
+}
+.login-btn:hover { background: var(--color-primary); color: white; }
 
 /* --- Responsive --- */
 @media (max-width: 768px) {

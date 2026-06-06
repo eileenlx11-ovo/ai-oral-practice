@@ -11,11 +11,15 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
 from openai import AsyncOpenAI
+from .auth import (
+    create_user, get_user_by_email, verify_password,
+    issue_jwt, get_current_user, get_optional_user,
+)
 from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, get_practice_sentences, build_custom_interview_prompt
 from .characters import get_character
 from .correction import extract_corrections
@@ -73,6 +77,41 @@ async def _read_audio(audio: UploadFile) -> bytes:
     if len(data) < 100:
         raise HTTPException(400, "Audio file too small or empty")
     return data
+
+
+# --- Auth Routes ---
+
+@app.post("/api/auth/register")
+async def register(email: str = Form(...), password: str = Form(...), nickname: str = Form("")):
+    """Register a new user account."""
+    if len(password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+    if "@" not in email or "." not in email:
+        raise HTTPException(400, "Invalid email format")
+    try:
+        user = create_user(email, password, nickname)
+    except ValueError as e:
+        if "email_taken" in str(e):
+            raise HTTPException(409, "Email already registered")
+        raise HTTPException(400, str(e))
+    token = issue_jwt(user["id"])
+    return {"token": token, "user": {"id": user["id"], "email": user["email"], "nickname": user["nickname"]}}
+
+
+@app.post("/api/auth/login")
+async def login(email: str = Form(...), password: str = Form(...)):
+    """Login with email and password."""
+    user = get_user_by_email(email)
+    if not user or not verify_password(password, user["password_hash"]):
+        raise HTTPException(401, "Invalid email or password")
+    token = issue_jwt(user["id"])
+    return {"token": token, "user": {"id": user["id"], "email": user["email"], "nickname": user["nickname"]}}
+
+
+@app.get("/api/auth/me")
+async def get_me(user: dict = Depends(get_current_user)):
+    """Get current authenticated user profile."""
+    return {"id": user["id"], "email": user["email"], "nickname": user["nickname"]}
 
 
 # --- Routes ---
