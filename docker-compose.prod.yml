@@ -21,6 +21,8 @@ services:
     environment:
       - PRONUNCIATION_ALLOW_MOCK=0
       - CORS_ORIGINS=https://speak.projfit.top,https://projfit.top
+      - TALENT_AGENT_URL=${TALENT_AGENT_URL:-https://projfit.top/api/backend}
+      - TALENT_AGENT_TOKEN=${TALENT_AGENT_TOKEN:-}
     volumes:
       - backend_audio:/app/assessment/audio_cache
       - backend_data:/app/assessment/data
