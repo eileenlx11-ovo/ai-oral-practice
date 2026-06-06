@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from openai import AsyncOpenAI
 from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, get_practice_sentences, build_custom_interview_prompt
 from .characters import get_character
@@ -344,6 +344,19 @@ async def asr_only(audio: UploadFile = File(...)):
         return {"text": text}
     finally:
         os.unlink(tmp.name)
+
+
+@app.post("/api/tts")
+async def text_to_speech(text: str = Form(...)):
+    """Generate TTS audio for reference text demo playback."""
+    url = await synthesize_sentence(text)
+    if not url:
+        raise HTTPException(503, "TTS unavailable")
+
+    filepath = AUDIO_DIR / url.split("/")[-1]
+    if not filepath.exists():
+        raise HTTPException(503, "TTS unavailable")
+    return FileResponse(filepath, media_type="audio/mpeg")
 
 
 # --- Internal helpers ---

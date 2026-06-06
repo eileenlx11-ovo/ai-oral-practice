@@ -48,8 +48,8 @@
         <div class="reference-text">
           <p class="label">跟读这句话：</p>
           <p class="text">{{ sentences[currentIndex] }}</p>
-          <button class="listen-btn" @click="listenReference" :disabled="isPlaying">
-            🔊 听示范
+          <button class="demo-btn" :disabled="playingDemo" @click="playDemo">
+            {{ playingDemo ? '播放中...' : '听标准发音' }}
           </button>
         </div>
 
@@ -130,6 +130,8 @@ const results = ref({})
 const result = ref(null)
 const isProcessing = ref(false)
 const isPlaying = ref(false)
+const playingDemo = ref(false)
+const demoAudio = ref(null)
 let currentAudio = null
 
 const toast = reactive({ message: '', type: 'info' })
@@ -221,23 +223,39 @@ async function finishRecording() {
   }
 }
 
-async function listenReference() {
+async function playDemo() {
   const text = sentences.value[currentIndex.value]
   if (!text) return
 
-  // Use browser speech synthesis as quick demo (or could call TTS endpoint)
   if (currentAudio) { currentAudio.pause(); currentAudio = null }
+  if (demoAudio.value) { demoAudio.value.pause(); demoAudio.value = null }
   isPlaying.value = true
+  playingDemo.value = true
 
-  if ('speechSynthesis' in window) {
-    const utter = new SpeechSynthesisUtterance(text)
-    utter.lang = 'en-US'
-    utter.rate = 0.9
-    utter.onend = () => { isPlaying.value = false }
-    utter.onerror = () => { isPlaying.value = false }
-    speechSynthesis.speak(utter)
-  } else {
+  try {
+    const formData = new FormData()
+    formData.append('text', text)
+    const res = await fetch('/api/tts', { method: 'POST', body: formData })
+    if (!res.ok) throw new Error('TTS failed')
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    demoAudio.value = new Audio(url)
+    demoAudio.value.onended = () => {
+      URL.revokeObjectURL(url)
+      isPlaying.value = false
+      playingDemo.value = false
+    }
+    demoAudio.value.onerror = () => {
+      URL.revokeObjectURL(url)
+      isPlaying.value = false
+      playingDemo.value = false
+    }
+    await demoAudio.value.play()
+  } catch {
     isPlaying.value = false
+    playingDemo.value = false
+    toast.message = '标准发音播放失败'
+    toast.type = 'warning'
   }
 }
 
@@ -341,7 +359,7 @@ function wordClass(w) {
 }
 .reference-text .label { font-size: 0.85rem; color: #888; margin-bottom: 0.5rem; }
 .reference-text .text { font-size: 1.2rem; color: #333; line-height: 1.6; }
-.listen-btn {
+.demo-btn {
   margin-top: 0.8rem;
   padding: 0.4rem 1rem;
   border: 1px solid #e0e0e0;
@@ -350,8 +368,8 @@ function wordClass(w) {
   cursor: pointer;
   font-size: 0.85rem;
 }
-.listen-btn:hover { border-color: #1f4e79; }
-.listen-btn:disabled { opacity: 0.5; }
+.demo-btn:hover { border-color: #1f4e79; }
+.demo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .record-area { margin-bottom: 1.5rem; }
 .record-btn {
