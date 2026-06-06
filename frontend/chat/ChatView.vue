@@ -166,6 +166,7 @@ import { useRoute } from 'vue-router'
 import { useRecorder } from '../../voice/audio/useRecorder'
 import { streamChat } from '../../voice/asr/service'
 import { useNetwork } from '../composables/useNetwork'
+import { classifyError } from '../composables/useErrorHandler'
 import { CONFIG } from '../../shared/config'
 import Toast from '../components/Toast.vue'
 
@@ -383,7 +384,11 @@ function sendStreaming(blob) {
       resetHintTimer()
     },
     onError(msg) {
-      showToast(msg || '网络请求失败，请检查网络连接', 'error')
+      const err = classifyError(msg)
+      showToast(`${err.title}：${err.message}`, 'error')
+      if (err.action === 'refresh') {
+        setTimeout(() => { if (confirm('是否刷新页面？')) location.reload() }, 5000)
+      }
       showRetry.value = true
       state.value = 'IDLE'
       currentAbort = null

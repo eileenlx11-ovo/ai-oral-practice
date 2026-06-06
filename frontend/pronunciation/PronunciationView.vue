@@ -118,6 +118,7 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
 import { useRecorder } from '../../voice/audio/useRecorder'
+import { classifyError } from '../composables/useErrorHandler'
 import { CONFIG } from '../../shared/config'
 import Toast from '../components/Toast.vue'
 
@@ -204,13 +205,16 @@ async function finishRecording() {
     const res = await fetch('/api/assess', { method: 'POST', body: formData })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      throw new Error(err.detail || 'Assessment failed')
+      const error = new Error(err.detail || 'Assessment failed')
+      error.status = res.status
+      throw error
     }
     const data = await res.json()
     result.value = data
     results.value[currentIndex.value] = data
   } catch (e) {
-    toast.message = e.message || '发音评测失败'
+    const err = classifyError(e, e.status)
+    toast.message = `${err.title}：${err.message}`
     toast.type = 'error'
   } finally {
     isProcessing.value = false
