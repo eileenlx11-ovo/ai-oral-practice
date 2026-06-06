@@ -2,7 +2,7 @@
 Scenario definitions and system prompts for each practice context.
 Expanded with categories, difficulty levels, objectives, and character integration.
 """
-from ..characters import get_character, CHARACTERS
+from ..characters import CHARACTERS, get_character
 
 # Scenario categories
 CATEGORIES = [
@@ -285,6 +285,8 @@ def get_system_prompt(scenario_id: str) -> str:
 
     # Add character personality to context
     char_info = f"\nYour name is {character['name']}. Personality: {character['personality']}. Speaking style: {character['speaking_style']}."
+    if character.get("background"):
+        char_info += f" Background: {character['background']}. Use this only to guide your roleplay; do not proactively recite the background."
 
     return f"{_BASE_INSTRUCTION}\n\nSCENARIO CONTEXT:\n{context}{char_info}"
 

@@ -4,10 +4,9 @@ Stores practice session data as JSON files for MVP.
 Provides APIs for listing sessions, generating summaries, and progress metrics.
 """
 import json
-import time
 import uuid
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 # Session data directory
 DATA_DIR = Path(__file__).parent.parent / "data" / "sessions"
@@ -101,6 +100,15 @@ class SessionStore:
     def get_session(self, session_id: str) -> dict | None:
         return self._load(session_id)
 
+    def update_session_fields(self, session_id: str, **fields) -> dict:
+        """Update selected top-level session fields and persist them."""
+        session = self._load(session_id)
+        if session is None:
+            raise ValueError(f"Session {session_id} not found")
+        session.update(fields)
+        self._save(session)
+        return session
+
     def list_sessions(
         self,
         limit: int = 20,
@@ -169,6 +177,18 @@ class SessionStore:
                 "avg_accuracy": None,
                 "sessions_over_time": [],
                 "score_history": [],
+                "streak": {
+                    "current": 0,
+                    "longest": 0,
+                    "active_dates": [],
+                    "daily_counts": {},
+                },
+                "weakness": {
+                    "common_grammar_errors": [],
+                    "weak_scenarios": [],
+                    "low_dimension": None,
+                },
+                "scenario_distribution": {},
             }
 
         total_turns = sum(len(s["turns"]) for s in all_sessions)
@@ -199,6 +219,9 @@ class SessionStore:
             "avg_fluency": _avg(all_flu),
             "avg_accuracy": _avg(all_acc),
             "score_history": score_history,
+            "streak": _build_streak(all_sessions),
+            "weakness": _build_weakness(all_sessions, all_pron, all_flu, all_acc),
+            "scenario_distribution": _scenario_distribution(all_sessions),
         }
 
     def _extract_common_errors(self, session: dict) -> list[dict]:
@@ -242,6 +265,114 @@ def _avg(values: list[float]) -> float | None:
     if not values:
         return None
     return round(sum(values) / len(values), 1)
+
+
+def _build_streak(sessions: list[dict]) -> dict:
+    daily_counts: dict[str, int] = {}
+    for session in sessions:
+        day = session.get("started_at", "")[:10]
+        if not day:
+            continue
+        daily_counts[day] = daily_counts.get(day, 0) + 1
+
+    active_dates = sorted(daily_counts)
+    active_set = set(active_dates)
+    if not active_dates:
+        return {"current": 0, "longest": 0, "active_dates": [], "daily_counts": {}}
+
+    anchor = min(date.today(), date.fromisoformat(active_dates[-1]))
+    current = 0
+    cursor = anchor
+    while cursor.isoformat() in active_set:
+        current += 1
+        cursor -= timedelta(days=1)
+
+    longest = 0
+    run = 0
+    prev_day = None
+    for day_str in active_dates:
+        day = date.fromisoformat(day_str)
+        if prev_day is not None and day == prev_day + timedelta(days=1):
+            run += 1
+        else:
+            run = 1
+        longest = max(longest, run)
+        prev_day = day
+
+    return {
+        "current": current,
+        "longest": longest,
+        "active_dates": active_dates,
+        "daily_counts": daily_counts,
+    }
+
+
+def _build_weakness(
+    sessions: list[dict],
+    all_pron: list[float],
+    all_flu: list[float],
+    all_acc: list[float],
+) -> dict:
+    grammar_counts: dict[str, int] = {}
+    scenario_scores: dict[str, list[float]] = {}
+    scenario_sessions: dict[str, int] = {}
+
+    for session in sessions:
+        scenario = session.get("scenario", "unknown")
+        scenario_sessions[scenario] = scenario_sessions.get(scenario, 0) + 1
+        scores = session.get("scores", {})
+        combined_scores = [
+            score
+            for dimension in ("pronunciation", "fluency", "accuracy")
+            for score in scores.get(dimension, [])
+            if isinstance(score, (int, float))
+        ]
+        if combined_scores:
+            scenario_scores.setdefault(scenario, []).extend(combined_scores)
+
+        for turn in session.get("turns", []):
+            for correction in turn.get("corrections", []):
+                pattern = (correction.get("explanation") or "").strip()[:50]
+                if pattern:
+                    grammar_counts[pattern] = grammar_counts.get(pattern, 0) + 1
+
+    common_grammar_errors = [
+        {"pattern": pattern, "count": count}
+        for pattern, count in sorted(grammar_counts.items(), key=lambda item: (-item[1], item[0]))[:8]
+    ]
+
+    weak_scenarios = [
+        {
+            "scenario": scenario,
+            "avg_score": _avg(scores),
+            "sessions": scenario_sessions.get(scenario, 0),
+        }
+        for scenario, scores in scenario_scores.items()
+        if scores
+    ]
+    weak_scenarios.sort(key=lambda item: (item["avg_score"], -item["sessions"], item["scenario"]))
+
+    dimensions = {
+        "pronunciation": _avg(all_pron),
+        "fluency": _avg(all_flu),
+        "accuracy": _avg(all_acc),
+    }
+    available_dimensions = {key: value for key, value in dimensions.items() if value is not None}
+    low_dimension = min(available_dimensions, key=available_dimensions.get) if available_dimensions else None
+
+    return {
+        "common_grammar_errors": common_grammar_errors,
+        "weak_scenarios": weak_scenarios[:3],
+        "low_dimension": low_dimension,
+    }
+
+
+def _scenario_distribution(sessions: list[dict]) -> dict:
+    distribution: dict[str, int] = {}
+    for session in sessions:
+        scenario = session.get("scenario", "unknown")
+        distribution[scenario] = distribution.get(scenario, 0) + 1
+    return distribution
 
 
 # Global store instance

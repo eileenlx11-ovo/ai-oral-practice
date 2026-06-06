@@ -3,6 +3,7 @@ import json
 import tempfile
 import shutil
 from pathlib import Path
+from datetime import date, timedelta
 import pytest
 
 from assessment.feedback import SessionStore
@@ -93,3 +94,56 @@ def test_progress_with_data(tmp_store):
     assert progress["total_turns"] == 2
     assert progress["avg_pronunciation"] == 75.0  # (70+80)/2
     assert len(progress["score_history"]) == 2
+
+
+def test_progress_streak_and_weakness_aggregation(tmp_store):
+    today = date.today()
+    dates = [
+        (today - timedelta(days=2)).isoformat(),
+        (today - timedelta(days=1)).isoformat(),
+        today.isoformat(),
+    ]
+
+    s1 = tmp_store.create_session("interview")
+    s2 = tmp_store.create_session("interview")
+    s3 = tmp_store.create_session("travel")
+    for session, day in zip((s1, s2, s3), dates):
+        session["started_at"] = f"{day}T09:00:00+00:00"
+        tmp_store.update_session_fields(session["id"], started_at=session["started_at"])
+
+    tmp_store.add_turn(
+        s1["id"],
+        "u",
+        "r",
+        [{"original": "x", "corrected": "y", "explanation": "Wrong tense"}],
+        {"pronunciation_score": 60.0, "fluency_score": 70.0, "accuracy_score": 65.0},
+    )
+    tmp_store.add_turn(
+        s2["id"],
+        "u",
+        "r",
+        [{"original": "a", "corrected": "b", "explanation": "Wrong tense"}],
+        {"pronunciation_score": 50.0, "fluency_score": 55.0, "accuracy_score": 52.0},
+    )
+    tmp_store.add_turn(
+        s3["id"],
+        "u",
+        "r",
+        [{"original": "m", "corrected": "n", "explanation": "Article missing"}],
+        {"pronunciation_score": 90.0, "fluency_score": 88.0, "accuracy_score": 92.0},
+    )
+
+    progress = tmp_store.get_progress()
+
+    assert progress["streak"]["current"] == 3
+    assert progress["streak"]["longest"] == 3
+    assert progress["streak"]["active_dates"] == dates
+    assert progress["streak"]["daily_counts"][today.isoformat()] == 1
+    assert progress["scenario_distribution"] == {"interview": 2, "travel": 1}
+    assert progress["weakness"]["common_grammar_errors"][0] == {
+        "pattern": "Wrong tense",
+        "count": 2,
+    }
+    assert progress["weakness"]["weak_scenarios"][0]["scenario"] == "interview"
+    assert progress["weakness"]["weak_scenarios"][0]["sessions"] == 2
+    assert progress["weakness"]["low_dimension"] == "pronunciation"

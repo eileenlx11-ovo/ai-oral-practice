@@ -24,7 +24,7 @@ from .auth import (
 )
 from .sms import send_verification_code, verify_code
 from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, get_practice_sentences, build_custom_interview_prompt
-from .characters import get_character
+from .characters import CHARACTERS, get_character, list_characters
 from .correction import extract_corrections
 from .scoring import assess_pronunciation, active_provider
 from .feedback import store
@@ -226,6 +226,12 @@ async def list_voices():
     return VOICES
 
 
+@app.get("/api/characters")
+async def characters():
+    """List available roleplay characters for scenario/role switching."""
+    return list_characters()
+
+
 @app.get("/api/tts-preview")
 async def tts_preview(voice: str = "american_female", text: str = "Hello! This is how I sound."):
     """Generate a TTS preview for the given voice and text."""
@@ -277,7 +283,8 @@ async def chat(
         session = store.create_session(scenario, user_id=_user_id(user))
         session_id = session["id"]
     else:
-        _require_session_owner(session_id, user)
+        session = _require_session_owner(session_id, user)
+        scenario = session.get("scenario", scenario)
 
     # 1. Save uploaded audio to temp file
     audio_bytes = await _read_audio(audio)
@@ -341,7 +348,9 @@ async def chat_stream(
         session = store.create_session(scenario, user_id=_user_id(user))
         session_id = session["id"]
     else:
-        _require_session_owner(session_id, user)
+        session = _require_session_owner(session_id, user)
+        scenario = session.get("scenario", scenario)
+        voice = session.get("voice", voice)
 
     # Resolve system prompt: session-level custom prompt overrides scenario prompt.
     existing = store.get_session(session_id)
@@ -773,6 +782,36 @@ async def add_session_turn(
         return turn
     except ValueError as e:
         raise HTTPException(404, str(e))
+
+
+@app.post("/api/sessions/{session_id}/character")
+async def switch_session_character(
+    session_id: str,
+    scenario: str = Form(...),
+    voice: str = Form(""),
+    user: dict | None = Depends(get_optional_user),
+):
+    """Switch an existing session to another scenario character."""
+    _require_session_owner(session_id, user)
+    if scenario not in CHARACTERS:
+        raise HTTPException(404, f"Character '{scenario}' not found")
+    if voice and voice not in VOICES:
+        raise HTTPException(400, f"Voice '{voice}' not found")
+
+    update = {"scenario": scenario}
+    if voice:
+        update["voice"] = voice
+    store.update_session_fields(session_id, **update)
+
+    character = get_character(scenario)
+    voice_key = voice or character.get("voice", "american_female")
+    return {
+        "session_id": session_id,
+        "scenario": scenario,
+        "character": character,
+        "voice": voice_key,
+        "voice_id": VOICES.get(voice_key, VOICES["american_female"])["id"],
+    }
 
 
 @app.post("/api/sessions/{session_id}/end")

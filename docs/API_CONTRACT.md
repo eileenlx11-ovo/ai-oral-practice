@@ -94,6 +94,22 @@ Authorization: Bearer <jwt>
 ### GET /api/voices
 返回可用口音/声音配置。
 
+### GET /api/characters
+返回可切换的角色列表。
+
+**Response:**
+```json
+[
+  {
+    "id": "coffee_shop",
+    "name": "Maya",
+    "avatar": "👩‍🦱",
+    "role": "Barista at a cozy coffee shop",
+    "voice": "american_female"
+  }
+]
+```
+
 ---
 
 ## 3. 语音对话
@@ -269,6 +285,34 @@ TTS 单句合成失败不会终止 SSE；对应 `sentence.audio_url` 可能为 `
 ### POST /api/sessions/:id/turns
 手动记录一轮对话。字段：`user_text`, `reply_text`, `corrections`, `pronunciation`。
 
+### POST /api/sessions/:id/character
+切换当前会话角色/场景，下一轮对话将使用新角色 prompt 和 voice。该 session 必须属于当前用户/游客。
+
+**Request:** `multipart/form-data`
+| Field | Type | Description |
+|-------|------|-------------|
+| scenario | string | 新角色对应的 scenario id |
+| voice | string | 可选，覆盖角色默认 voice |
+
+**Response:**
+```json
+{
+  "session_id": "abc123",
+  "scenario": "coffee_shop",
+  "character": {
+    "name": "Maya",
+    "avatar": "👩‍🦱",
+    "role": "Barista at a cozy coffee shop",
+    "personality": "...",
+    "speaking_style": "...",
+    "background": "...",
+    "voice": "american_female"
+  },
+  "voice": "british_female",
+  "voice_id": "en-GB-SoniaNeural"
+}
+```
+
 ---
 
 ## 6. 学习进度
@@ -283,7 +327,19 @@ TTS 单句合成失败不会终止 SSE；对应 `sentence.audio_url` 可能为 `
   "avg_pronunciation": 78,
   "score_history": [
     { "date": "2026-06-01", "avg_pronunciation": 72, "avg_fluency": 68, "avg_accuracy": 74 }
-  ]
+  ],
+  "streak": {
+    "current": 3,
+    "longest": 7,
+    "active_dates": ["2026-06-04", "2026-06-05", "2026-06-06"],
+    "daily_counts": { "2026-06-06": 2 }
+  },
+  "weakness": {
+    "common_grammar_errors": [{ "pattern": "Wrong tense", "count": 4 }],
+    "weak_scenarios": [{ "scenario": "interview", "avg_score": 62.5, "sessions": 2 }],
+    "low_dimension": "pronunciation"
+  },
+  "scenario_distribution": { "interview": 3, "coffee_shop": 2 }
 }
 ```
 
