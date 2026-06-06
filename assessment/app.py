@@ -33,6 +33,14 @@ from .hints import build_hint_messages
 from .level_test import LEVEL_TEST_QUESTIONS, build_assessment_messages
 from .user_profile import DEFAULT_USER_ID, profile_store
 from .integrations.talent_agent import get_talent_agent
+from .stories import (
+    ADVANCE_MARKER,
+    build_story_prompt,
+    get_story,
+    list_stories as list_story_cards,
+    next_scene_index,
+    strip_scene_advance_marker,
+)
 
 load_dotenv()
 
@@ -232,6 +240,48 @@ async def characters():
     return list_characters()
 
 
+@app.get("/api/stories")
+async def list_stories():
+    """List available story-mode scripts."""
+    return list_story_cards()
+
+
+@app.get("/api/stories/{story_id}")
+async def get_story_detail(story_id: str):
+    """Return a full story script for the story-mode UI."""
+    story = get_story(story_id)
+    if story is None:
+        raise HTTPException(404, f"Story '{story_id}' not found")
+    return story
+
+
+@app.post("/api/stories/{story_id}/start")
+async def start_story(
+    story_id: str,
+    user: dict | None = Depends(get_optional_user),
+):
+    """Create a story-mode practice session."""
+    story = get_story(story_id)
+    if story is None:
+        raise HTTPException(404, f"Story '{story_id}' not found")
+
+    session = store.create_session(story_id, user_id=_user_id(user))
+    opening = story["scenes"][0]["ai_opening"]
+    store.update_session_fields(
+        session["id"],
+        story_id=story_id,
+        story_scene_index=0,
+        story_completed=False,
+        greeting=opening,
+    )
+    return {
+        "session_id": session["id"],
+        "story_id": story_id,
+        "scene_index": 0,
+        "ai_opening": opening,
+    }
+
+
 @app.get("/api/tts-preview")
 async def tts_preview(voice: str = "american_female", text: str = "Hello! This is how I sound."):
     """Generate a TTS preview for the given voice and text."""
@@ -301,9 +351,24 @@ async def chat(
 
         # 3. LLM conversation + correction
         chat_history = json.loads(history)
-        reply_text, corrections = await _chat_with_correction(
-            scenario, user_text, chat_history
+        reply_text, corrections, scene_marker_seen = await _chat_with_correction(
+            scenario, user_text, chat_history, session=store.get_session(session_id)
         )
+
+        scene_advanced = False
+        story_completed = False
+        current_session = store.get_session(session_id)
+        if current_session and current_session.get("story_id"):
+            current_scene = int(current_session.get("story_scene_index", 0))
+            if scene_marker_seen:
+                next_index, scene_advanced, story_completed = next_scene_index(
+                    current_session["story_id"], current_scene
+                )
+                store.update_session_fields(
+                    session_id,
+                    story_scene_index=next_index,
+                    story_completed=story_completed,
+                )
 
         # 4. TTS synthesis
         audio_url = await _synthesize_tts(reply_text)
@@ -321,6 +386,8 @@ async def chat(
             "corrections": corrections,
             "pronunciation": None,  # filled by /api/assess later
             "session_id": session_id,
+            "scene_advanced": scene_advanced,
+            "story_completed": story_completed,
         }
     finally:
         os.unlink(tmp.name)
@@ -354,7 +421,12 @@ async def chat_stream(
 
     # Resolve system prompt: session-level custom prompt overrides scenario prompt.
     existing = store.get_session(session_id)
-    if existing and existing.get("custom_prompt"):
+    is_story_session = bool(existing and existing.get("story_id"))
+    story_id = existing.get("story_id") if existing else None
+    story_scene_index = int(existing.get("story_scene_index", 0)) if existing else 0
+    if is_story_session:
+        system_prompt = build_story_prompt(story_id, story_scene_index)
+    elif existing and existing.get("custom_prompt"):
         system_prompt = existing["custom_prompt"]
     else:
         system_prompt = get_system_prompt(scenario)
@@ -459,10 +531,12 @@ async def chat_stream(
             # 3. Parse corrections and feedback from full reply
             try:
                 from .correction import extract_feedback
+                full_reply, scene_marker_seen = strip_scene_advance_marker(full_reply)
                 reply_text, corrections = extract_corrections(full_reply)
                 feedback = extract_feedback(full_reply)
             except Exception:
                 reply_text, corrections, feedback = full_reply, [], ""
+                scene_marker_seen = False
 
             if corrections:
                 yield _sse("corrections", corrections)
@@ -471,8 +545,21 @@ async def chat_stream(
                 yield _sse("feedback", {"text": feedback})
 
             # 4. Save to session & update affinity
+            scene_advanced = False
+            story_completed = False
             try:
                 store.add_turn(session_id, user_text, reply_text, corrections)
+                if is_story_session and scene_marker_seen:
+                    current = store.get_session(session_id) or {}
+                    next_index, scene_advanced, story_completed = next_scene_index(
+                        story_id,
+                        int(current.get("story_scene_index", story_scene_index)),
+                    )
+                    store.update_session_fields(
+                        session_id,
+                        story_scene_index=next_index,
+                        story_completed=story_completed,
+                    )
                 profile_store.increment_affinity(_user_id(user), scenario)
             except ValueError:
                 pass
@@ -480,6 +567,11 @@ async def chat_stream(
             yield _sse("done", {
                 "session_id": session_id,
                 "full_reply": reply_text,
+                "scene_advanced": scene_advanced,
+                "story_completed": story_completed,
+                "story_scene_index": (
+                    store.get_session(session_id) or {}
+                ).get("story_scene_index", story_scene_index) if is_story_session else None,
             })
 
         finally:
@@ -500,6 +592,7 @@ def _clean_sentence(text: str) -> str:
     import re
     # Remove format tags
     text = text.replace("[REPLY]", "").replace("[END]", "").replace("[CORRECTIONS]", "")
+    text = text.replace(ADVANCE_MARKER, "")
     # If it looks like a correction line (has → or starts with -"), skip it
     if "→" in text or text.strip().startswith('- "') or text.strip() == "NONE":
         return ""
@@ -592,14 +685,20 @@ async def _transcribe(filepath: str) -> str:
 
 
 async def _chat_with_correction(
-    scenario: str, user_text: str, history: list[dict]
-) -> tuple[str, list[dict]]:
+    scenario: str, user_text: str, history: list[dict], session: dict | None = None
+) -> tuple[str, list[dict], bool]:
     """
     Send user message to LLM with scenario system prompt.
     The LLM is instructed to reply naturally AND flag grammar errors.
-    Returns (reply_text, corrections_list).
+    Returns (reply_text, corrections_list, scene_marker_seen).
     """
-    system_prompt = get_system_prompt(scenario)
+    if session and session.get("story_id"):
+        system_prompt = build_story_prompt(
+            session["story_id"],
+            int(session.get("story_scene_index", 0)),
+        )
+    else:
+        system_prompt = get_system_prompt(scenario)
     messages = [{"role": "system", "content": system_prompt}]
 
     # Append history (keep last 10 turns to stay within context)
@@ -616,8 +715,9 @@ async def _chat_with_correction(
     )
 
     raw_reply = resp.choices[0].message.content or ""
+    raw_reply, scene_marker_seen = strip_scene_advance_marker(raw_reply)
     reply_text, corrections = extract_corrections(raw_reply)
-    return reply_text, corrections
+    return reply_text, corrections, scene_marker_seen
 
 
 async def _synthesize_tts(text: str) -> str | None:
@@ -892,6 +992,29 @@ async def get_progress(user: dict | None = Depends(get_optional_user)):
 
 # --- Hint System ---
 
+@app.post("/api/translate")
+async def translate(text: str = Form(...)):
+    """Translate an English message to Simplified Chinese (on-demand, used by chat bubbles)."""
+    text = (text or "").strip()
+    if not text:
+        return {"translation": ""}
+    if len(text) > 2000:
+        raise HTTPException(413, "Text too long")
+    try:
+        resp = await llm.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": "You are a translator. Translate the user's English text into natural Simplified Chinese. Output only the translation, no quotes or explanation."},
+                {"role": "user", "content": text},
+            ],
+            temperature=0.3,
+            max_tokens=500,
+        )
+        return {"translation": resp.choices[0].message.content or ""}
+    except Exception:
+        raise HTTPException(502, "Translation failed")
+
+
 @app.post("/api/hint")
 async def get_hint(
     scenario: str = Form("smalltalk"),
@@ -992,29 +1115,6 @@ async def get_character_memory(
 
 
 # --- Talent Agent Integration ---
-@app.post("/api/translate")
-async def translate(text: str = Form(...)):
-    """Translate an English message to Simplified Chinese (on-demand, used by chat bubbles)."""
-    text = (text or "").strip()
-    if not text:
-        return {"translation": ""}
-    if len(text) > 2000:
-        raise HTTPException(413, "Text too long")
-    try:
-        resp = await llm.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": "You are a translator. Translate the user's English text into natural Simplified Chinese. Output only the translation, no quotes or explanation."},
-                {"role": "user", "content": text},
-            ],
-            temperature=0.3,
-            max_tokens=500,
-        )
-        return {"translation": resp.choices[0].message.content or ""}
-    except Exception:
-        raise HTTPException(502, "Translation failed")
-
-
 
 @app.get("/api/integrations/talent-agent/status")
 async def talent_agent_status():

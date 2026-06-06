@@ -26,6 +26,14 @@
         </div>
         <span class="action-arrow">→</span>
       </button>
+      <button class="action-card story" @click="$router.push('/stories')">
+        <span class="action-icon">🎬</span>
+        <div class="action-info">
+          <span class="action-title">{{ t('home.actions.story') }}</span>
+          <span class="action-desc">{{ t('home.actions.storyDesc') }}</span>
+        </div>
+        <span class="action-arrow">→</span>
+      </button>
       <button v-if="!hasLevel" class="action-card assessment" @click="$router.push('/assessment')">
         <span class="action-icon">🎓</span>
         <div class="action-info">
@@ -213,6 +221,7 @@ onMounted(async () => {
 
 .action-card.pronunciation { border-left: 3px solid var(--color-primary); }
 .action-card.interview { border-left: 3px solid var(--color-advanced); }
+.action-card.story { border-left: 3px solid var(--color-primary-light); }
 .action-card.assessment { border-left: 3px solid var(--color-accent); }
 
 .action-icon { font-size: 1.8rem; }
