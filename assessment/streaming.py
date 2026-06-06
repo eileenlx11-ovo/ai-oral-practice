@@ -73,6 +73,34 @@ def _azure_tts_available() -> bool:
         return False
 
 
+def _siliconflow_tts_available() -> bool:
+    return bool(os.getenv("SILICONFLOW_API_KEY", ""))
+
+
+async def _synthesize_siliconflow(text: str, voice: str) -> str | None:
+    """Synthesize with SiliconFlow FishAudio (low latency, domestic CDN)."""
+    try:
+        from openai import AsyncOpenAI
+
+        client = AsyncOpenAI(
+            api_key=os.getenv("SILICONFLOW_API_KEY", ""),
+            base_url="https://api.siliconflow.cn/v1",
+        )
+        filename = f"{uuid.uuid4().hex}.mp3"
+        filepath = AUDIO_DIR / filename
+
+        response = await client.audio.speech.create(
+            model="FunAudioLLM/CosyVoice2-0.5B",
+            voice="FunAudioLLM/CosyVoice2-0.5B:alex",
+            input=text,
+            response_format="mp3",
+        )
+        response.stream_to_file(str(filepath))
+        return f"/audio/{filename}"
+    except Exception:
+        return None
+
+
 async def _synthesize_azure(text: str, voice: str) -> str | None:
     """Synthesize with Azure Speech SDK."""
     import azure.cognitiveservices.speech as speechsdk
@@ -117,9 +145,14 @@ async def _synthesize_edge(text: str, voice: str) -> str | None:
 async def synthesize_sentence(text: str, voice: str = "en-US-JennyNeural") -> str:
     """
     Synthesize a single sentence to MP3.
-    Azure Speech SDK first, edge-tts fallback.
+    Priority: SiliconFlow FishAudio (fast) → Azure Speech SDK → edge-tts.
     Returns URL path (e.g. /audio/xxx.mp3) or empty string on total failure.
     """
+    if _siliconflow_tts_available():
+        url = await _synthesize_siliconflow(text, voice)
+        if url:
+            return url
+
     if _azure_tts_available():
         url = await _synthesize_azure(text, voice)
         if url:
