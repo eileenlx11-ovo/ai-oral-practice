@@ -1,100 +1,65 @@
-"""
-Azure Speech Pronunciation Assessment integration.
-Provides phoneme-level scoring: accuracy, fluency, completeness, prosody.
+"""Pronunciation assessment — multi-provider dispatcher.
+
+Two tiers:
+  - Standard (daily practice): Tencent SOE → mock
+    Lower latency, generous quota, word-level scoring.
+  - Advanced (detailed diagnosis): Azure → SOE → mock
+    Prosody + miscue detection + phoneme scoring. Uses Azure F0 quota.
+
+Each provider module exposes:
+    available() -> bool
+    async assess(audio_path, reference_text) -> dict | None
+
+Returned dict schema (uniform across providers):
+    {accuracy_score, fluency_score, completeness_score,
+     pronunciation_score, words: [{word, accuracy_score, error_type}],
+     provider}
+All scores are 0-100.
 """
 import os
-import json
-import tempfile
-import wave
-import struct
-from pathlib import Path
 
-try:
-    import azure.cognitiveservices.speech as speechsdk
-    HAS_AZURE = True
-except ImportError:
-    HAS_AZURE = False
+from . import azure, tencent, mock
+
+# Standard: SOE first (low latency, quota-friendly), mock as fallback.
+_STANDARD_PROVIDERS = [tencent, mock]
+# Advanced: Azure first (prosody + miscue), SOE and mock as fallback.
+_ADVANCED_PROVIDERS = [azure, tencent, mock]
 
 
-def get_speech_config():
-    """Create Azure Speech config from environment variables."""
-    key = os.getenv("AZURE_SPEECH_KEY", "")
-    region = os.getenv("AZURE_SPEECH_REGION", "eastasia")
-    if not key:
-        return None
-    return speechsdk.SpeechConfig(subscription=key, region=region)
+def _allow_mock() -> bool:
+    """Mock is a dev/demo convenience. Disable in prod by setting
+    PRONUNCIATION_ALLOW_MOCK=0 so a misconfigured deploy fails loudly
+    (503) instead of silently serving fake scores."""
+    return os.getenv("PRONUNCIATION_ALLOW_MOCK", "1") != "0"
 
 
-async def assess_pronunciation(audio_path: str, reference_text: str) -> dict | None:
+def active_provider(advanced: bool = False) -> str | None:
+    """Name of the provider that would handle a request right now (or None)."""
+    providers = _ADVANCED_PROVIDERS if advanced else _STANDARD_PROVIDERS
+    for p in providers:
+        if p is mock and not _allow_mock():
+            continue
+        if p.available():
+            return p.__name__.rsplit(".", 1)[-1]
+    return None
+
+
+async def assess_pronunciation(
+    audio_path: str, reference_text: str, *, advanced: bool = False
+) -> dict | None:
+    """Run assessment through the first available provider.
+
+    advanced=False (default): daily practice, SOE priority.
+    advanced=True: detailed diagnosis with prosody/miscue (Azure priority).
+    Returns None if no provider can serve.
     """
-    Run pronunciation assessment on audio file against reference text.
-
-    Returns:
-        {
-            "accuracy_score": float,
-            "fluency_score": float,
-            "completeness_score": float,
-            "pronunciation_score": float,  # overall weighted
-            "words": [{"word": str, "accuracy_score": float, "error_type": str}]
-        }
-        or None if Azure is unavailable.
-    """
-    if not HAS_AZURE:
-        return None
-
-    config = get_speech_config()
-    if not config:
-        return None
-
-    # Configure pronunciation assessment
-    pronunciation_config = speechsdk.PronunciationAssessmentConfig(
-        reference_text=reference_text,
-        grading_system=speechsdk.PronunciationAssessmentGradingSystem.HundredMark,
-        granularity=speechsdk.PronunciationAssessmentGranularity.Word,
-        enable_miscue=True,
-    )
-
-    # Use audio file as input
-    audio_config = speechsdk.audio.AudioConfig(filename=audio_path)
-    recognizer = speechsdk.SpeechRecognizer(
-        speech_config=config,
-        audio_config=audio_config,
-        language="en-US",
-    )
-    pronunciation_config.apply_to(recognizer)
-
-    # Run recognition (synchronous — wrapped in async via thread)
-    import asyncio
-    result = await asyncio.to_thread(_recognize_sync, recognizer)
-
-    if result is None:
-        return None
-
-    return result
-
-
-def _recognize_sync(recognizer) -> dict | None:
-    """Synchronous recognition call for thread execution."""
-    result = recognizer.recognize_once()
-
-    if result.reason != speechsdk.ResultReason.RecognizedSpeech:
-        return None
-
-    # Extract pronunciation assessment result
-    assessment_result = speechsdk.PronunciationAssessmentResult(result)
-
-    words = []
-    for word in assessment_result.words:
-        words.append({
-            "word": word.word,
-            "accuracy_score": word.accuracy_score,
-            "error_type": word.error_type,
-        })
-
-    return {
-        "accuracy_score": assessment_result.accuracy_score,
-        "fluency_score": assessment_result.fluency_score,
-        "completeness_score": assessment_result.completeness_score,
-        "pronunciation_score": assessment_result.pronunciation_score,
-        "words": words,
-    }
+    providers = _ADVANCED_PROVIDERS if advanced else _STANDARD_PROVIDERS
+    for p in providers:
+        if p is mock and not _allow_mock():
+            continue
+        if not p.available():
+            continue
+        result = await p.assess(audio_path, reference_text)
+        if result is not None:
+            return result
+    return None

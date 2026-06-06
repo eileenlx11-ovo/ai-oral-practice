@@ -141,3 +141,41 @@ export async function recognizeOnly(audioBlob) {
 
   return res.json()
 }
+
+/**
+ * 发音评测：将录音与参考文本比对，返回单词级评分
+ * @param {Blob} audioBlob
+ * @param {string} referenceText 参考朗读文本
+ * @returns {Promise<{accuracy_score, fluency_score, completeness_score, pronunciation_score, words, provider}>}
+ */
+export async function assessPronunciation(audioBlob, referenceText) {
+  const formData = new FormData()
+  formData.append('audio', audioBlob, 'recording.webm')
+  formData.append('reference_text', referenceText)
+
+  const res = await fetch(`${API_BASE}/api/assess`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (res.status === 503) {
+    throw new Error('发音评测服务未配置，请稍后再试')
+  }
+  if (!res.ok) {
+    throw new Error('发音评测失败，请重试')
+  }
+
+  return res.json()
+}
+
+/**
+ * 查询发音评测当前可用的 provider（azure / tencent / mock / null）
+ * @returns {Promise<{available: boolean, provider: string|null, is_mock: boolean}>}
+ */
+export async function getAssessStatus() {
+  const res = await fetch(`${API_BASE}/api/assess/status`)
+  if (!res.ok) {
+    return { available: false, provider: null, is_mock: false }
+  }
+  return res.json()
+}

@@ -56,6 +56,9 @@
       <button @click="$router.push('/assessment')" class="cta-btn">
         做个快速评估（3分钟）
       </button>
+    <div class="tools">
+      <button class="tool-btn" @click="$router.push('/pronunciation')">🎯 发音评测</button>
+      <button class="tool-btn" @click="$router.push('/dashboard')">📊 学习进度</button>
     </div>
   </div>
 </template>
@@ -240,4 +243,23 @@ h1 {
   transition: background 0.2s;
 }
 .cta-btn:hover { background: #2a6399; }
+
+.tools {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+.tool-btn {
+  background: white;
+  border: 1px solid #d0d9e3;
+  color: #1f4e79;
+  border-radius: 999px;
+  padding: 0.6rem 1.4rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.tool-btn:hover { background: #f0f5fa; box-shadow: 0 4px 12px rgba(31,78,121,0.12); }
 </style>
+

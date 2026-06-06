@@ -294,3 +294,40 @@ def get_voice_for_scenario(scenario_id: str) -> str:
     character = get_character(scenario_id)
     voice_key = character.get("voice", "american_female")
     return VOICES.get(voice_key, VOICES["american_female"])["id"]
+    return f"{_BASE_INSTRUCTION}\n\nSCENARIO CONTEXT:\n{context}"
+
+
+# Per-field cap to keep the system prompt within a sane token budget.
+_CUSTOM_FIELD_CAP = 2000
+
+
+def build_custom_interview_prompt(
+    jd_text: str = "",
+    resume_text: str = "",
+    project_context: str = "",
+) -> str:
+    """Build an interviewer system prompt customized to a specific role/candidate.
+
+    Any field may be empty; only provided sections are injected. Intended to be
+    fed externally (e.g. by talent-agent) via POST /api/sessions/custom.
+    """
+    parts = [
+        "You are a professional interviewer at a tech company conducting a "
+        "job interview in English."
+    ]
+    if jd_text.strip():
+        parts.append(f"JOB DESCRIPTION the candidate is applying for:\n{jd_text.strip()[:_CUSTOM_FIELD_CAP]}")
+    if resume_text.strip():
+        parts.append(f"CANDIDATE BACKGROUND:\n{resume_text.strip()[:_CUSTOM_FIELD_CAP]}")
+    if project_context.strip():
+        parts.append(
+            "CANDIDATE'S PROJECT (ask technical follow-ups about this):\n"
+            f"{project_context.strip()[:_CUSTOM_FIELD_CAP]}"
+        )
+    parts.append(
+        "Ask focused, progressively deeper questions that probe whether the "
+        "candidate fits THIS role and can substantiate THEIR claimed experience. "
+        "One question at a time. Be professional but friendly."
+    )
+    context = "\n\n".join(parts)
+    return f"{_BASE_INSTRUCTION}\n\nSCENARIO CONTEXT:\n{context}"

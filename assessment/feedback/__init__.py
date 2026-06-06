@@ -21,11 +21,16 @@ class SessionStore:
         self.data_dir = data_dir
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
-    def create_session(self, scenario: str) -> dict:
-        """Start a new practice session."""
+    def create_session(self, scenario: str, custom_prompt: str | None = None) -> dict:
+        """Start a new practice session.
+
+        custom_prompt: optional full system prompt that overrides the scenario
+        prompt for this session (used by /api/sessions/custom).
+        """
         session = {
             "id": uuid.uuid4().hex[:12],
             "scenario": scenario,
+            "custom_prompt": custom_prompt,
             "started_at": datetime.now(timezone.utc).isoformat(),
             "ended_at": None,
             "turns": [],
