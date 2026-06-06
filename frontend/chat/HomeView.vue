@@ -56,6 +56,8 @@
       <button @click="$router.push('/assessment')" class="cta-btn">
         做个快速评估（3分钟）
       </button>
+    </div>
+
     <div class="tools">
       <button class="tool-btn" @click="$router.push('/pronunciation')">🎯 发音评测</button>
       <button class="tool-btn" @click="$router.push('/dashboard')">📊 学习进度</button>

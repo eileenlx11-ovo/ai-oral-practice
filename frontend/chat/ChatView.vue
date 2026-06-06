@@ -3,6 +3,11 @@
     <!-- Toast notification -->
     <Toast :message="toast.message" :type="toast.type" @close="toast.message = ''" />
 
+    <!-- Offline banner -->
+    <div v-if="!isOnline" class="offline-banner">
+      ⚠️ 网络已断开，录音功能暂不可用
+    </div>
+
     <header class="chat-header">
       <button @click="$router.push('/')" class="back-btn">← 返回</button>
       <div class="header-info">
@@ -93,11 +98,11 @@
 
       <button
         class="record-btn"
-        :class="{ active: isRecording, playing: state === 'PLAYING' }"
-        :disabled="state === 'PROCESSING' || state === 'STREAMING'"
+        :class="{ active: isRecording, playing: state === 'PLAYING', offline: !isOnline }"
+        :disabled="state === 'PROCESSING' || state === 'STREAMING' || !isOnline"
         @click="handleToggle"
       >
-        🎙️ {{ buttonText }}
+        🎙️ {{ !isOnline ? '离线中' : buttonText }}
       </button>
       <!-- Retry button on error -->
       <button
@@ -160,10 +165,12 @@ import { ref, reactive, computed, onMounted, nextTick, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRecorder } from '../../voice/audio/useRecorder'
 import { streamChat } from '../../voice/asr/service'
+import { useNetwork } from '../composables/useNetwork'
 import { CONFIG } from '../../shared/config'
 import Toast from '../components/Toast.vue'
 
 const route = useRoute()
+const { isOnline } = useNetwork()
 const scenarioId = route.params.scenario
 const scenario = CONFIG.SCENARIOS.find((s) => s.id === scenarioId)
 const scenarioName = scenario ? scenario.name : scenarioId
@@ -445,6 +452,21 @@ onUnmounted(() => {
 
 <style scoped>
 .chat-view { display: flex; flex-direction: column; height: calc(100vh - 120px); }
+
+.offline-banner {
+  background: #fff3cd;
+  color: #856404;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.record-btn.offline {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .chat-header {
   display: flex; align-items: center; gap: 1rem;

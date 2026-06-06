@@ -254,21 +254,35 @@ app.post('/api/stream', upload.single('audio'), (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')
   res.setHeader('Connection', 'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no')
   res.flushHeaders()
 
   // Simulated user text
   const mockUserText = "I have been working on a project for the past few months and it has been a great learning experience."
+
+  // Simulate error scenario if audio is missing
+  if (!req.file) {
+    setTimeout(() => {
+      res.write(`event: error\ndata: ${JSON.stringify({ message: "No audio file provided" })}\n\n`)
+      res.end()
+    }, 200)
+    return
+  }
 
   // 1. ASR event (after 300ms)
   setTimeout(() => {
     res.write(`event: asr\ndata: ${JSON.stringify({ text: mockUserText })}\n\n`)
   }, 300)
 
-  // 2. Split reply into sentences and stream them
+  // 2. Split reply into sentences and stream them with index
   const sentences = replyText.match(/[^.!?]+[.!?]+/g) || [replyText]
   sentences.forEach((sentence, i) => {
     setTimeout(() => {
-      res.write(`event: sentence\ndata: ${JSON.stringify({ text: sentence.trim(), audio_url: null })}\n\n`)
+      res.write(`event: sentence\ndata: ${JSON.stringify({
+        index: i,
+        text: sentence.trim(),
+        audio_url: `/audio/mock_${sid}_${i}.mp3`,
+      })}\n\n`)
     }, 600 + i * 400)
   })
 
@@ -288,11 +302,27 @@ app.post('/api/stream', upload.single('audio'), (req, res) => {
     res.write(`event: feedback\ndata: ${JSON.stringify({ text: feedbacks[Math.floor(Math.random() * feedbacks.length)] })}\n\n`)
   }, 600 + sentences.length * 400 + 200)
 
-  // 4. Done event
+  // 4. Done event with full_reply
   setTimeout(() => {
-    res.write(`event: done\ndata: ${JSON.stringify({ session_id: sid })}\n\n`)
+    res.write(`event: done\ndata: ${JSON.stringify({
+      session_id: sid,
+      full_reply: replyText,
+      turn_count: 1,
+    })}\n\n`)
     res.end()
   }, 600 + sentences.length * 400 + 400)
+})
+
+// Serve mock audio — generate a tiny silence mp3 on-the-fly for /audio/mock_*
+app.get('/audio/mock_:rest', (req, res) => {
+  // Minimal valid MP3 frame (MPEG1 Layer3, 128kbps, 44100Hz, silence, ~26ms)
+  const silentMp3 = Buffer.from(
+    'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRwmHAAAAAAD/+1DEAAAHAAGf9AAAIgAAM/8AAABM',
+    'base64'
+  )
+  res.setHeader('Content-Type', 'audio/mpeg')
+  res.setHeader('Content-Length', silentMp3.length)
+  res.end(silentMp3)
 })
 
 // --- Pronunciation Assessment ---
