@@ -992,6 +992,29 @@ async def get_character_memory(
 
 
 # --- Talent Agent Integration ---
+@app.post("/api/translate")
+async def translate(text: str = Form(...)):
+    """Translate an English message to Simplified Chinese (on-demand, used by chat bubbles)."""
+    text = (text or "").strip()
+    if not text:
+        return {"translation": ""}
+    if len(text) > 2000:
+        raise HTTPException(413, "Text too long")
+    try:
+        resp = await llm.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": "You are a translator. Translate the user's English text into natural Simplified Chinese. Output only the translation, no quotes or explanation."},
+                {"role": "user", "content": text},
+            ],
+            temperature=0.3,
+            max_tokens=500,
+        )
+        return {"translation": resp.choices[0].message.content or ""}
+    except Exception:
+        raise HTTPException(502, "Translation failed")
+
+
 
 @app.get("/api/integrations/talent-agent/status")
 async def talent_agent_status():

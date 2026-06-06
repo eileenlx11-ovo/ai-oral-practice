@@ -6,8 +6,13 @@ import { ref } from 'vue'
 
 const DEFAULT_SILENCE_MS = 1500
 
+// Read a possibly-ref value without importing unref (keeps tests' vue mock simple).
+const val = (x) => (x && typeof x === 'object' && 'value' in x ? x.value : x)
+
 export function useRecorder(options = {}) {
-  const { silenceMs = DEFAULT_SILENCE_MS, onSilence } = options
+  // silenceMs and vadEnabled may be plain values or refs/computed; resolved at use time
+  // so runtime changes (e.g. user adjusting pause sensitivity) take effect.
+  const { silenceMs = DEFAULT_SILENCE_MS, vadEnabled = true, onSilence } = options
 
   const mediaRecorder = ref(null)
   const chunks = ref([])
@@ -87,6 +92,12 @@ export function useRecorder(options = {}) {
     function check() {
       if (!isRecording.value) return
 
+      // Long-form mode: skip auto-stop, keep recording until manual stop.
+      if (!val(vadEnabled)) {
+        silenceTimer = requestAnimationFrame(check)
+        return
+      }
+
       analyser.getByteTimeDomainData(dataArray)
 
       // 计算音量 RMS
@@ -99,7 +110,7 @@ export function useRecorder(options = {}) {
 
       if (rms > 0.01) {
         lastSoundTime = Date.now()
-      } else if (Date.now() - lastSoundTime > silenceMs && duration.value > 500) {
+      } else if (Date.now() - lastSoundTime > val(silenceMs) && duration.value > 500) {
         // 超过 silenceMs 的静音，自动停止
         if (onSilence) {
           onSilence()
