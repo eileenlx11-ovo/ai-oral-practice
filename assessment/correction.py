@@ -1,10 +1,12 @@
 """
-Parse LLM response to separate reply text from grammar corrections.
+Parse LLM response to separate reply text from grammar corrections and feedback.
 Expected LLM format:
   [REPLY]
   ...natural reply...
   [CORRECTIONS]
   - "original" → "corrected" | explanation
+  [FEEDBACK]
+  emoji + one short sentence
   [END]
 """
 import re
@@ -14,6 +16,9 @@ _REPLY_PATTERN = re.compile(
 )
 _CORRECTION_PATTERN = re.compile(
     r'-\s*"([^"]+)"\s*→\s*"([^"]+)"\s*\|\s*(.+)'
+)
+_FEEDBACK_PATTERN = re.compile(
+    r"\[FEEDBACK\]\s*(.*?)\s*(?:\[END\]|$)", re.DOTALL
 )
 
 
@@ -36,6 +41,8 @@ def extract_corrections(raw: str) -> tuple[str, list[dict]]:
     correction_section = ""
     if "[CORRECTIONS]" in raw:
         correction_section = raw.split("[CORRECTIONS]", 1)[1]
+        # Stop at [FEEDBACK] or [END]
+        correction_section = correction_section.split("[FEEDBACK]")[0]
         correction_section = correction_section.split("[END]")[0]
 
     if "NONE" not in correction_section.upper():
@@ -51,3 +58,13 @@ def extract_corrections(raw: str) -> tuple[str, list[dict]]:
         reply_text = raw.split("[")[0].strip() or raw.strip()
 
     return reply_text, corrections
+
+
+def extract_feedback(raw: str) -> str | None:
+    """Extract the [FEEDBACK] section from LLM output."""
+    match = _FEEDBACK_PATTERN.search(raw)
+    if match:
+        feedback = match.group(1).strip()
+        if feedback and feedback.upper() != "NONE":
+            return feedback
+    return None

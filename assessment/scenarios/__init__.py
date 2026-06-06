@@ -1,42 +1,202 @@
 """
 Scenario definitions and system prompts for each practice context.
+Expanded with categories, difficulty levels, objectives, and character integration.
 """
+from ..characters import get_character, CHARACTERS
+
+# Scenario categories
+CATEGORIES = [
+    {"id": "all", "name": "All", "icon": "🌟"},
+    {"id": "daily", "name": "Daily Life", "icon": "🏠"},
+    {"id": "work", "name": "Work", "icon": "💼"},
+    {"id": "travel", "name": "Travel", "icon": "✈️"},
+    {"id": "social", "name": "Social", "icon": "💬"},
+]
 
 SCENARIOS = [
+    # --- Daily Life ---
     {
-        "id": "interview",
-        "name": "Job Interview",
-        "icon": "💼",
-        "description": "Practice self-introduction and answering interview questions",
-        "greeting": "Hello! I'm your interviewer today. Let's start with a brief self-introduction. Could you tell me about yourself?",
+        "id": "coffee_shop",
+        "name": "Coffee Shop",
+        "icon": "☕",
+        "category": "daily",
+        "difficulty": "beginner",
+        "description": "Order your favorite drink at a cozy café",
+        "objective": "Successfully order a customized coffee drink",
+        "greeting": "Hey there! Welcome to Bean & Brew. What can I get started for you today?",
+    },
+    {
+        "id": "grocery",
+        "name": "Grocery Shopping",
+        "icon": "🛒",
+        "category": "daily",
+        "difficulty": "beginner",
+        "description": "Navigate the supermarket and find what you need",
+        "objective": "Ask for help finding items and check out",
+        "greeting": "Hi! Can I help you find something today? We just rearranged a few aisles.",
+    },
+    {
+        "id": "doctor",
+        "name": "Doctor's Visit",
+        "icon": "🏥",
+        "category": "daily",
+        "difficulty": "intermediate",
+        "description": "Describe symptoms and understand medical advice",
+        "objective": "Explain your symptoms and understand the treatment plan",
+        "greeting": "Good morning! I'm Dr. Chen. What brings you in today? How have you been feeling?",
     },
     {
         "id": "restaurant",
         "name": "Restaurant",
         "icon": "🍽️",
-        "description": "Practice ordering food and restaurant conversations",
-        "greeting": "Welcome! I'll be your server today. Would you like to see the menu, or do you already know what you'd like to order?",
+        "category": "daily",
+        "difficulty": "beginner",
+        "description": "Order food, ask about the menu, handle the bill",
+        "objective": "Order a complete meal including drinks and dessert",
+        "greeting": "Good evening! Welcome to The Garden Bistro. Table for one? Here's our menu — can I start you off with something to drink?",
+    },
+    {
+        "id": "delivery",
+        "name": "Food Delivery",
+        "icon": "🚴",
+        "category": "daily",
+        "difficulty": "beginner",
+        "description": "Handle a phone call with your delivery driver",
+        "objective": "Give clear directions and resolve a delivery issue",
+        "greeting": "Hey, this is Alex with your delivery. I'm at your building but I can't find the entrance. Can you help me out?",
+    },
+    # --- Work ---
+    {
+        "id": "interview",
+        "name": "Job Interview",
+        "icon": "💼",
+        "category": "work",
+        "difficulty": "advanced",
+        "description": "Ace behavioral and technical interview questions",
+        "objective": "Present yourself professionally and answer questions confidently",
+        "greeting": "Hello! I'm Sarah from the People team. Thanks for coming in today. Let's start with — could you walk me through your background?",
     },
     {
         "id": "meeting",
-        "name": "Business Meeting",
+        "name": "Team Meeting",
         "icon": "📋",
-        "description": "Practice expressing opinions and discussing in meetings",
-        "greeting": "Good morning everyone. Let's get started with today's meeting. Would you like to share your update first?",
+        "category": "work",
+        "difficulty": "intermediate",
+        "description": "Share updates and discuss project decisions",
+        "objective": "Present your status update and respond to questions",
+        "greeting": "Alright everyone, let's get started. We've got a few items on the agenda. Would you like to kick us off with your update?",
+    },
+    {
+        "id": "coworker",
+        "name": "Office Chat",
+        "icon": "👩‍💻",
+        "category": "work",
+        "difficulty": "intermediate",
+        "description": "Casual conversation with a colleague",
+        "objective": "Build rapport and discuss work-life topics naturally",
+        "greeting": "Hey! Finally grabbed lunch? Mind if I join? I've been stuck in back-to-back meetings all morning...",
+    },
+    {
+        "id": "phone_call",
+        "name": "Business Call",
+        "icon": "📞",
+        "category": "work",
+        "difficulty": "advanced",
+        "description": "Handle a professional phone conversation with a client",
+        "objective": "Communicate clearly and confirm action items",
+        "greeting": "Hi, this is Michael from Apex Solutions. Thanks for taking my call. I wanted to follow up on the proposal we sent last week — have you had a chance to review it?",
+    },
+    {
+        "id": "salary",
+        "name": "Salary Negotiation",
+        "icon": "💰",
+        "category": "work",
+        "difficulty": "advanced",
+        "description": "Discuss compensation and negotiate your offer",
+        "objective": "Express your expectations and reach a fair agreement",
+        "greeting": "Great news — we'd like to extend an offer! The base salary we're proposing is $85,000. I'd love to walk you through the full package. What questions do you have?",
+    },
+    # --- Travel ---
+    {
+        "id": "airport",
+        "name": "Airport Check-in",
+        "icon": "✈️",
+        "category": "travel",
+        "difficulty": "intermediate",
+        "description": "Check in for your flight and handle luggage",
+        "objective": "Complete check-in and resolve a seat/baggage issue",
+        "greeting": "Good morning! Passport and booking reference, please. Are you checking any bags today?",
+    },
+    {
+        "id": "hotel",
+        "name": "Hotel Check-in",
+        "icon": "🏨",
+        "category": "travel",
+        "difficulty": "beginner",
+        "description": "Check into your hotel and ask about amenities",
+        "objective": "Complete check-in and get local recommendations",
+        "greeting": "Welcome to The Grand! Do you have a reservation with us? May I have your name, please?",
+    },
+    {
+        "id": "directions",
+        "name": "Asking Directions",
+        "icon": "🗺️",
+        "category": "travel",
+        "difficulty": "beginner",
+        "description": "Ask a local for directions to your destination",
+        "objective": "Get clear directions and confirm you understood",
+        "greeting": "Oh, you look a bit lost! Can I help you find somewhere? This area can be a bit confusing.",
     },
     {
         "id": "travel",
-        "name": "Travel",
-        "icon": "✈️",
-        "description": "Practice asking for directions, booking hotels, buying tickets",
-        "greeting": "Hi there! Welcome to the information desk. How can I help you today? Are you looking for directions, or do you need help with booking?",
+        "name": "Car Rental",
+        "icon": "🚗",
+        "category": "travel",
+        "difficulty": "intermediate",
+        "description": "Rent a car and understand the terms",
+        "objective": "Choose the right car and understand insurance options",
+        "greeting": "Welcome to QuickDrive Rentals! I see you have a reservation. Let me pull that up — what name is it under?",
     },
+    # --- Social ---
     {
         "id": "smalltalk",
         "name": "Small Talk",
         "icon": "💬",
-        "description": "Practice natural social English conversation",
-        "greeting": "Hey! Nice to meet you. How's your day going so far?",
+        "category": "social",
+        "difficulty": "beginner",
+        "description": "Practice casual everyday conversation",
+        "objective": "Keep a natural conversation going for 5+ exchanges",
+        "greeting": "Hey! Nice to see you around. How's your week been going?",
+    },
+    {
+        "id": "party",
+        "name": "Party Chat",
+        "icon": "🎉",
+        "category": "social",
+        "difficulty": "intermediate",
+        "description": "Meet new people and make conversation at a party",
+        "objective": "Introduce yourself and find common interests",
+        "greeting": "Hi! I don't think we've met — I'm Olivia, a friend of Sam's. How do you know the host?",
+    },
+    {
+        "id": "neighbor",
+        "name": "Neighbor Chat",
+        "icon": "🏠",
+        "category": "social",
+        "difficulty": "beginner",
+        "description": "Chat with your neighbor about everyday things",
+        "objective": "Have a friendly exchange about the neighborhood",
+        "greeting": "Oh hello! I've been meaning to say hi — I noticed you moved in recently. How are you settling in?",
+    },
+    {
+        "id": "gym",
+        "name": "Gym Buddy",
+        "icon": "💪",
+        "category": "social",
+        "difficulty": "intermediate",
+        "description": "Chat with someone at the gym about fitness",
+        "objective": "Discuss workout routines and give/receive tips",
+        "greeting": "Hey man! I've seen you here a few times. You're pretty consistent! How long have you been working out?",
     },
 ]
 
@@ -45,6 +205,7 @@ _BASE_INSTRUCTION = """You are an English-speaking practice partner. Your role:
 1. Respond naturally to the user in the given scenario context.
 2. Keep responses concise (2-4 sentences) to encourage more user speaking.
 3. After your natural reply, analyze the user's message for grammar/expression errors.
+4. After corrections, provide a brief encouraging feedback line.
 
 CRITICAL: You MUST use this EXACT format. Never mix corrections into the reply.
 
@@ -52,6 +213,8 @@ CRITICAL: You MUST use this EXACT format. Never mix corrections into the reply.
 Your natural conversational reply here. Nothing else.
 [CORRECTIONS]
 - "original phrase" → "corrected phrase" | explanation
+[FEEDBACK]
+emoji + one short encouraging or coaching sentence
 [END]
 
 If there are no errors:
@@ -59,6 +222,8 @@ If there are no errors:
 Your reply here.
 [CORRECTIONS]
 NONE
+[FEEDBACK]
+emoji + one short encouraging sentence
 [END]
 
 Rules for corrections:
@@ -72,14 +237,33 @@ Rules for corrections:
 - Keep explanations brief (under 12 words)
 - Maximum 3 corrections per turn (most important ones only)
 - NEVER put corrections, explanations, or "|" characters inside the [REPLY] section
+
+Rules for feedback:
+- Keep it to ONE short sentence (under 15 words)
+- Be specific: mention what the user did well or what to try next
+- Examples: "🎯 Great use of past tense!" / "💡 Try using 'would like' instead of 'want' for politeness"
+- Vary between praise and gentle coaching
 """
 
 _SCENARIO_CONTEXTS = {
-    "interview": "You are a professional interviewer at a tech company. Ask follow-up questions about the candidate's experience, skills, and motivation. Be professional but friendly.",
-    "restaurant": "You are a friendly restaurant server. Help the customer with the menu, make recommendations, and handle their order. Be polite and attentive.",
-    "meeting": "You are a colleague in a business meeting. Discuss project updates, ask clarifying questions, and respond to proposals. Be professional and collaborative.",
-    "travel": "You are a helpful information desk attendant at an airport/hotel. Help the traveler with directions, bookings, or general travel questions. Be patient and clear.",
-    "smalltalk": "You are a friendly acquaintance having casual conversation. Topics can include weather, hobbies, weekend plans, food, or current events. Be warm and engaging.",
+    "coffee_shop": "You are Maya, a cheerful barista at Bean & Brew café. Help the customer order, suggest drinks, ask about size/milk preference. Be chatty and friendly. Use coffee terminology naturally (latte, espresso shot, oat milk, etc).",
+    "grocery": "You are Tom, a helpful grocery store clerk. Help the customer find items, suggest alternatives if something is out of stock. Be patient and give clear directions within the store.",
+    "doctor": "You are Dr. Chen, a general practitioner. Ask about symptoms, duration, and severity. Explain possible causes in simple terms. Suggest treatment options. Be professional and reassuring.",
+    "restaurant": "You are James, a server at The Garden Bistro. Present specials, explain dishes, take orders, check on dietary restrictions. Be polite and attentive. Handle the full dining experience from drinks to dessert.",
+    "delivery": "You are Alex, a food delivery driver calling the customer. You're at their building but need help finding the entrance. Be quick and friendly. Ask for clear directions or landmarks.",
+    "interview": "You are Sarah, an HR Manager at a tech company. Conduct a professional interview: ask behavioral questions (tell me about a time...), follow up on answers, assess communication skills. Be warm but evaluative.",
+    "meeting": "You are David, a project manager. Run a team meeting: ask for updates, discuss blockers, make decisions. Be organized and collaborative. Respond to proposals constructively.",
+    "coworker": "You are Lisa, a colleague on the same tech team. Chat casually about work, weekend plans, office gossip, or shared interests. Be friendly and relatable. Mix work talk with personal chat.",
+    "phone_call": "You are Michael, a client on a business call. Discuss project deliverables, timelines, or concerns. Be professional and direct. Expect clear answers and confirm action items.",
+    "salary": "You are Rachel, a hiring manager discussing compensation. Present an offer, explain benefits, and be open to negotiation. Be firm but fair. Use HR terminology around total compensation.",
+    "airport": "You are Emily, airport check-in staff. Process the passenger's check-in, handle baggage, assign seats. Deal with any issues (overweight bag, seat preference) efficiently and helpfully.",
+    "hotel": "You are Carlos, a hotel front desk receptionist. Check the guest in, explain amenities (breakfast, wifi, pool), offer room upgrades, give local recommendations. Be welcoming and informative.",
+    "directions": "You are Sophie, a friendly local. Give directions using landmarks, distances, and street names. Offer alternative routes. Check if the person understood. Be warm and patient.",
+    "travel": "You are Mark, a car rental agent. Help the customer choose a vehicle, explain insurance options, go through the rental agreement. Be informative and suggest value-adds without being pushy.",
+    "smalltalk": "You are Jake, a friendly acquaintance. Have casual conversation about weather, hobbies, weekend plans, food, movies, or current events. Be warm, ask follow-up questions, and share your own stories.",
+    "party": "You are Olivia, someone the user just met at a party. Be outgoing and curious. Ask about their job, hobbies, how they know the host. Share your own stories. Use casual language and some slang.",
+    "neighbor": "You are Robert, the user's next-door neighbor. Chat about the neighborhood, local events, weather, home stuff. Be friendly and community-minded. Occasionally mention neighborhood happenings.",
+    "gym": "You are Kevin, a gym regular. Talk about workouts, routines, fitness goals, nutrition. Be motivating and share tips. Use fitness terminology naturally. Be casual and encouraging.",
 }
 
 # Available TTS voices (edge-tts neural voices)
@@ -95,5 +279,18 @@ VOICES = {
 
 
 def get_system_prompt(scenario_id: str) -> str:
+    """Build full system prompt for a scenario, including character context."""
     context = _SCENARIO_CONTEXTS.get(scenario_id, _SCENARIO_CONTEXTS["smalltalk"])
-    return f"{_BASE_INSTRUCTION}\n\nSCENARIO CONTEXT:\n{context}"
+    character = get_character(scenario_id)
+
+    # Add character personality to context
+    char_info = f"\nYour name is {character['name']}. Personality: {character['personality']}. Speaking style: {character['speaking_style']}."
+
+    return f"{_BASE_INSTRUCTION}\n\nSCENARIO CONTEXT:\n{context}{char_info}"
+
+
+def get_voice_for_scenario(scenario_id: str) -> str:
+    """Get the appropriate TTS voice ID for a scenario's character."""
+    character = get_character(scenario_id)
+    voice_key = character.get("voice", "american_female")
+    return VOICES.get(voice_key, VOICES["american_female"])["id"]
