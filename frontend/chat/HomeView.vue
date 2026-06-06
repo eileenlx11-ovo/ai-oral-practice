@@ -1,66 +1,88 @@
 <template>
   <div class="home">
-    <h1>选择练习场景</h1>
-    <p class="subtitle">选择一个场景，开始与 AI 进行英语口语对话练习</p>
+    <!-- Hero section -->
+    <section class="hero">
+      <h1 class="hero-title">
+        <span class="hero-wave">👋</span> Ready to practice?
+      </h1>
+      <p class="hero-subtitle">选择场景，开始 AI 英语口语对话</p>
+    </section>
 
-    <!-- Category tabs -->
-    <div class="category-tabs">
-      <button
-        v-for="cat in categories"
-        :key="cat.id"
-        class="tab-btn"
-        :class="{ active: activeCategory === cat.id }"
-        @click="activeCategory = cat.id"
-      >
-        {{ cat.icon }} {{ cat.name }}
+    <!-- Quick actions -->
+    <div class="quick-actions">
+      <button class="action-card pronunciation" @click="$router.push('/pronunciation')">
+        <span class="action-icon">🎯</span>
+        <div class="action-info">
+          <span class="action-title">发音评测</span>
+          <span class="action-desc">跟读打分</span>
+        </div>
+        <span class="action-arrow">→</span>
+      </button>
+      <button v-if="!hasLevel" class="action-card assessment" @click="$router.push('/assessment')">
+        <span class="action-icon">🎓</span>
+        <div class="action-info">
+          <span class="action-title">水平评估</span>
+          <span class="action-desc">3分钟测试</span>
+        </div>
+        <span class="action-arrow">→</span>
       </button>
     </div>
 
-    <!-- Difficulty filter -->
-    <div class="difficulty-filter">
-      <span class="filter-label">难度：</span>
-      <button
-        v-for="d in difficulties"
-        :key="d.id"
-        class="diff-btn"
-        :class="{ active: activeDifficulty === d.id, [d.id]: true }"
-        @click="activeDifficulty = activeDifficulty === d.id ? 'all' : d.id"
-      >
-        {{ d.label }}
-      </button>
+    <!-- Filters -->
+    <div class="filters">
+      <div class="category-tabs">
+        <button
+          v-for="cat in categories"
+          :key="cat.id"
+          class="tab-btn"
+          :class="{ active: activeCategory === cat.id }"
+          @click="activeCategory = cat.id"
+        >
+          <span class="tab-icon">{{ cat.icon }}</span>
+          <span class="tab-name">{{ cat.name }}</span>
+        </button>
+      </div>
+      <div class="difficulty-pills">
+        <button
+          v-for="d in difficulties"
+          :key="d.id"
+          class="pill"
+          :class="{ active: activeDifficulty === d.id, [d.id]: true }"
+          @click="activeDifficulty = activeDifficulty === d.id ? 'all' : d.id"
+        >
+          {{ d.label }}
+        </button>
+      </div>
     </div>
 
     <!-- Scenario grid -->
     <div class="scenarios">
       <div
-        v-for="s in filteredScenarios"
+        v-for="(s, idx) in filteredScenarios"
         :key="s.id"
         class="scenario-card"
+        :style="{ animationDelay: `${idx * 50}ms` }"
         @click="$router.push(`/chat/${s.id}`)"
       >
-        <div class="card-header">
-          <span class="icon">{{ s.icon }}</span>
-          <span class="diff-badge" :class="s.difficulty">{{ s.difficulty }}</span>
+        <div class="card-icon-wrap">
+          <span class="card-icon">{{ s.icon }}</span>
         </div>
-        <h3>{{ s.name }}</h3>
-        <p>{{ s.description }}</p>
-        <div v-if="s.objective" class="objective">
-          🎯 {{ s.objective }}
+        <div class="card-body">
+          <div class="card-top">
+            <h3>{{ s.name }}</h3>
+            <span class="diff-tag" :class="s.difficulty">{{ diffLabel(s.difficulty) }}</span>
+          </div>
+          <p class="card-desc">{{ s.description }}</p>
+          <div v-if="s.objective" class="card-objective">
+            🎯 {{ s.objective }}
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Level test CTA (if not assessed) -->
-    <div v-if="!hasLevel" class="level-cta">
-      <p>🎓 还不知道你的英语水平？</p>
-      <button @click="$router.push('/assessment')" class="cta-btn">
-        做个快速评估（3分钟）
-      </button>
-    </div>
-
-    <div class="tools">
-      <button class="tool-btn" @click="$router.push('/pronunciation')">🎯 发音评测</button>
-      <button class="tool-btn" @click="$router.push('/dashboard')">📊 学习进度</button>
+    <!-- Empty state -->
+    <div v-if="filteredScenarios.length === 0" class="empty-state">
+      <p>😅 没有找到匹配的场景，试试其他筛选条件</p>
     </div>
   </div>
 </template>
@@ -76,10 +98,15 @@ const scenarios = ref(CONFIG.SCENARIOS)
 const hasLevel = ref(false)
 
 const difficulties = [
-  { id: 'beginner', label: '⭐ 入门' },
-  { id: 'intermediate', label: '⭐⭐ 中级' },
-  { id: 'advanced', label: '⭐⭐⭐ 高级' },
+  { id: 'beginner', label: '入门' },
+  { id: 'intermediate', label: '中级' },
+  { id: 'advanced', label: '高级' },
 ]
+
+function diffLabel(d) {
+  const map = { beginner: '入门', intermediate: '中级', advanced: '高级' }
+  return map[d] || d
+}
 
 const filteredScenarios = computed(() => {
   let list = scenarios.value
@@ -93,15 +120,11 @@ const filteredScenarios = computed(() => {
 })
 
 onMounted(async () => {
-  // Try loading scenarios from API
   try {
     const res = await fetch('/api/scenarios')
-    if (res.ok) {
-      scenarios.value = await res.json()
-    }
-  } catch { /* use fallback from config */ }
+    if (res.ok) scenarios.value = await res.json()
+  } catch { /* fallback from config */ }
 
-  // Check if user has been assessed
   try {
     const res = await fetch('/api/profile')
     if (res.ok) {
@@ -113,155 +136,225 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.home { text-align: center; }
-
-h1 {
-  font-size: 2rem;
-  color: #1f4e79;
-  margin-bottom: 0.5rem;
+.home {
+  animation: fade-in var(--transition-base) both;
 }
 
-.subtitle {
-  color: #666;
-  margin-bottom: 1.5rem;
+/* Hero */
+.hero {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.hero-title {
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  color: var(--color-text);
+  margin-bottom: var(--space-2);
+}
+
+.hero-wave {
+  display: inline-block;
+  animation: bounce-subtle 2s ease-in-out infinite;
+}
+
+.hero-subtitle {
+  color: var(--color-text-secondary);
+  font-size: var(--text-lg);
+}
+
+/* Quick actions */
+.quick-actions {
+  display: flex;
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
+}
+
+.action-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-base);
+  text-align: left;
+}
+
+.action-card:hover {
+  border-color: var(--color-primary-200);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.action-card.pronunciation { border-left: 3px solid var(--color-primary); }
+.action-card.assessment { border-left: 3px solid var(--color-accent); }
+
+.action-icon { font-size: 1.8rem; }
+.action-info { flex: 1; }
+.action-title { display: block; font-weight: 600; font-size: var(--text-base); color: var(--color-text); }
+.action-desc { display: block; font-size: var(--text-sm); color: var(--color-text-muted); }
+.action-arrow { font-size: var(--text-lg); color: var(--color-text-muted); transition: transform var(--transition-fast); }
+.action-card:hover .action-arrow { transform: translateX(4px); color: var(--color-primary); }
+
+/* Filters */
+.filters {
+  margin-bottom: var(--space-6);
 }
 
 .category-tabs {
   display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
+.category-tabs::-webkit-scrollbar { display: none; }
 
 .tab-btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 20px;
-  background: white;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s;
-}
-.tab-btn.active {
-  background: #1f4e79;
-  color: white;
-  border-color: #1f4e79;
-}
-.tab-btn:hover:not(.active) {
-  border-color: #1f4e79;
-  color: #1f4e79;
-}
-
-.difficulty-filter {
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+  transition: all var(--transition-fast);
 }
-.filter-label { color: #666; font-size: 0.85rem; }
-.diff-btn {
-  padding: 0.3rem 0.8rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  background: white;
-  cursor: pointer;
-  font-size: 0.8rem;
-  transition: all 0.2s;
-}
-.diff-btn.active.beginner { background: #e8f5e9; border-color: #4caf50; color: #2e7d32; }
-.diff-btn.active.intermediate { background: #fff3e0; border-color: #ff9800; color: #e65100; }
-.diff-btn.active.advanced { background: #fce4ec; border-color: #e91e63; color: #880e4f; }
 
+.tab-btn:hover { border-color: var(--color-primary-200); color: var(--color-primary); }
+.tab-btn.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.tab-icon { font-size: 1rem; }
+
+.difficulty-pills {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.pill {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.pill:hover { border-color: var(--color-text-muted); }
+.pill.active.beginner { background: var(--color-beginner-bg); border-color: var(--color-beginner); color: var(--color-beginner); }
+.pill.active.intermediate { background: var(--color-intermediate-bg); border-color: var(--color-intermediate); color: #b45309; }
+.pill.active.advanced { background: var(--color-advanced-bg); border-color: var(--color-advanced); color: var(--color-advanced); }
+
+/* Scenario grid */
 .scenarios {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 1.5rem;
-  text-align: left;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
 }
 
 .scenario-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: all var(--transition-base);
+  animation: fade-in var(--transition-base) both;
 }
 
 .scenario-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(31,78,121,0.15);
+  border-color: var(--color-primary-200);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-3px);
 }
 
-.card-header {
+.card-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-50);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.8rem;
-}
-
-.icon { font-size: 2rem; }
-
-.diff-badge {
-  font-size: 0.7rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: 8px;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-.diff-badge.beginner { background: #e8f5e9; color: #2e7d32; }
-.diff-badge.intermediate { background: #fff3e0; color: #e65100; }
-.diff-badge.advanced { background: #fce4ec; color: #880e4f; }
-
-.scenario-card h3 { margin-bottom: 0.4rem; color: #1f4e79; }
-.scenario-card p { font-size: 0.9rem; color: #666; margin-bottom: 0.5rem; }
-
-.objective {
-  font-size: 0.8rem;
-  color: #1f4e79;
-  padding: 0.4rem 0.6rem;
-  background: #f0f7ff;
-  border-radius: 6px;
-  margin-top: 0.5rem;
-}
-
-.level-cta {
-  margin-top: 2rem;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, #f0f7ff, #e8f5e9);
-  border-radius: 12px;
-}
-.level-cta p { margin-bottom: 0.8rem; color: #333; }
-.cta-btn {
-  padding: 0.7rem 1.5rem;
-  background: #1f4e79;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  transition: background 0.2s;
-}
-.cta-btn:hover { background: #2a6399; }
-
-.tools {
-  display: flex;
   justify-content: center;
-  gap: 1rem;
-  margin-top: 2rem;
+  flex-shrink: 0;
 }
-.tool-btn {
-  background: white;
-  border: 1px solid #d0d9e3;
-  color: #1f4e79;
-  border-radius: 999px;
-  padding: 0.6rem 1.4rem;
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: background 0.2s, box-shadow 0.2s;
-}
-.tool-btn:hover { background: #f0f5fa; box-shadow: 0 4px 12px rgba(31,78,121,0.12); }
-</style>
 
+.card-icon { font-size: 1.5rem; }
+
+.card-body { flex: 1; min-width: 0; }
+
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.card-body h3 {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.diff-tag {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.diff-tag.beginner { background: var(--color-beginner-bg); color: var(--color-beginner); }
+.diff-tag.intermediate { background: var(--color-intermediate-bg); color: #b45309; }
+.diff-tag.advanced { background: var(--color-advanced-bg); color: var(--color-advanced); }
+
+.card-desc {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.card-objective {
+  font-size: var(--text-xs);
+  color: var(--color-primary);
+  background: var(--color-primary-50);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-12);
+  color: var(--color-text-muted);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero-title { font-size: var(--text-2xl); }
+
+  .quick-actions { flex-direction: column; }
+
+  .scenarios {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
