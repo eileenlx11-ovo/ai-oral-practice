@@ -3,6 +3,12 @@
     <Toast :message="toast.message" :type="toast.type" @close="toast.message = ''" />
     <h1>📊 {{ t('dashboard.title') }}</h1>
 
+    <!-- Login prompt for guests -->
+    <div v-if="!isAuthenticated" class="login-prompt">
+      <span>💡 登录后可持久保存练习进度</span>
+      <router-link to="/login" class="prompt-link">去登录 →</router-link>
+    </div>
+
     <!-- Summary Cards -->
     <div class="summary-cards" v-if="progress">
       <div class="card">
@@ -109,6 +115,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { isAuthenticated } from '../composables/useAuth'
 import { Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
@@ -239,6 +246,25 @@ onMounted(async () => {
   max-width: 900px;
   margin: 0 auto;
   animation: fade-in var(--transition-base) both;
+}
+
+.login-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-primary-50);
+  border: 1px solid var(--color-primary-100);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.prompt-link {
+  font-weight: 600;
+  color: var(--color-primary);
+  white-space: nowrap;
 }
 
 h1 {

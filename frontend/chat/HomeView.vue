@@ -26,6 +26,14 @@
         </div>
         <span class="action-arrow">→</span>
       </button>
+      <button v-else class="action-card assessment" @click="$router.push('/assessment')">
+        <span class="action-icon">🎓</span>
+        <div class="action-info">
+          <span class="action-title">重新评估</span>
+          <span class="action-desc">更新你的水平</span>
+        </div>
+        <span class="action-arrow">→</span>
+      </button>
     </div>
 
     <!-- Filters -->
