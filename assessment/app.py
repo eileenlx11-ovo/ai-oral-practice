@@ -1,6 +1,7 @@
 """
 Assessment backend - AI English Oral Practice
 FastAPI server providing chat, ASR proxy, pronunciation scoring, and session tracking.
+Enhanced with: hint system, level assessment, character memory, talent-agent integration.
 """
 import os
 import json
@@ -15,12 +16,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from openai import AsyncOpenAI
-
-from .scenarios import SCENARIOS, VOICES, get_system_prompt, build_custom_interview_prompt
+from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, build_custom_interview_prompt
+from .characters import get_character
 from .correction import extract_corrections
 from .scoring import assess_pronunciation, active_provider
 from .feedback import store
 from .streaming import SentenceSplitter, synthesize_sentence
+from .hints import build_hint_messages
+from .level_test import LEVEL_TEST_QUESTIONS, build_assessment_messages
+from .user_profile import profile_store, DEFAULT_USER_ID
+from .integrations.talent_agent import get_talent_agent
 
 load_dotenv()
 
@@ -58,8 +63,15 @@ LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
 # --- Routes ---
 
 @app.get("/api/scenarios")
-async def list_scenarios():
-    return SCENARIOS
+async def list_scenarios(category: str = "all"):
+    if category == "all":
+        return SCENARIOS
+    return [s for s in SCENARIOS if s.get("category") == category]
+
+
+@app.get("/api/categories")
+async def list_categories():
+    return CATEGORIES
 
 
 @app.get("/api/voices")
@@ -71,7 +83,9 @@ async def list_voices():
 async def get_scenario(scenario_id: str):
     for s in SCENARIOS:
         if s["id"] == scenario_id:
-            return s
+            # Enrich with character info
+            character = get_character(scenario_id)
+            return {**s, "character": character}
     raise HTTPException(404, f"Scenario '{scenario_id}' not found")
 
 
@@ -171,7 +185,8 @@ async def chat_stream(
     tmp.close()
 
     chat_history = json.loads(history)
-    tts_voice = VOICES.get(voice, VOICES["american_female"])["id"]
+    # Use character-appropriate voice (fallback to form param)
+    tts_voice = get_voice_for_scenario(scenario) if voice == "american_female" else VOICES.get(voice, VOICES["american_female"])["id"]
 
     async def event_generator():
         try:
@@ -236,15 +251,21 @@ async def chat_stream(
                         "audio_url": audio_url,
                     })
 
-            # 3. Parse corrections from full reply
+            # 3. Parse corrections and feedback from full reply
+            from .correction import extract_feedback
             reply_text, corrections = extract_corrections(full_reply)
+            feedback = extract_feedback(full_reply)
 
             if corrections:
                 yield _sse("corrections", corrections)
 
-            # 4. Save to session
+            if feedback:
+                yield _sse("feedback", {"text": feedback})
+
+            # 4. Save to session & update affinity
             try:
                 store.add_turn(session_id, user_text, reply_text, corrections)
+                profile_store.increment_affinity(DEFAULT_USER_ID, scenario)
             except ValueError:
                 pass
 
@@ -494,3 +515,137 @@ async def get_session_summary(session_id: str):
 async def get_progress():
     """Get aggregated progress metrics across all sessions."""
     return store.get_progress()
+
+
+# --- Hint System ---
+
+@app.post("/api/hint")
+async def get_hint(
+    scenario: str = Form("smalltalk"),
+    history: str = Form("[]"),
+):
+    """
+    Generate response suggestions when user is stuck.
+    Returns 2-3 contextual hint options.
+    """
+    chat_history = json.loads(history)
+    messages = build_hint_messages(scenario, chat_history)
+
+    try:
+        resp = await llm.chat.completions.create(
+            model=LLM_MODEL,
+            messages=messages,
+            temperature=0.8,
+            max_tokens=300,
+        )
+        raw = resp.choices[0].message.content or "[]"
+        # Parse JSON from response (strip markdown if present)
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+        hints = json.loads(raw)
+        return {"hints": hints}
+    except (json.JSONDecodeError, Exception) as e:
+        # Fallback hints
+        return {"hints": [
+            {"text": "Could you repeat that?", "hint": "能再说一遍吗？", "difficulty": "easy"},
+            {"text": "That's interesting! Tell me more.", "hint": "有意思，多说说", "difficulty": "easy"},
+        ]}
+
+
+# --- Level Assessment ---
+
+@app.get("/api/level-test/questions")
+async def get_level_test_questions():
+    """Get all level test questions."""
+    return LEVEL_TEST_QUESTIONS
+
+
+@app.post("/api/level-test/assess")
+async def assess_level(
+    responses: str = Form(...),
+):
+    """
+    Evaluate user's level based on their responses to test questions.
+    Expects JSON array: [{"index": 0, "text": "transcribed response"}, ...]
+    """
+    try:
+        resp_list = json.loads(responses)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "Invalid responses format")
+
+    messages = build_assessment_messages(resp_list)
+
+    try:
+        result = await llm.chat.completions.create(
+            model=LLM_MODEL,
+            messages=messages,
+            temperature=0.3,
+            max_tokens=500,
+        )
+        raw = result.choices[0].message.content or "{}"
+        raw = raw.strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+        assessment = json.loads(raw)
+
+        # Save to user profile
+        profile = profile_store.update_level(DEFAULT_USER_ID, assessment)
+
+        return {"assessment": assessment, "profile": profile}
+    except (json.JSONDecodeError, Exception) as e:
+        raise HTTPException(500, f"Assessment failed: {str(e)}")
+
+
+# --- User Profile ---
+
+@app.get("/api/profile")
+async def get_profile():
+    """Get current user profile (level, strengths, weaknesses, affinity)."""
+    return profile_store.get_or_create(DEFAULT_USER_ID)
+
+
+@app.get("/api/profile/memory/{scenario_id}")
+async def get_character_memory(scenario_id: str):
+    """Get conversation memories for a specific character."""
+    memories = profile_store.get_memory(DEFAULT_USER_ID, scenario_id)
+    affinity = profile_store.get_affinity_level(DEFAULT_USER_ID, scenario_id)
+    return {"memories": memories, "affinity_level": affinity}
+
+
+# --- Talent Agent Integration ---
+
+@app.get("/api/integrations/talent-agent/status")
+async def talent_agent_status():
+    """Check if talent-agent service is reachable."""
+    client = get_talent_agent()
+    return await client.health_check()
+
+
+@app.post("/api/integrations/talent-agent/interview-prep")
+async def talent_agent_interview_prep(
+    jd_text: str = Form(...),
+    language: str = Form("en"),
+):
+    """
+    Use talent-agent to analyze a JD and generate targeted interview context.
+    Returns key skills and focus areas for interview practice.
+    """
+    client = get_talent_agent()
+    result = await client.get_interview_context(jd_text, language)
+    if "error" in result and not result.get("key_skills"):
+        raise HTTPException(503, f"Talent agent unavailable: {result['error']}")
+    return result
+
+
+@app.post("/api/integrations/talent-agent/sync")
+async def talent_agent_sync(session_id: str = Form(...)):
+    """Sync a completed practice session to talent-agent."""
+    session = store.get_session(session_id)
+    if session is None:
+        raise HTTPException(404, "Session not found")
+
+    summary = store.get_summary(session_id)
+    client = get_talent_agent()
+    result = await client.sync_practice_result(summary)
+    return result

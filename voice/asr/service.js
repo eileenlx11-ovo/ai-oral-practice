@@ -37,7 +37,7 @@ export async function sendAudioForChat(audioBlob, scenario, history = []) {
  * @param {string} scenario - 场景 ID
  * @param {Array} history - 对话历史
  * @param {string} sessionId - 会话 ID (optional)
- * @param {object} callbacks - { onASR, onSentence, onCorrections, onDone, onError }
+ * @param {object} callbacks - { onASR, onSentence, onCorrections, onFeedback, onDone, onError }
  * @returns {AbortController} - call .abort() to cancel the stream
  */
 export function streamChat(audioBlob, scenario, history = [], sessionId = '', callbacks = {}) {
@@ -98,6 +98,9 @@ export function streamChat(audioBlob, scenario, history = [], sessionId = '', ca
               break
             case 'corrections':
               callbacks.onCorrections?.(data)
+              break
+            case 'feedback':
+              callbacks.onFeedback?.(data)
               break
             case 'done':
               callbacks.onDone?.(data)

@@ -28,26 +28,63 @@ app.use(express.json())
 // ========== Mock Data ==========
 
 const SCENARIOS = [
-  { id: 'interview', icon: '💼', name: 'Job Interview', description: '模拟英语面试场景', greeting: "Hello! I'm your interviewer today. Could you please introduce yourself briefly?" },
-  { id: 'restaurant', icon: '🍽️', name: 'Restaurant', description: '模拟餐厅点餐', greeting: "Welcome to our restaurant! I'll be your server today. Would you like to see the menu?" },
-  { id: 'meeting', icon: '📋', name: 'Business Meeting', description: '模拟商务会议', greeting: "Good morning everyone. Let's start today's meeting. Would you like to share your update first?" },
-  { id: 'travel', icon: '✈️', name: 'Travel', description: '模拟旅行场景', greeting: "Welcome to the information center! How can I help you today? Are you looking for directions?" },
-  { id: 'smalltalk', icon: '💬', name: 'Small Talk', description: '日常闲聊', greeting: "Hey! Nice weather today, isn't it? What have you been up to lately?" },
+  { id: 'coffee_shop', icon: '☕', name: 'Coffee Shop', category: 'daily', difficulty: 'beginner', description: '在咖啡店点饮品', objective: 'Successfully order a customized coffee drink', greeting: "Hey there! Welcome to Bean & Brew. What can I get started for you today?", character: { name: 'Maya', avatar: '👩‍🦱' } },
+  { id: 'grocery', icon: '🛒', name: 'Grocery Shopping', category: 'daily', difficulty: 'beginner', description: '超市购物找商品', objective: 'Ask for help finding items and check out', greeting: "Hi! Can I help you find something today?", character: { name: 'Tom', avatar: '👨' } },
+  { id: 'doctor', icon: '🏥', name: "Doctor's Visit", category: 'daily', difficulty: 'intermediate', description: '描述症状和理解医嘱', objective: 'Explain your symptoms and understand the treatment plan', greeting: "Good morning! I'm Dr. Chen. What brings you in today?", character: { name: 'Dr. Chen', avatar: '👩‍⚕️' } },
+  { id: 'restaurant', icon: '🍽️', name: 'Restaurant', category: 'daily', difficulty: 'beginner', description: '餐厅点餐全流程', objective: 'Order a complete meal including drinks and dessert', greeting: "Good evening! Welcome to The Garden Bistro. Can I start you with a drink?", character: { name: 'James', avatar: '🧑‍🍳' } },
+  { id: 'delivery', icon: '🚴', name: 'Food Delivery', category: 'daily', difficulty: 'beginner', description: '和外卖员电话沟通', objective: 'Give clear directions and resolve a delivery issue', greeting: "Hey, this is Alex with your delivery. I can't find the entrance. Can you help?", character: { name: 'Alex', avatar: '🚴' } },
+  { id: 'interview', icon: '💼', name: 'Job Interview', category: 'work', difficulty: 'advanced', description: '模拟英语面试', objective: 'Present yourself professionally', greeting: "Hello! I'm Sarah. Let's start — could you walk me through your background?", character: { name: 'Sarah', avatar: '👩‍💼' } },
+  { id: 'meeting', icon: '📋', name: 'Team Meeting', category: 'work', difficulty: 'intermediate', description: '团队会议讨论', objective: 'Present your status update and respond to questions', greeting: "Alright, let's get started. Would you like to kick us off with your update?", character: { name: 'David', avatar: '👨‍💼' } },
+  { id: 'coworker', icon: '👩‍💻', name: 'Office Chat', category: 'work', difficulty: 'intermediate', description: '同事间日常闲聊', objective: 'Build rapport naturally', greeting: "Hey! Finally grabbed lunch? Mind if I join?", character: { name: 'Lisa', avatar: '👩‍💻' } },
+  { id: 'phone_call', icon: '📞', name: 'Business Call', category: 'work', difficulty: 'advanced', description: '商务电话沟通', objective: 'Communicate clearly and confirm action items', greeting: "Hi, this is Michael from Apex Solutions. I wanted to follow up on the proposal.", character: { name: 'Michael', avatar: '📞' } },
+  { id: 'salary', icon: '💰', name: 'Salary Negotiation', category: 'work', difficulty: 'advanced', description: '薪资谈判', objective: 'Express expectations and reach agreement', greeting: "Great news — we'd like to extend an offer! The base is $85,000.", character: { name: 'Rachel', avatar: '💰' } },
+  { id: 'airport', icon: '✈️', name: 'Airport Check-in', category: 'travel', difficulty: 'intermediate', description: '机场值机和行李', objective: 'Complete check-in and resolve an issue', greeting: "Good morning! Passport and booking reference, please.", character: { name: 'Emily', avatar: '✈️' } },
+  { id: 'hotel', icon: '🏨', name: 'Hotel Check-in', category: 'travel', difficulty: 'beginner', description: '酒店入住', objective: 'Complete check-in and get recommendations', greeting: "Welcome to The Grand! Do you have a reservation?", character: { name: 'Carlos', avatar: '🏨' } },
+  { id: 'directions', icon: '🗺️', name: 'Asking Directions', category: 'travel', difficulty: 'beginner', description: '问路和导航', objective: 'Get clear directions and confirm understanding', greeting: "Oh, you look a bit lost! Can I help you find somewhere?", character: { name: 'Sophie', avatar: '🗺️' } },
+  { id: 'travel', icon: '🚗', name: 'Car Rental', category: 'travel', difficulty: 'intermediate', description: '租车和条款', objective: 'Choose the right car and understand options', greeting: "Welcome to QuickDrive Rentals! What name is your reservation under?", character: { name: 'Mark', avatar: '🚗' } },
+  { id: 'smalltalk', icon: '💬', name: 'Small Talk', category: 'social', difficulty: 'beginner', description: '日常社交闲聊', objective: 'Keep a natural conversation going', greeting: "Hey! Nice to see you around. How's your week been?", character: { name: 'Jake', avatar: '💬' } },
+  { id: 'party', icon: '🎉', name: 'Party Chat', category: 'social', difficulty: 'intermediate', description: '派对认识新朋友', objective: 'Introduce yourself and find common interests', greeting: "Hi! I don't think we've met — I'm Olivia. How do you know the host?", character: { name: 'Olivia', avatar: '🎉' } },
+  { id: 'neighbor', icon: '🏠', name: 'Neighbor Chat', category: 'social', difficulty: 'beginner', description: '邻居日常寒暄', objective: 'Have a friendly exchange', greeting: "Oh hello! I noticed you moved in recently. How are you settling in?", character: { name: 'Robert', avatar: '🏠' } },
+  { id: 'gym', icon: '💪', name: 'Gym Buddy', category: 'social', difficulty: 'intermediate', description: '健身房社交', objective: 'Discuss fitness and share tips', greeting: "Hey! I've seen you here a few times. How long have you been working out?", character: { name: 'Kevin', avatar: '💪' } },
 ]
 
 // Mock AI replies per scenario (cycles through them)
 const MOCK_REPLIES = {
-  interview: [
-    "That's a great introduction! Can you tell me about a challenging project you've worked on?",
-    "Interesting! How did you handle the technical difficulties in that project?",
-    "Good answer. What are your main strengths as a developer?",
-    "I see. Where do you see yourself in five years?",
+  coffee_shop: [
+    "Sure thing! What size would you like — small, medium, or large?",
+    "Would you like that with oat milk, almond milk, or regular?",
+    "Great choice! Anything else I can get you? Maybe a pastry to go with it?",
+    "That'll be $5.50. For here or to go?",
+  ],
+  grocery: [
+    "The pasta sauce is in aisle 3, right next to the canned tomatoes.",
+    "I'm sorry, we're out of that brand. But we have a similar one — would you like to try it?",
+    "The deli counter is at the back of the store. They can slice it fresh for you!",
+    "Paper or plastic? Would you like help carrying those to your car?",
+  ],
+  doctor: [
+    "I see. How long have you been experiencing these symptoms?",
+    "On a scale of 1 to 10, how would you rate the discomfort?",
+    "Based on what you've described, I'd like to run a few tests. Nothing to worry about.",
+    "I'm prescribing a short course of medication. Take it twice daily with food.",
   ],
   restaurant: [
     "Our specials today are grilled salmon and mushroom risotto. Would you like to try either of those?",
     "Excellent choice! Would you like any appetizers or drinks to start?",
     "Sure thing! Would you prefer still or sparkling water?",
-    "Your order will be ready in about 15 minutes. Is there anything else I can help you with?",
+    "Your order will be ready in about 15 minutes. Is there anything else?",
+  ],
+  delivery: [
+    "Okay, so I go left after the main gate? Is there a door code?",
+    "Got it! I see the building now. Which floor are you on?",
+    "I'm at your door! Sorry for the wait — the elevator was busy.",
+    "You're all set! Enjoy your meal. Have a great evening!",
+  ],
+  interview: [
+    "That's a great introduction! Can you tell me about a challenging project you've worked on?",
+    "Interesting! How did you handle the technical difficulties in that project?",
+    "Good answer. What are your main strengths as a developer?",
+    "I see. Where do you see yourself in five years?",
   ],
   meeting: [
     "Thank you for that update. Does anyone have questions about the timeline?",
@@ -55,17 +92,71 @@ const MOCK_REPLIES = {
     "I agree with your approach. Can you prepare a detailed proposal by Friday?",
     "Let's wrap up. I'll send out the meeting notes and action items later today.",
   ],
+  coworker: [
+    "Oh man, those back-to-back meetings are brutal. What project are you on?",
+    "Ha! Same here. Have you tried the new coffee place downstairs?",
+    "Nice! Are you going to the team dinner on Friday?",
+    "That sounds fun! We should grab lunch more often.",
+  ],
+  phone_call: [
+    "Great, thanks for reviewing it. Do you have any questions about the pricing section?",
+    "I understand your concern. We can definitely adjust the timeline on that.",
+    "Perfect. Let me summarize the action items from our call today.",
+    "Thanks for your time. I'll send a follow-up email with everything we discussed.",
+  ],
+  salary: [
+    "I appreciate you sharing that. Can you walk me through your reasoning?",
+    "That's within range. Let me also tell you about our equity package.",
+    "We do have some flexibility there. What about the benefits side?",
+    "I think we can make this work. Let me get the updated offer letter prepared.",
+  ],
+  airport: [
+    "I see your booking. Would you prefer a window or aisle seat?",
+    "Your luggage is 3kg over the limit. Would you like to pay the excess fee or repack?",
+    "Your gate is B22. Boarding starts at 10:45. Enjoy your flight!",
+    "There's a slight delay on your flight. The new departure time is 11:30.",
+  ],
+  hotel: [
+    "Yes! I have your reservation right here. A deluxe room for 3 nights.",
+    "Breakfast is served from 7 to 10am on the ground floor. WiFi password is on your key card.",
+    "I'd recommend the old town for dinner — it's about a 10-minute walk from here.",
+    "Is there anything else I can help you with? Enjoy your stay!",
+  ],
+  directions: [
+    "The museum? Sure! Go straight for two blocks, then turn left at the big fountain.",
+    "You'll see a red building on the corner — that's the post office. The museum is right next to it.",
+    "It's about a 10-minute walk from here. Would you like me to show you on the map?",
+    "Alternatively, you can take bus number 7. The stop is just around the corner.",
+  ],
   travel: [
-    "The city center is about 20 minutes by bus. You can take line 42 from the stop right outside.",
-    "Yes, there are several good hotels nearby. What's your budget range?",
-    "I'd recommend the old town area. It has great restaurants and historical sites.",
-    "The museum is open from 9am to 6pm. Tickets are available at the entrance or online.",
+    "We have compact, sedan, and SUV available. The sedan is popular for road trips.",
+    "The full coverage insurance is $15 per day. It covers everything including tires and glass.",
+    "You'll need to return the car with a full tank. The nearest gas station is 2 miles from here.",
+    "Here are your keys! The car is in spot B-12 in the parking garage.",
   ],
   smalltalk: [
     "Oh that sounds fun! I've been meaning to try that too. Do you go often?",
     "Really? That's interesting! I actually had a similar experience last week.",
     "Ha, I know exactly what you mean! Have you tried the new place downtown?",
-    "That's awesome! We should definitely hang out more often. What are you doing this weekend?",
+    "That's awesome! What are you doing this weekend?",
+  ],
+  party: [
+    "Oh cool! I'm actually a friend of a friend — we met at a conference last year.",
+    "No way, you're into hiking too? Have you done any trails around here?",
+    "That's so interesting! I've always wanted to learn more about that.",
+    "We should totally exchange numbers! Let me know next time you're going.",
+  ],
+  neighbor: [
+    "Welcome to the neighborhood! You'll love it here — very quiet and friendly.",
+    "Oh, the recycling goes out on Tuesdays. The bins are the blue ones.",
+    "There's a great farmers market on Saturdays, just two streets over.",
+    "If you ever need anything, don't hesitate to knock. That's what neighbors are for!",
+  ],
+  gym: [
+    "Nice! Consistency is key. Are you following any specific program?",
+    "Have you tried progressive overload? It really helped me break through a plateau.",
+    "I usually do a push-pull-legs split. Works great for recovery.",
+    "Protein timing matters less than total daily intake. Just hit your macros!",
   ],
 }
 
@@ -91,9 +182,25 @@ function getNextReply(scenario) {
 
 // ========== Routes ==========
 
+// --- Categories ---
+app.get('/api/categories', (req, res) => {
+  res.json([
+    { id: 'all', name: 'All', icon: '🌟' },
+    { id: 'daily', name: 'Daily Life', icon: '🏠' },
+    { id: 'work', name: 'Work', icon: '💼' },
+    { id: 'travel', name: 'Travel', icon: '✈️' },
+    { id: 'social', name: 'Social', icon: '💬' },
+  ])
+})
+
 // --- Scenarios ---
 app.get('/api/scenarios', (req, res) => {
-  res.json(SCENARIOS.map(({ id, icon, name, description }) => ({ id, icon, name, description })))
+  const category = req.query.category
+  let list = SCENARIOS
+  if (category && category !== 'all') {
+    list = list.filter((s) => s.category === category)
+  }
+  res.json(list)
 })
 
 app.get('/api/scenarios/:id', (req, res) => {
@@ -155,12 +262,20 @@ app.post('/api/stream', upload.single('audio'), (req, res) => {
     }, 600 + i * 400)
   })
 
-  // 3. Corrections (randomly)
+  // 3. Corrections (randomly) + Feedback
   setTimeout(() => {
     if (Math.random() > 0.4) {
       const correction = MOCK_CORRECTIONS[Math.floor(Math.random() * MOCK_CORRECTIONS.length)]
       res.write(`event: corrections\ndata: ${JSON.stringify([correction])}\n\n`)
     }
+    // Always send feedback
+    const feedbacks = [
+      '🎯 Great sentence structure!',
+      '💡 Try using more specific vocabulary next time.',
+      '✨ Nice use of connectors!',
+      '🎯 Good job expressing your opinion clearly!',
+    ]
+    res.write(`event: feedback\ndata: ${JSON.stringify({ text: feedbacks[Math.floor(Math.random() * feedbacks.length)] })}\n\n`)
   }, 600 + sentences.length * 400 + 200)
 
   // 4. Done event
@@ -267,6 +382,80 @@ app.get('/api/progress', (req, res) => {
 
 // --- Static audio (placeholder) ---
 app.use('/audio', express.static('audio_cache'))
+
+// --- Hint System ---
+app.post('/api/hint', upload.none(), (req, res) => {
+  setTimeout(() => {
+    res.json({
+      hints: [
+        { text: "Could you tell me more about that?", hint: "能多说一些吗？", difficulty: "easy" },
+        { text: "That's interesting! I've actually had a similar experience.", hint: "有意思，我也有类似的经历", difficulty: "medium" },
+        { text: "I'd love to hear your perspective on this matter.", hint: "我想听听你对这件事的看法", difficulty: "hard" },
+      ],
+    })
+  }, 300)
+})
+
+// --- Level Test ---
+app.get('/api/level-test/questions', (req, res) => {
+  res.json([
+    { index: 0, difficulty: 'A1', prompt: "Can you introduce yourself? Tell me your name, where you're from, and what you do." },
+    { index: 1, difficulty: 'A2', prompt: "What did you do last weekend? Tell me about it in a few sentences." },
+    { index: 2, difficulty: 'B1', prompt: "If you could live anywhere in the world, where would you choose and why?" },
+    { index: 3, difficulty: 'B2', prompt: "Some people say AI will replace most jobs. What's your opinion?" },
+    { index: 4, difficulty: 'C1', prompt: "Describe a significant challenge you overcame and what it taught you." },
+  ])
+})
+
+app.post('/api/level-test/assess', upload.none(), (req, res) => {
+  setTimeout(() => {
+    res.json({
+      assessment: {
+        level: 'B1',
+        scores: { grammar: 6, vocabulary: 7, fluency: 5, task_completion: 7 },
+        strengths: ['vocabulary range', 'task completion'],
+        weaknesses: ['grammar accuracy', 'fluency'],
+        summary: '你的词汇量不错，能完成大部分交际任务，但语法准确度和流利度还有提升空间。',
+        recommendations: ['Practice speaking in longer sentences', 'Focus on verb tenses in daily conversation'],
+      },
+      profile: { id: 'default_user', level: 'B1' },
+    })
+  }, 1000)
+})
+
+// --- User Profile ---
+app.get('/api/profile', (req, res) => {
+  res.json({
+    id: 'default_user',
+    level: null,
+    strengths: [],
+    weaknesses: [],
+    character_affinity: {},
+    total_sessions: 0,
+    total_turns: 0,
+  })
+})
+
+app.get('/api/profile/memory/:scenarioId', (req, res) => {
+  res.json({ memories: [], affinity_level: 1 })
+})
+
+// --- Talent Agent Integration ---
+app.get('/api/integrations/talent-agent/status', (req, res) => {
+  res.json({ status: 'unavailable', error: 'Talent Agent not configured (mock mode)' })
+})
+
+app.post('/api/integrations/talent-agent/interview-prep', upload.none(), (req, res) => {
+  res.json({
+    key_skills: ['React', 'TypeScript', 'Node.js'],
+    focus_areas: ['System Design', 'Performance Optimization'],
+    difficulty_level: 'intermediate',
+  })
+})
+
+app.post('/api/integrations/talent-agent/sync', upload.none(), (req, res) => {
+  res.json({ synced: false, error: 'Talent Agent not configured (mock mode)' })
+})
 
 // ========== Start ==========
 app.listen(PORT, () => {
