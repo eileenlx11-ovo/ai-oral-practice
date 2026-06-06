@@ -60,6 +60,7 @@ async def assess(audio_path: str, reference_text: str) -> dict | None:
     recognizer = speechsdk.SpeechRecognizer(
         speech_config=config, audio_config=audio_config, language="en-US",
     )
+    pron_config.enable_prosody_assessment()
     pron_config.apply_to(recognizer)
 
     import asyncio
@@ -88,6 +89,7 @@ def _recognize_sync(recognizer) -> dict | None:
         "fluency_score": r.fluency_score,
         "completeness_score": r.completeness_score,
         "pronunciation_score": r.pronunciation_score,
+        "prosody_score": getattr(r, "prosody_score", None),
         "words": words,
         "provider": "azure",
     }
