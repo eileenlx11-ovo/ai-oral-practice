@@ -364,9 +364,23 @@ async def chat_stream(
     async def event_generator():
         try:
             # 1. ASR
-            user_text = await _transcribe(tmp.name)
+            try:
+                user_text = await _transcribe(tmp.name)
+            except Exception:
+                yield _sse_error(
+                    "asr",
+                    "asr_failed",
+                    "语音识别失败，请重试",
+                    action="retry",
+                )
+                return
             if not user_text.strip():
-                yield _sse("error", {"message": "No speech detected"})
+                yield _sse_error(
+                    "asr",
+                    "no_speech",
+                    "未检测到语音，请重试",
+                    action="retry",
+                )
                 return
 
             yield _sse("asr", {"text": user_text})
@@ -381,43 +395,52 @@ async def chat_stream(
             splitter = SentenceSplitter()
             full_reply = ""
 
-            stream = await llm.chat.completions.create(
-                model=LLM_MODEL,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=512,
-                stream=True,
-            )
+            try:
+                stream = await llm.chat.completions.create(
+                    model=LLM_MODEL,
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=512,
+                    stream=True,
+                )
 
-            async for chunk in stream:
-                delta = chunk.choices[0].delta
-                if delta.content:
-                    token = delta.content
-                    full_reply += token
+                async for chunk in stream:
+                    delta = chunk.choices[0].delta
+                    if delta.content:
+                        token = delta.content
+                        full_reply += token
 
-                    # Check for complete sentences
-                    sentences = splitter.feed(token)
-                    for sent in sentences:
-                        # Stop emitting once we hit corrections section
-                        if "[CORRECTIONS]" in full_reply or "[END]" in full_reply:
-                            break
-                        # Strip LLM format markers and detect leaked corrections
-                        clean = _clean_sentence(sent["text"])
-                        if not clean:
-                            continue
-                        audio_url = await synthesize_sentence(clean, voice=tts_voice)
-                        yield _sse("sentence", {
-                            "index": sent["index"],
-                            "text": clean,
-                            "audio_url": audio_url,
-                        })
+                        # Check for complete sentences
+                        sentences = splitter.feed(token)
+                        for sent in sentences:
+                            # Stop emitting once we hit corrections section
+                            if "[CORRECTIONS]" in full_reply or "[END]" in full_reply:
+                                break
+                            # Strip LLM format markers and detect leaked corrections
+                            clean = _clean_sentence(sent["text"])
+                            if not clean:
+                                continue
+                            audio_url = await _safe_synthesize_sentence(clean, tts_voice)
+                            yield _sse("sentence", {
+                                "index": sent["index"],
+                                "text": clean,
+                                "audio_url": audio_url,
+                            })
+            except Exception:
+                yield _sse_error(
+                    "llm",
+                    "llm_failed",
+                    "AI 回复生成失败，请重试",
+                    action="retry",
+                )
+                return
 
             # Flush remaining buffer
             remaining = splitter.flush()
             if remaining and "[CORRECTIONS]" not in remaining["text"] and "[END]" not in remaining["text"]:
                 clean = _clean_sentence(remaining["text"])
                 if clean:
-                    audio_url = await synthesize_sentence(clean, voice=tts_voice)
+                    audio_url = await _safe_synthesize_sentence(clean, tts_voice)
                     yield _sse("sentence", {
                         "index": remaining["index"],
                         "text": clean,
@@ -425,9 +448,12 @@ async def chat_stream(
                     })
 
             # 3. Parse corrections and feedback from full reply
-            from .correction import extract_feedback
-            reply_text, corrections = extract_corrections(full_reply)
-            feedback = extract_feedback(full_reply)
+            try:
+                from .correction import extract_feedback
+                reply_text, corrections = extract_corrections(full_reply)
+                feedback = extract_feedback(full_reply)
+            except Exception:
+                reply_text, corrections, feedback = full_reply, [], ""
 
             if corrections:
                 yield _sse("corrections", corrections)
@@ -481,6 +507,24 @@ def _clean_sentence(text: str) -> str:
 def _sse(event: str, data) -> str:
     """Format a Server-Sent Event."""
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _sse_error(phase: str, code: str, message: str, action: str = "retry") -> str:
+    """Format a structured SSE error while preserving the message field."""
+    return _sse("error", {
+        "phase": phase,
+        "code": code,
+        "message": message,
+        "action": action,
+    })
+
+
+async def _safe_synthesize_sentence(text: str, voice: str) -> str | None:
+    """Synthesize TTS for a streamed sentence; text still streams if audio fails."""
+    try:
+        return await synthesize_sentence(text, voice=voice)
+    except Exception:
+        return None
 
 
 @app.post("/api/asr")
