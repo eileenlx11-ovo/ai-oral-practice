@@ -739,7 +739,26 @@ async def _synthesize_tts(text: str) -> str | None:
 async def _generate_session_report(summary: dict) -> str:
     """Generate a narrative session report using LLM."""
     try:
-        prompt = f"""Based on this English practice session data, write a brief coaching report in Chinese (3-5 sentences).
+        if summary.get("scenario") == "interview":
+            prompt = f"""Based on this oral mock interview session, write a role-focused speaking debrief in Chinese.
+
+Session info:
+- Total turns: {summary.get('total_turns', 0)}
+- Total corrections: {summary.get('total_corrections', 0)}
+- Common errors: {summary.get('common_errors', [])}
+- Avg pronunciation: {summary.get('avg_pronunciation', 'N/A')}
+- Avg fluency: {summary.get('avg_fluency', 'N/A')}
+- Avg accuracy: {summary.get('avg_accuracy', 'N/A')}
+
+Write 4 short sections in plain text:
+1. Overall interview communication performance
+2. Answer structure and clarity
+3. Speaking/pronunciation risks that could affect interviews
+4. Next 2 drills to practice before the next mock interview
+
+Keep it specific, honest, and concise. Output Chinese only."""
+        else:
+            prompt = f"""Based on this English practice session data, write a brief coaching report in Chinese (3-5 sentences).
 
 Session info:
 - Scenario: {summary.get('scenario', 'unknown')}
@@ -988,6 +1007,50 @@ async def get_session_summary(
 async def get_progress(user: dict | None = Depends(get_optional_user)):
     """Get aggregated progress metrics across all sessions."""
     return store.get_progress(user_id=_user_id(user))
+
+
+@app.post("/api/progress/grammar-analysis")
+async def grammar_analysis(user: dict | None = Depends(get_optional_user)):
+    """
+    Turn the user's recurring grammar errors into a short, personalized Chinese
+    analysis with actionable advice (instead of a bare error list). Computed
+    on demand so the dashboard load stays cheap; returns empty when there is
+    not enough data to say anything useful.
+    """
+    progress = store.get_progress(user_id=_user_id(user))
+    errors = (progress.get("weakness") or {}).get("common_grammar_errors") or []
+    if not errors:
+        return {"analysis": "", "tips": []}
+
+    # Compact the patterns for the prompt (cap to keep the call small)
+    lines = "\n".join(f"- {e['pattern']} (×{e['count']})" for e in errors[:8])
+    try:
+        resp = await llm.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "你是一位英语口语教练。根据学习者反复出现的语法错误，用简体中文写一段"
+                        "针对性分析（2-3句，点明错误背后的共性规律，语气鼓励），再给出3条具体、"
+                        "可操作的改进建议。只输出 JSON：{\"analysis\": \"...\", \"tips\": [\"...\", \"...\", \"...\"]}"
+                    ),
+                },
+                {"role": "user", "content": f"学习者高频语法错误：\n{lines}"},
+            ],
+            temperature=0.5,
+            max_tokens=400,
+        )
+        raw = (resp.choices[0].message.content or "{}").strip()
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
+        data = json.loads(raw)
+        return {
+            "analysis": data.get("analysis", ""),
+            "tips": data.get("tips", [])[:3],
+        }
+    except Exception:
+        raise HTTPException(502, "Analysis failed")
 
 
 # --- Hint System ---

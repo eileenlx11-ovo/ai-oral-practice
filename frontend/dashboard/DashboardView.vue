@@ -117,14 +117,35 @@
             </li>
           </ul>
         </div>
-        <div class="weakness-card wide" v-if="progress.weakness.common_grammar_errors?.length">
-          <span class="wk-icon">📝</span>
-          <span class="wk-title">{{ t('dashboard.commonErrors', '常见语法错误') }}</span>
-          <ul class="wk-list">
-            <li v-for="e in progress.weakness.common_grammar_errors" :key="e.pattern">
-              {{ e.pattern }} <span class="wk-score">×{{ e.count }}</span>
-            </li>
-          </ul>
+        <!-- Personalized grammar coaching (LLM analysis instead of a bare list) -->
+        <div class="weakness-card wide grammar-card" v-if="progress.weakness.common_grammar_errors?.length">
+          <div class="grammar-head">
+            <span class="wk-icon">📝</span>
+            <span class="wk-title">{{ t('dashboard.grammarCoach', '语法分析与建议') }}</span>
+            <button
+              v-if="!grammarAnalysis && !grammarLoading"
+              class="grammar-btn"
+              @click="loadGrammarAnalysis"
+            >{{ t('dashboard.generateAnalysis', '生成针对性分析') }}</button>
+          </div>
+
+          <!-- Compact error tags (kept as supporting evidence) -->
+          <div class="grammar-tags">
+            <span class="grammar-tag" v-for="e in progress.weakness.common_grammar_errors.slice(0, 6)" :key="e.pattern">
+              {{ e.pattern }}<i>×{{ e.count }}</i>
+            </span>
+          </div>
+
+          <div v-if="grammarLoading" class="grammar-loading">
+            <span class="mini-spinner"></span> {{ t('dashboard.analyzing', '正在分析你的高频错误…') }}
+          </div>
+          <template v-else-if="grammarAnalysis">
+            <p class="grammar-analysis">{{ grammarAnalysis.analysis }}</p>
+            <ul class="grammar-tips" v-if="grammarAnalysis.tips?.length">
+              <li v-for="(tip, i) in grammarAnalysis.tips" :key="i">{{ tip }}</li>
+            </ul>
+          </template>
+          <p v-else class="grammar-hint">{{ t('dashboard.grammarHint', '点击上方按钮，让 AI 教练分析这些错误背后的规律并给出改进建议') }}</p>
         </div>
       </div>
     </div>
@@ -239,6 +260,26 @@ const progress = ref(null)
 const sessions = ref([])
 const selectedSummary = ref(null)
 const toast = reactive({ message: '', type: 'info' })
+
+// Personalized grammar coaching (lazy — only fetched when the user asks)
+const grammarAnalysis = ref(null)
+const grammarLoading = ref(false)
+
+async function loadGrammarAnalysis() {
+  grammarLoading.value = true
+  try {
+    const res = await fetch(`${API}/api/progress/grammar-analysis`, { method: 'POST' })
+    if (res.ok) {
+      grammarAnalysis.value = await res.json()
+    } else {
+      showToast(t('dashboard.analysisFailed', '分析生成失败，请稍后再试'))
+    }
+  } catch {
+    showToast(t('dashboard.networkFailed'))
+  } finally {
+    grammarLoading.value = false
+  }
+}
 
 function showToast(message, type = 'error') {
   toast.message = message
@@ -569,10 +610,11 @@ h2 {
 .streak-label { font-size: var(--text-xs); color: var(--color-text-muted); }
 .streak-divider { width: 1px; height: 48px; background: var(--color-border); }
 
-/* Dual charts row */
+/* Dual charts row — auto-fit so a lone chart fills the width instead of
+   leaving an awkward empty half */
 .dual-charts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: var(--space-6);
   margin-bottom: var(--space-8);
 }
@@ -608,6 +650,80 @@ h2 {
   padding: var(--space-1) 0;
 }
 .wk-score { font-weight: 600; color: var(--color-text-muted); }
+
+/* Grammar coaching card */
+.grammar-card { gap: var(--space-3); }
+.grammar-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.grammar-head .wk-title { margin-right: auto; }
+.grammar-btn {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: white;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  transition: background var(--transition-fast);
+}
+.grammar-btn:hover { background: var(--color-primary-dark); }
+.grammar-tags { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.grammar-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border-light);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+.grammar-tag i { font-style: normal; font-weight: 700; color: var(--color-text-muted); }
+.grammar-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+.grammar-analysis {
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--color-text);
+  background: var(--color-primary-50);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+.grammar-tips {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.grammar-tips li {
+  position: relative;
+  padding-left: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+.grammar-tips li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--color-success);
+  font-weight: 700;
+}
+.grammar-hint { font-size: var(--text-sm); color: var(--color-text-muted); line-height: 1.6; }
+.mini-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: dash-spin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes dash-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 768px) {
   .dual-charts { grid-template-columns: 1fr; }

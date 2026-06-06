@@ -27,6 +27,8 @@
   /* Neutrals */
   --color-bg: #f8fafc;
   --color-surface: #ffffff;
+  /* Translucent surface for sticky/blurred bars (navbar, tab-bar) */
+  --color-surface-translucent: rgba(255, 255, 255, 0.92);
   --color-border: #e2e8f0;
   --color-border-light: #f1f5f9;
   --color-text: #1e293b;
@@ -118,6 +120,7 @@
 
   --color-bg: #0f172a;
   --color-surface: #1e293b;
+  --color-surface-translucent: rgba(30, 41, 59, 0.9);
   --color-border: #334155;
   --color-border-light: #1e293b;
   --color-text: #f1f5f9;

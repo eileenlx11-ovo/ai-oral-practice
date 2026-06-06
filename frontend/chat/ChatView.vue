@@ -1,17 +1,22 @@
 <template>
   <div class="chat-view" :style="{ '--scene-accent': scene.accent, '--scene-grad': sceneBg }">
-    <!-- Scene backdrop: gradient base + optional Unsplash overlay (fills shell) -->
+    <!-- Scene backdrop: gradient base + optional Unsplash overlay (fills shell),
+         topped by a darkening scrim so the foreground app card reads cleanly -->
     <div class="scene-backdrop">
       <div
         v-if="sceneImageOk"
         class="scene-image"
         :style="{ backgroundImage: `url(${scene.image})` }"
       ></div>
+      <div class="scene-scrim"></div>
     </div>
 
     <!-- Toast notification -->
     <Toast :message="toast.message" :type="toast.type" @close="toast.message = ''" />
 
+    <!-- Centered glass app card: header + body + controls all live inside one
+         bounded container so nothing floats on the bare background -->
+    <div class="chat-card">
     <!-- Pinned top bar -->
     <header class="chat-header">
       <button @click="$router.push('/')" class="icon-btn back-btn" :title="t('chat.back')">
@@ -28,8 +33,15 @@
         <svg class="char-caret" :class="{ open: showCharCard }" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
       </button>
 
+      <!-- Live stat chips (folded in from the old right gutter) -->
+      <div class="stat-chips">
+        <span class="chip"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>{{ turnCount }}</span>
+        <span class="chip"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>{{ correctionCount }}</span>
+        <span class="chip"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{{ elapsedText }}</span>
+      </div>
+
       <div class="header-right">
-        <span class="status" :class="statusClass">{{ statusText }}</span>
+        <span class="status" :class="statusClass"><span class="status-dot"></span>{{ statusText }}</span>
         <button class="icon-btn" @click="openCharSwitcher" :title="t('chat.switchCharacter', '切换角色')">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
         </button>
@@ -39,16 +51,16 @@
       </div>
     </header>
 
-    <!-- Body: left gutter | conversation | right gutter -->
+    <!-- Body: left gutter | conversation -->
     <div class="chat-body">
       <!-- Left gutter: objective + hints -->
       <aside class="side-panel left" :class="{ open: showSidePanels }">
         <div v-if="scenarioObjective" class="panel-card objective-card">
-          <h4>🎯 {{ t('chat.objective', '本场目标') }}</h4>
+          <h4><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>{{ t('chat.objective', '本场目标') }}</h4>
           <p>{{ scenarioObjective }}</p>
         </div>
         <div class="panel-card hint-card">
-          <h4>💡 {{ t('chat.hintTitle') }}</h4>
+          <h4><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>{{ t('chat.hintTitle') }}</h4>
           <button class="panel-action" :disabled="loadingHints || messages.length === 0" @click="requestHints">
             {{ loadingHints ? t('chat.hintLoading') : t('chat.hintButton') }}
           </button>
@@ -83,6 +95,9 @@
               <button v-if="msg.audioUrls && msg.audioUrls.length" class="bubble-btn" @click="handleManualPlay(msg.audioUrls)" :title="t('chat.replay', '播放')">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
               </button>
+              <a v-if="msg.localAudioUrl" class="bubble-btn" :href="msg.localAudioUrl" :download="msg.localAudioName" :title="t('chat.downloadRecording', '下载本轮录音')">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+              </a>
               <button v-if="msg.role === 'assistant'" class="bubble-btn" @click="toggleTranslate(msg)" :title="t('chat.translate', '翻译')">
                 <span v-if="msg.translating" class="mini-spinner"></span>
                 <span v-else>译</span>
@@ -113,16 +128,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Right gutter: live stats -->
-      <aside class="side-panel right" :class="{ open: showSidePanels }">
-        <div class="panel-card stats-card">
-          <h4>📊 {{ t('chat.liveStats', '实时数据') }}</h4>
-          <div class="stat-row"><span>{{ t('chat.turns', '轮次') }}</span><strong>{{ turnCount }}</strong></div>
-          <div class="stat-row"><span>{{ t('chat.corrections', '纠错') }}</span><strong>{{ correctionCount }}</strong></div>
-          <div class="stat-row"><span>{{ t('chat.elapsed', '时长') }}</span><strong>{{ elapsedText }}</strong></div>
-        </div>
-      </aside>
     </div>
 
     <!-- Pinned control bar -->
@@ -204,6 +209,7 @@
         </span>
       </label>
     </div>
+    </div><!-- /chat-card -->
 
     <!-- Session Report Modal -->
     <div v-if="showReport" class="modal-overlay" @click.self="showReport = false">
@@ -234,9 +240,14 @@
             </li>
           </ul>
         </div>
-        <button class="modal-close-btn" @click="showReport = false; $router.push('/')">
-          {{ t('chat.backHome') }}
-        </button>
+        <div class="modal-actions">
+          <button v-if="isInterviewSession" class="modal-secondary-btn" :disabled="syncingTalent || talentSynced" @click="syncToTalentAgent">
+            {{ talentSynced ? t('chat.talentSynced', '已同步到 Talent Agent') : syncingTalent ? t('chat.syncingTalent', '同步中...') : t('chat.syncTalent', '同步到 Talent Agent') }}
+          </button>
+          <button class="modal-close-btn" @click="showReport = false; $router.push('/')">
+            {{ t('chat.backHome') }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -325,6 +336,7 @@ let currentAbort = null
 let audioQueue = []
 let currentAudio = null
 let lastBlob = null // For retry
+const localAudioUrls = []
 
 // Hint system
 const showHintPrompt = ref(false)
@@ -345,6 +357,9 @@ const toast = reactive({ message: '', type: 'info' })
 // Session report
 const showReport = ref(false)
 const reportData = ref({})
+const syncingTalent = ref(false)
+const talentSynced = ref(false)
+const isInterviewSession = computed(() => scenarioId === 'interview' || reportData.value?.scenario === 'interview')
 
 function showToast(message, type = 'error') {
   toast.message = message
@@ -373,11 +388,11 @@ const statusClass = computed(() => ({
 
 const statusText = computed(() => {
   switch (state.value) {
-    case 'RECORDING': return `🔴 ${t('chat.status.recording')}`
-    case 'PROCESSING': return `⏳ ${t('chat.status.processing')}`
-    case 'STREAMING': return `💬 ${t('chat.status.streaming')}`
-    case 'PLAYING': return `🔊 ${t('chat.status.playing')}`
-    default: return `⏸️ ${t('chat.status.idle')}`
+    case 'RECORDING': return t('chat.status.recording')
+    case 'PROCESSING': return t('chat.status.processing')
+    case 'STREAMING': return t('chat.status.streaming')
+    case 'PLAYING': return t('chat.status.playing')
+    default: return t('chat.status.idle')
   }
 })
 
@@ -471,6 +486,7 @@ function retryLast() {
 
 function sendStreaming(blob) {
   lastBlob = blob
+  const localAudio = createLocalAudio(blob)
   showHintPanel.value = false
   const history = messages.value
     .filter((m) => m.text && !m.text.startsWith('❌'))
@@ -481,7 +497,7 @@ function sendStreaming(blob) {
 
   currentAbort = streamChat(blob, scenarioId, history, sessionId, {
     onASR(text) {
-      messages.value.push({ role: 'user', text, corrections: [], feedback: null })
+      messages.value.push({ role: 'user', text, corrections: [], feedback: null, ...localAudio })
       scrollToBottom()
       state.value = 'STREAMING'
     },
@@ -532,6 +548,17 @@ function sendStreaming(blob) {
   })
 }
 
+function createLocalAudio(blob) {
+  if (!blob) return {}
+  const url = URL.createObjectURL(blob)
+  localAudioUrls.push(url)
+  const ext = blob.type.includes('webm') ? 'webm' : 'wav'
+  return {
+    localAudioUrl: url,
+    localAudioName: `speakflow-${new Date().toISOString().replace(/[:.]/g, '-')}.${ext}`,
+  }
+}
+
 function playNext() {
   if (audioQueue.length === 0) { state.value = 'IDLE'; currentAudio = null; resetHintTimer(); return }
   const url = audioQueue.shift()
@@ -566,12 +593,33 @@ async function endSession() {
     const res = await fetch(`/api/sessions/${sessionId}/end`, { method: 'POST' })
     if (res.ok) {
       reportData.value = await res.json()
+      talentSynced.value = false
       showReport.value = true
     } else {
       showToast(t('chat.errors.reportFailed'), 'error')
     }
   } catch {
     showToast(t('chat.errors.network'), 'error')
+  }
+}
+
+async function syncToTalentAgent() {
+  if (!sessionId || syncingTalent.value) return
+  syncingTalent.value = true
+  try {
+    const fd = new FormData()
+    fd.append('session_id', sessionId)
+    const res = await fetch('/api/integrations/talent-agent/sync', { method: 'POST', body: fd })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok || data.synced === false) {
+      throw new Error(data.error || t('chat.talentSyncFailed', '同步失败'))
+    }
+    talentSynced.value = true
+    showToast(t('chat.talentSyncSuccess', '已同步到 Talent Agent'), 'success')
+  } catch (e) {
+    showToast(`${t('chat.talentSyncFailed', '同步失败')}：${e.message || ''}`, 'error')
+  } finally {
+    syncingTalent.value = false
   }
 }
 
@@ -602,6 +650,7 @@ onUnmounted(() => {
   interrupt()
   if (hintTimer) clearTimeout(hintTimer)
   if (elapsedTimer) clearInterval(elapsedTimer)
+  localAudioUrls.forEach((url) => URL.revokeObjectURL(url))
 })
 
 // --- Character / voice switcher ---
@@ -662,53 +711,104 @@ async function toggleTranslate(msg) {
 .chat-view {
   position: relative;
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   /* Flex-fills <main> (itself flex:1 = viewport minus navbar). The global
-     `main:has(.chat-view)` rule zeroes padding and makes main a flex column,
-     so no navbar magic number is needed. Only .messages scrolls. */
+     `main:has(.chat-view)` rule zeroes padding and makes main a flex column.
+     The scene fills the whole shell; the app card centers on top of it. */
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  padding: var(--space-4);
   animation: fade-in var(--transition-base) both;
 }
 
-/* Scene backdrop fills the whole shell */
+/* Centered glass app card — one bounded container holding header/body/controls
+   so no element floats on the bare background. */
+.chat-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1080px;
+  min-height: 0;
+  background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+  backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid color-mix(in srgb, var(--color-surface) 60%, transparent);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+}
+
+/* Scene backdrop fills the whole shell, with a scrim to anchor the card */
 .scene-backdrop {
   position: absolute;
   inset: 0;
   z-index: 0;
   background: var(--scene-grad);
-  opacity: 0.45;
   pointer-events: none;
   overflow: hidden;
 }
-
-[data-theme="dark"] .scene-backdrop { opacity: 0.2; }
 
 .scene-image {
   position: absolute;
   inset: 0;
   background-size: cover;
   background-position: center;
-  opacity: 0.28;
-  mix-blend-mode: multiply;
+  opacity: 0.55;
   animation: fade-in 600ms ease both;
+}
+
+/* Darkening + vignette scrim: lowers background visual weight, lifts contrast */
+.scene-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 90% at 50% 0%, transparent 40%, rgba(15, 23, 42, 0.28) 100%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.32));
+}
+
+[data-theme="dark"] .scene-backdrop { opacity: 0.5; }
+[data-theme="dark"] .scene-scrim {
+  background:
+    radial-gradient(120% 90% at 50% 0%, transparent 30%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.55));
 }
 
 .record-btn.offline { opacity: 0.5; cursor: not-allowed; }
 
-/* === Pinned top bar === */
+/* === Pinned top bar (inside the card, transparent) === */
 .chat-header {
   position: relative;
   z-index: 5;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-5);
-  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-4);
+  background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+  border-bottom: 1px solid var(--color-border-light);
+  flex-shrink: 0;
 }
+
+/* Live stat chips (replaces the old right gutter) */
+.stat-chips {
+  display: flex;
+  gap: var(--space-2);
+  margin-left: var(--space-2);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+  border: 1px solid var(--color-border-light);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.chip svg { color: var(--scene-accent); }
 
 /* Generic icon button (line-art SVG) */
 .icon-btn {
@@ -758,10 +858,36 @@ async function toggleTranslate(msg) {
 
 .header-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
 
-.status { font-size: var(--text-sm); color: var(--color-text-muted); font-weight: 500; white-space: nowrap; }
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  flex-shrink: 0;
+}
 .status.recording { color: var(--color-error); }
+.status.recording .status-dot { background: var(--color-error); animation: dot-pulse 1.2s infinite; }
 .status.processing { color: var(--color-warning); }
+.status.processing .status-dot { background: var(--color-warning); animation: dot-pulse 1.2s infinite; }
 .status.playing { color: var(--color-primary); }
+.status.playing .status-dot { background: var(--color-primary); animation: dot-pulse 1.2s infinite; }
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .status-dot { animation: none !important; }
+}
 
 /* === Overlays: masks + popovers escape the stacking trap === */
 .overlay-mask {
@@ -831,37 +957,51 @@ async function toggleTranslate(msg) {
 .si-role { font-size: var(--text-xs); color: var(--color-text-muted); }
 .switcher-empty { font-size: var(--text-sm); color: var(--color-text-muted); text-align: center; padding: var(--space-4); }
 
-/* === Body: left gutter | conversation | right gutter === */
+/* === Body: left gutter | conversation === */
 .chat-body {
   position: relative;
   z-index: 1;
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 240px;
+  grid-template-columns: 256px minmax(0, 1fr);
+  /* Single row locked to the free space so panel content can NEVER push the
+     control bar out of view. Children must opt into shrinking via min-height:0. */
+  grid-template-rows: minmax(0, 1fr);
   gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-4);
   overflow: hidden;
 }
 
-/* Side panels live on the gradient gutters */
+/* Side panels live in the left gutter; they scroll internally, never grow the row */
 .side-panel {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding-right: 2px;
 }
-.side-panel.right { align-self: start; }
 
 .panel-card {
-  background: color-mix(in srgb, var(--color-surface) 86%, transparent);
-  backdrop-filter: blur(6px);
-  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  border: 1px solid var(--color-border-light);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
+  flex-shrink: 0;
 }
-.panel-card h4 { font-size: var(--text-sm); font-weight: 700; margin-bottom: var(--space-2); }
+/* The hint card may hold many hints — let it shrink and scroll its own list */
+.hint-card { display: flex; flex-direction: column; min-height: 0; }
+.panel-card h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+.panel-card h4 svg { color: var(--scene-accent); flex-shrink: 0; }
 .objective-card { border-left: 3px solid var(--scene-accent); }
 .objective-card p { font-size: var(--text-sm); color: var(--color-text-secondary); line-height: 1.5; }
 
@@ -875,24 +1015,22 @@ async function toggleTranslate(msg) {
   font-weight: 500;
   color: var(--color-primary);
   transition: all var(--transition-fast);
+  flex-shrink: 0;
 }
 .panel-action:hover:not(:disabled) { background: var(--color-primary-50); }
-.panel-hints { margin-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
-.panel-hint { padding: var(--space-2); border-radius: var(--radius-md); background: var(--color-bg); }
+.panel-action:disabled { opacity: 0.5; cursor: not-allowed; }
+.panel-hints {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.panel-hint { padding: var(--space-2); border-radius: var(--radius-md); background: var(--color-bg); flex-shrink: 0; }
 .ph-text { font-size: var(--text-sm); color: var(--color-text); }
 .ph-zh { font-size: var(--text-xs); color: var(--color-text-muted); }
-
-.stats-card .stat-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-2) 0;
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-border-light);
-}
-.stats-card .stat-row:last-child { border-bottom: none; }
-.stats-card .stat-row strong { font-size: var(--text-lg); font-weight: 700; color: var(--scene-accent); }
 
 /* Messages (the only scrolling region) */
 .messages {
@@ -951,6 +1089,7 @@ async function toggleTranslate(msg) {
   background: var(--color-bg);
   transition: all var(--transition-fast);
 }
+.bubble-btn:visited { color: var(--color-text-muted); }
 .bubble-btn:hover { color: var(--color-primary); background: var(--color-primary-50); }
 .bubble-translation {
   margin-top: var(--space-2);
@@ -993,7 +1132,7 @@ async function toggleTranslate(msg) {
   font-style: italic;
 }
 
-/* === Pinned control bar === */
+/* === Pinned control bar (inside the card) === */
 .controls {
   position: relative;
   z-index: 5;
@@ -1002,9 +1141,9 @@ async function toggleTranslate(msg) {
   justify-content: center;
   gap: var(--space-3);
   align-items: center;
-  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
-  backdrop-filter: blur(8px);
-  border-top: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+  border-top: 1px solid var(--color-border-light);
+  flex-shrink: 0;
 }
 
 .vad-btn { border: 1px solid var(--color-border); }
@@ -1215,17 +1354,31 @@ async function toggleTranslate(msg) {
 .report-errors ul { padding-left: var(--space-5); }
 .report-errors li { font-size: var(--text-sm); color: var(--color-text-secondary); margin-bottom: var(--space-1); }
 
-.modal-close-btn {
+.modal-actions {
+  display: grid;
+  gap: var(--space-3);
+}
+.modal-close-btn,
+.modal-secondary-btn {
   width: 100%;
   padding: var(--space-3);
-  background: var(--color-primary);
-  color: white;
   border-radius: var(--radius-md);
   font-size: var(--text-base);
   font-weight: 600;
   transition: background var(--transition-fast);
 }
+.modal-close-btn {
+  background: var(--color-primary);
+  color: white;
+}
 .modal-close-btn:hover { background: var(--color-primary-dark); }
+.modal-secondary-btn {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+.modal-secondary-btn:hover:not(:disabled) { background: var(--color-primary-50); }
+.modal-secondary-btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
 /* Animations */
 @keyframes shimmer {
@@ -1243,13 +1396,17 @@ async function toggleTranslate(msg) {
 
 /* Responsive */
 @media (max-width: 1024px) {
-  .chat-body { grid-template-columns: 200px minmax(0, 1fr) 200px; }
+  .chat-body { grid-template-columns: 210px minmax(0, 1fr); }
 }
 
 @media (max-width: 768px) {
   .mobile-only { display: flex; }
+  .chat-view { padding: 0; }
+  .chat-card { border-radius: 0; border: none; max-width: none; }
+  .stat-chips { display: none; }
   .chat-body {
     grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr);
     padding: var(--space-3);
   }
   /* Side panels collapse into a slide-down drawer toggled by showSidePanels */
@@ -1267,7 +1424,6 @@ async function toggleTranslate(msg) {
     transition: max-height var(--transition-base), padding var(--transition-base);
   }
   .side-panel.left { top: 0; }
-  .side-panel.right { top: 0; }
   .side-panel.open { max-height: 45vh; padding: var(--space-3); overflow-y: auto; }
   .messages { grid-column: 1; }
   .bubble { max-width: 85%; }

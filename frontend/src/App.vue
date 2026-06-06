@@ -90,6 +90,16 @@ function handleLogout() {
   flex-direction: column;
 }
 
+/* Immersive chat route: pin the shell to a definite viewport height so the
+   bounded-height cascade (main → chat-view → chat-card → chat-body → panels)
+   can resolve. Without a definite root height, flex:1 / minmax(0,1fr) fall
+   back to content height and inner overflow:auto never engages. */
+#app:has(.chat-view) {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* --- Navbar --- */
 .navbar {
   display: flex;
@@ -102,7 +112,7 @@ function handleLogout() {
   top: 0;
   z-index: var(--z-sticky);
   backdrop-filter: blur(8px);
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--color-surface-translucent);
 }
 
 .brand {
