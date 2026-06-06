@@ -8,3 +8,4 @@ python-dotenv==1.0.1
 edge-tts==6.1.12
 # Pronunciation fallback provider (domestic). Optional: import-guarded in scoring/tencent.py
 tencentcloud-sdk-python==3.0.1180
+websocket-client==1.8.0
