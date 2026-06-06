@@ -2,8 +2,8 @@
 
 ## Current Review Gate
 
-- Scope: backend character progress
-- Review file: `reviews/2026-06-07_backend_character_progress.md`
+- Scope: daily plan progress insight
+- Review file: `reviews/2026-06-07_daily_plan.md`
 - Status: Approved for local commit
 - Verification:
   - `python -m pytest assessment\tests` - 31 passed

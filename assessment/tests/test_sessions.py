@@ -147,3 +147,6 @@ def test_progress_streak_and_weakness_aggregation(tmp_store):
     assert progress["weakness"]["weak_scenarios"][0]["scenario"] == "interview"
     assert progress["weakness"]["weak_scenarios"][0]["sessions"] == 2
     assert progress["weakness"]["low_dimension"] == "pronunciation"
+    assert progress["daily_plan"]["focus"] == "pronunciation"
+    assert progress["daily_plan"]["recommended_scenario"] == "interview"
+    assert len(progress["daily_plan"]["tasks"]) == 3

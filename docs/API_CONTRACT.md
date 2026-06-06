@@ -339,7 +339,18 @@ TTS 单句合成失败不会终止 SSE；对应 `sentence.audio_url` 可能为 `
     "weak_scenarios": [{ "scenario": "interview", "avg_score": 62.5, "sessions": 2 }],
     "low_dimension": "pronunciation"
   },
-  "scenario_distribution": { "interview": 3, "coffee_shop": 2 }
+  "scenario_distribution": { "interview": 3, "coffee_shop": 2 },
+  "daily_plan": {
+    "focus": "pronunciation",
+    "recommended_scenario": "interview",
+    "target_turns": 3,
+    "target_minutes": 10,
+    "tasks": [
+      "Practice the interview scenario for at least 3 turns",
+      "Repeat 5 low-score words slowly, then read one full sentence",
+      "Keep your streak alive with a 10-minute session today"
+    ]
+  }
 }
 ```
 

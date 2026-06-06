@@ -189,6 +189,17 @@ class SessionStore:
                     "low_dimension": None,
                 },
                 "scenario_distribution": {},
+                "daily_plan": {
+                    "focus": "baseline",
+                    "recommended_scenario": None,
+                    "target_turns": 3,
+                    "target_minutes": 10,
+                    "tasks": [
+                        "Complete one short conversation",
+                        "Record one pronunciation practice sentence",
+                        "Review your first correction",
+                    ],
+                },
             }
 
         total_turns = sum(len(s["turns"]) for s in all_sessions)
@@ -211,6 +222,10 @@ class SessionStore:
                 "turns": len(s["turns"]),
             })
 
+        streak = _build_streak(all_sessions)
+        weakness = _build_weakness(all_sessions, all_pron, all_flu, all_acc)
+        scenario_distribution = _scenario_distribution(all_sessions)
+
         return {
             "total_sessions": len(all_sessions),
             "total_turns": total_turns,
@@ -219,9 +234,10 @@ class SessionStore:
             "avg_fluency": _avg(all_flu),
             "avg_accuracy": _avg(all_acc),
             "score_history": score_history,
-            "streak": _build_streak(all_sessions),
-            "weakness": _build_weakness(all_sessions, all_pron, all_flu, all_acc),
-            "scenario_distribution": _scenario_distribution(all_sessions),
+            "streak": streak,
+            "weakness": weakness,
+            "scenario_distribution": scenario_distribution,
+            "daily_plan": _build_daily_plan(streak, weakness),
         }
 
     def _extract_common_errors(self, session: dict) -> list[dict]:
@@ -373,6 +389,38 @@ def _scenario_distribution(sessions: list[dict]) -> dict:
         scenario = session.get("scenario", "unknown")
         distribution[scenario] = distribution.get(scenario, 0) + 1
     return distribution
+
+
+def _build_daily_plan(streak: dict, weakness: dict) -> dict:
+    low_dimension = weakness.get("low_dimension") or "pronunciation"
+    weak_scenarios = weakness.get("weak_scenarios") or []
+    recommended_scenario = weak_scenarios[0]["scenario"] if weak_scenarios else None
+
+    dimension_task = {
+        "pronunciation": "Repeat 5 low-score words slowly, then read one full sentence",
+        "fluency": "Answer one question twice: first clearly, then more smoothly",
+        "accuracy": "Review one grammar correction and reuse the corrected phrase",
+    }.get(low_dimension, "Complete one focused speaking drill")
+
+    scenario_task = (
+        f"Practice the {recommended_scenario} scenario for at least 3 turns"
+        if recommended_scenario
+        else "Try one new scenario for at least 3 turns"
+    )
+
+    streak_task = (
+        "Keep your streak alive with a 10-minute session today"
+        if streak.get("current", 0) > 0
+        else "Start today's streak with one short conversation"
+    )
+
+    return {
+        "focus": low_dimension,
+        "recommended_scenario": recommended_scenario,
+        "target_turns": 5 if streak.get("current", 0) >= 3 else 3,
+        "target_minutes": 15 if streak.get("current", 0) >= 3 else 10,
+        "tasks": [scenario_task, dimension_task, streak_task],
+    }
 
 
 # Global store instance
