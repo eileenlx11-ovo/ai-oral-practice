@@ -141,8 +141,18 @@ event: done
 data: {"session_id": "uuid"}
 
 event: error
-data: {"message": "错误描述"}
+data: {"phase": "asr", "code": "asr_failed", "message": "语音识别失败，请重试", "action": "retry"}
 ```
+
+`error` 事件始终保留 `message` 字段，前端可继续按旧逻辑展示错误。新增字段用于诊断：
+
+| Field | Description |
+|-------|-------------|
+| phase | 出错阶段，如 `asr` / `llm` |
+| code | 稳定错误码，如 `asr_failed` / `no_speech` / `llm_failed` |
+| action | 建议动作，如 `retry` |
+
+TTS 单句合成失败不会终止 SSE；对应 `sentence.audio_url` 可能为 `null`，文本仍会继续返回。
 
 ### POST /api/asr（仅识别）
 只做语音转文字，不触发 LLM 对话。
