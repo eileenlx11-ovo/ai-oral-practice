@@ -31,6 +31,7 @@ def test_mock_is_deterministic():
 def test_dispatch_falls_back_to_mock(monkeypatch):
     """With no real provider keys, dispatcher uses mock."""
     monkeypatch.delenv("AZURE_SPEECH_KEY", raising=False)
+    monkeypatch.delenv("TENCENT_APP_ID", raising=False)
     monkeypatch.delenv("TENCENT_SECRET_ID", raising=False)
     monkeypatch.delenv("TENCENT_SECRET_KEY", raising=False)
     monkeypatch.setenv("PRONUNCIATION_ALLOW_MOCK", "1")
@@ -43,6 +44,7 @@ def test_dispatch_falls_back_to_mock(monkeypatch):
 def test_dispatch_returns_none_when_mock_disabled(monkeypatch):
     """Mock disabled + no real keys → None (endpoint should 503)."""
     monkeypatch.delenv("AZURE_SPEECH_KEY", raising=False)
+    monkeypatch.delenv("TENCENT_APP_ID", raising=False)
     monkeypatch.delenv("TENCENT_SECRET_ID", raising=False)
     monkeypatch.delenv("TENCENT_SECRET_KEY", raising=False)
     monkeypatch.setenv("PRONUNCIATION_ALLOW_MOCK", "0")
@@ -59,6 +61,34 @@ def test_azure_unavailable_without_key(monkeypatch):
 
 def test_tencent_unavailable_without_keys(monkeypatch):
     from assessment.scoring import tencent
+    monkeypatch.delenv("TENCENT_APP_ID", raising=False)
+    monkeypatch.delenv("TENCENT_APPID", raising=False)
     monkeypatch.delenv("TENCENT_SECRET_ID", raising=False)
     monkeypatch.delenv("TENCENT_SECRET_KEY", raising=False)
     assert tencent.available() is False
+
+
+def test_tencent_requires_app_id(monkeypatch):
+    from assessment.scoring import tencent
+    monkeypatch.setenv("TENCENT_SECRET_ID", "sid")
+    monkeypatch.setenv("TENCENT_SECRET_KEY", "skey")
+    monkeypatch.delenv("TENCENT_APP_ID", raising=False)
+    monkeypatch.delenv("TENCENT_APPID", raising=False)
+    assert tencent.available() is False
+
+
+def test_tencent_available_with_new_edition_credentials(monkeypatch):
+    from assessment.scoring import tencent
+    monkeypatch.setenv("TENCENT_APP_ID", "123456")
+    monkeypatch.setenv("TENCENT_SECRET_ID", " sid ")
+    monkeypatch.setenv("TENCENT_SECRET_KEY", " skey ")
+    assert tencent.available() is True
+
+
+def test_tencent_accepts_appid_alias(monkeypatch):
+    from assessment.scoring import tencent
+    monkeypatch.delenv("TENCENT_APP_ID", raising=False)
+    monkeypatch.setenv("TENCENT_APPID", "123456")
+    monkeypatch.setenv("TENCENT_SECRET_ID", "sid")
+    monkeypatch.setenv("TENCENT_SECRET_KEY", "skey")
+    assert tencent.available() is True
