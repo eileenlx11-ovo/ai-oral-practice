@@ -452,11 +452,30 @@ function wordClass(w) {
   animation: pulse-ring-outer 1.5s infinite;
 }
 
+/* Concentric expanding rings for a sound-wave feel */
+.record-btn.active::before,
+.record-btn.active::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-error);
+  animation: pulse-ring 1.6s infinite;
+  pointer-events: none;
+}
+.record-btn.active::after { animation-delay: 0.6s; }
+
 .record-btn.processing { opacity: 0.6; }
 
 @keyframes pulse-ring-outer {
   0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
   100% { box-shadow: 0 0 0 16px rgba(239, 68, 68, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record-btn.active,
+  .record-btn.active::before,
+  .record-btn.active::after { animation: none; }
 }
 
 /* Result panel */

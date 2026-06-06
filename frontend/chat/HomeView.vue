@@ -69,7 +69,11 @@
         v-for="(s, idx) in filteredScenarios"
         :key="s.id"
         class="scenario-card"
-        :style="{ animationDelay: `${idx * 50}ms` }"
+        :style="{
+          animationDelay: `${idx * 50}ms`,
+          '--scene-accent': getScene(s.id).accent,
+          '--scene-grad': sceneGradient(s.id),
+        }"
         @click="$router.push(`/chat/${s.id}`)"
       >
         <div class="card-icon-wrap">
@@ -99,6 +103,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { CONFIG } from '../../shared/config'
 import { useI18n } from '../composables/useI18n'
+import { getScene, sceneGradient } from '../styles/scenes'
 
 const { t } = useI18n()
 const categories = CONFIG.CATEGORIES
@@ -277,6 +282,7 @@ onMounted(async () => {
 }
 
 .scenario-card {
+  position: relative;
   display: flex;
   gap: var(--space-4);
   padding: var(--space-5);
@@ -286,23 +292,47 @@ onMounted(async () => {
   cursor: pointer;
   transition: all var(--transition-base);
   animation: fade-in var(--transition-base) both;
+  overflow: hidden;
+}
+
+/* Scene accent bar on the left edge */
+.scenario-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--scene-accent, var(--color-primary));
+  opacity: 0.7;
+  transition: width var(--transition-base);
 }
 
 .scenario-card:hover {
-  border-color: var(--color-primary-200);
+  border-color: var(--scene-accent, var(--color-primary-200));
   box-shadow: var(--shadow-lg);
-  transform: translateY(-3px);
+  transform: translateY(-4px);
+}
+
+.scenario-card:hover::before {
+  width: 6px;
+  opacity: 1;
 }
 
 .card-icon-wrap {
   width: 48px;
   height: 48px;
   border-radius: var(--radius-md);
-  background: var(--color-primary-50);
+  background: var(--scene-grad, var(--color-primary-50));
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: transform var(--transition-base);
+}
+
+.scenario-card:hover .card-icon-wrap {
+  transform: scale(1.12) rotate(-4deg);
 }
 
 .card-icon { font-size: 1.5rem; }

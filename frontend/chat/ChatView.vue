@@ -1,5 +1,14 @@
 <template>
-  <div class="chat-view">
+  <div class="chat-view" :style="{ '--scene-accent': scene.accent, '--scene-grad': sceneBg }">
+    <!-- Scene backdrop: gradient base + optional Unsplash overlay -->
+    <div class="scene-backdrop">
+      <div
+        v-if="sceneImageOk"
+        class="scene-image"
+        :style="{ backgroundImage: `url(${scene.image})` }"
+      ></div>
+    </div>
+
     <!-- Toast notification -->
     <Toast :message="toast.message" :type="toast.type" @close="toast.message = ''" />
 
@@ -10,17 +19,51 @@
 
     <header class="chat-header">
       <button @click="$router.push('/')" class="back-btn">← {{ t('chat.back') }}</button>
-      <div class="header-info">
-        <h2>{{ characterAvatar }} {{ scenarioName }}</h2>
-        <span v-if="characterName" class="char-name">{{ characterName }}</span>
-      </div>
+
+      <!-- Current character card (click to expand personality) -->
+      <button class="char-card" @click="showCharCard = !showCharCard">
+        <span class="char-avatar">{{ characterAvatar }}</span>
+        <div class="char-meta">
+          <span class="char-line1">{{ characterName || scenarioName }}</span>
+          <span class="char-line2">{{ characterRole || scenarioName }}</span>
+        </div>
+        <span class="char-caret" :class="{ open: showCharCard }">▾</span>
+      </button>
+
       <div class="header-right">
         <span class="stats-mini" v-if="messages.length > 1">
           💬 {{ turnCount }} | ✏️ {{ correctionCount }}
         </span>
+        <button class="switch-btn" @click="openCharSwitcher" :title="t('chat.switchCharacter', '切换角色')">🔄</button>
         <span class="status" :class="statusClass">
           {{ statusText }}
         </span>
+      </div>
+
+      <!-- Expanded personality popover -->
+      <div v-if="showCharCard && characterPersonality" class="char-popover">
+        <p class="pop-name">{{ characterAvatar }} {{ characterName }}</p>
+        <p class="pop-role">{{ characterRole }}</p>
+        <p class="pop-personality">"{{ characterPersonality }}"</p>
+      </div>
+
+      <!-- Character switcher dropdown -->
+      <div v-if="showCharSwitcher" class="char-switcher">
+        <p class="switcher-title">{{ t('chat.chooseCharacter', '换一个聊天对象') }}</p>
+        <div v-if="allCharacters.length" class="switcher-grid">
+          <button
+            v-for="c in allCharacters"
+            :key="c.id"
+            class="switcher-item"
+            :class="{ current: c.id === scenarioId }"
+            @click="switchCharacter(c.id)"
+          >
+            <span class="si-avatar">{{ c.avatar }}</span>
+            <span class="si-name">{{ c.name }}</span>
+            <span class="si-role">{{ c.role }}</span>
+          </button>
+        </div>
+        <p v-else class="switcher-empty">{{ t('chat.switcherEmpty', '角色列表暂不可用') }}</p>
       </div>
     </header>
 
@@ -162,16 +205,18 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useRecorder } from '../../voice/audio/useRecorder'
 import { streamChat } from '../../voice/asr/service'
 import { useNetwork } from '../composables/useNetwork'
 import { classifyError } from '../composables/useErrorHandler'
 import { useI18n } from '../composables/useI18n'
 import { CONFIG } from '../../shared/config'
+import { getScene, sceneGradient } from '../styles/scenes'
 import Toast from '../components/Toast.vue'
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const { isOnline } = useNetwork()
 const scenarioId = route.params.scenario
@@ -179,6 +224,25 @@ const scenario = CONFIG.SCENARIOS.find((s) => s.id === scenarioId)
 const scenarioName = scenario ? scenario.name : scenarioId
 const characterAvatar = ref(scenario?.icon || '💬')
 const characterName = ref('')
+const characterRole = ref('')
+const characterPersonality = ref('')
+
+// Scene visuals (pure frontend, no backend dependency)
+const scene = getScene(scenarioId)
+const sceneBg = sceneGradient(scenarioId)
+const sceneImageOk = ref(false)
+// Probe the Unsplash backdrop; only overlay it once it loads, else stay on gradient
+if (scene.image) {
+  const probe = new Image()
+  probe.onload = () => { sceneImageOk.value = true }
+  probe.src = scene.image
+}
+
+// Character/voice switcher (consumes Codex's /api/characters + switch endpoint;
+// degrades gracefully when those routes are absent)
+const showCharSwitcher = ref(false)
+const showCharCard = ref(false)
+const allCharacters = ref([])
 
 // State machine: IDLE → RECORDING → PROCESSING → STREAMING → PLAYING → IDLE
 const state = ref('IDLE')
@@ -450,6 +514,8 @@ onMounted(async () => {
     if (data.character) {
       characterName.value = data.character.name
       characterAvatar.value = data.character.avatar || scenario?.icon || '💬'
+      characterRole.value = data.character.role || ''
+      characterPersonality.value = data.character.personality || ''
     }
   } catch {
     messages.value.push({ role: 'assistant', text: t('chat.fallbackGreeting') })
@@ -463,15 +529,74 @@ onUnmounted(() => {
   interrupt()
   if (hintTimer) clearTimeout(hintTimer)
 })
+
+// --- Character / voice switcher ---
+async function openCharSwitcher() {
+  showCharSwitcher.value = !showCharSwitcher.value
+  if (showCharSwitcher.value && allCharacters.value.length === 0) {
+    try {
+      const res = await fetch('/api/characters')
+      if (res.ok) allCharacters.value = await res.json()
+    } catch { /* endpoint not deployed yet — keep list empty */ }
+  }
+}
+
+async function switchCharacter(charId) {
+  if (charId === scenarioId) { showCharSwitcher.value = false; return }
+  // If we have a live session, ask the backend to swap the character on it.
+  if (sessionId) {
+    try {
+      const fd = new FormData()
+      fd.append('scenario', charId)
+      const res = await fetch(`/api/sessions/${sessionId}/character`, { method: 'POST', body: fd })
+      if (res.ok) {
+        showCharSwitcher.value = false
+        router.push(`/chat/${charId}?session_id=${sessionId}`).then(() => router.go(0))
+        return
+      }
+    } catch { /* fall through to fresh navigation */ }
+  }
+  // No session or endpoint absent: start fresh with the new character.
+  showCharSwitcher.value = false
+  router.push(`/chat/${charId}`).then(() => router.go(0))
+}
 </script>
 
 <style scoped>
 .chat-view {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: calc(100vh - 120px);
   animation: fade-in var(--transition-base) both;
 }
+
+/* Scene backdrop sits behind all chat content */
+.scene-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--scene-grad);
+  opacity: 0.35;
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .scene-backdrop { opacity: 0.18; }
+
+.scene-image {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+  animation: fade-in 600ms ease both;
+}
+
+/* Lift actual content above the backdrop */
+.chat-view > *:not(.scene-backdrop) { position: relative; z-index: 1; }
 
 /* Offline banner */
 .offline-banner {
@@ -489,6 +614,7 @@ onUnmounted(() => {
 
 /* Header */
 .chat-header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-4);
@@ -506,9 +632,104 @@ onUnmounted(() => {
 }
 .back-btn:hover { background: var(--color-primary-50); }
 
-.header-info h2 { font-size: var(--text-lg); font-weight: 600; }
-.char-name { font-size: var(--text-xs); color: var(--color-text-muted); }
+/* Current character card */
+.char-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-fast);
+}
+.char-card:hover { border-color: var(--scene-accent); box-shadow: var(--shadow-sm); }
+
+.char-avatar {
+  font-size: 1.6rem;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--scene-grad);
+  flex-shrink: 0;
+}
+
+.char-meta { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
+.char-line1 { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
+.char-line2 { font-size: var(--text-xs); color: var(--color-text-muted); }
+.char-caret { font-size: var(--text-xs); color: var(--color-text-muted); transition: transform var(--transition-fast); }
+.char-caret.open { transform: rotate(180deg); }
+
 .header-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
+
+.switch-btn {
+  font-size: 1.1rem;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+.switch-btn:hover { background: var(--color-primary-50); transform: rotate(90deg); }
+
+/* Personality popover */
+.char-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 80px;
+  z-index: 20;
+  max-width: 280px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: scale-in var(--transition-fast) both;
+}
+.pop-name { font-weight: 700; font-size: var(--text-base); }
+.pop-role { font-size: var(--text-xs); color: var(--scene-accent); margin-bottom: var(--space-2); }
+.pop-personality { font-size: var(--text-sm); color: var(--color-text-secondary); font-style: italic; }
+
+/* Character switcher dropdown */
+.char-switcher {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  width: min(420px, 90vw);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: scale-in var(--transition-fast) both;
+}
+.switcher-title { font-weight: 600; font-size: var(--text-sm); margin-bottom: var(--space-3); }
+.switcher-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-2);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.switcher-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+.switcher-item:hover { border-color: var(--color-primary); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.switcher-item.current { border-color: var(--scene-accent); background: var(--color-primary-50); }
+.si-avatar { font-size: 1.6rem; }
+.si-name { font-size: var(--text-sm); font-weight: 600; color: var(--color-text); }
+.si-role { font-size: var(--text-xs); color: var(--color-text-muted); }
+.switcher-empty { font-size: var(--text-sm); color: var(--color-text-muted); text-align: center; padding: var(--space-4); }
 
 .stats-mini {
   font-size: var(--text-xs);
@@ -690,6 +911,21 @@ onUnmounted(() => {
 .record-btn.active::before {
   border-color: var(--color-error);
   animation: pulse-ring 1.5s infinite;
+}
+
+/* Second, offset ring for a layered sound-wave effect */
+.record-btn.active::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-error);
+  animation: pulse-ring 1.5s infinite 0.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record-btn.active::before,
+  .record-btn.active::after { animation: none; }
 }
 
 .record-btn.playing {

@@ -10,11 +10,35 @@
 
 body {
   font-family: var(--font-sans);
-  background: var(--color-bg);
   color: var(--color-text);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Subtle drifting gradient wash over the base background */
+  background: var(--color-bg);
+  background-image:
+    radial-gradient(at 18% 22%, var(--color-primary-50) 0px, transparent 55%),
+    radial-gradient(at 82% 8%, var(--color-accent-light, #ede9fe) 0px, transparent 50%),
+    radial-gradient(at 70% 88%, var(--color-primary-100) 0px, transparent 55%);
+  background-size: 180% 180%;
+  background-attachment: fixed;
+  animation: bg-drift 24s ease-in-out infinite;
+}
+
+@keyframes bg-drift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body { animation: none; }
+}
+
+[data-theme="dark"] body {
+  background-image:
+    radial-gradient(at 18% 22%, rgba(96, 165, 250, 0.08) 0px, transparent 55%),
+    radial-gradient(at 82% 8%, rgba(167, 139, 250, 0.08) 0px, transparent 50%),
+    radial-gradient(at 70% 88%, rgba(96, 165, 250, 0.06) 0px, transparent 55%);
 }
 
 /* Scrollbar */

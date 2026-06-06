@@ -9,6 +9,30 @@
       <router-link to="/login" class="prompt-link">去登录 →</router-link>
     </div>
 
+    <!-- Daily plan: AI study coach -->
+    <div v-if="progress?.daily_plan" class="daily-plan">
+      <div class="plan-header">
+        <span class="plan-icon">🧭</span>
+        <h2>{{ t('dashboard.todayPlan', '今日计划') }}</h2>
+        <span class="plan-target">
+          {{ progress.daily_plan.target_turns }} {{ t('dashboard.turns') }} · {{ progress.daily_plan.target_minutes }} min
+        </span>
+      </div>
+      <ul class="plan-tasks">
+        <li v-for="(task, i) in progress.daily_plan.tasks" :key="i">
+          <span class="plan-check">○</span> {{ task }}
+        </li>
+      </ul>
+      <button
+        v-if="progress.daily_plan.recommended_scenario"
+        class="plan-start-btn"
+        @click="$router.push(`/chat/${progress.daily_plan.recommended_scenario}`)"
+      >
+        {{ getScenarioIcon(progress.daily_plan.recommended_scenario) }}
+        {{ t('dashboard.startRecommended', '开始推荐练习') }} →
+      </button>
+    </div>
+
     <!-- Summary Cards -->
     <div class="summary-cards" v-if="progress">
       <div class="card">
@@ -29,11 +53,79 @@
       </div>
     </div>
 
+    <!-- Streak banner -->
+    <div v-if="progress?.streak" class="streak-banner">
+      <div class="streak-item">
+        <span class="streak-flame">🔥</span>
+        <span class="streak-num">{{ progress.streak.current }}</span>
+        <span class="streak-label">{{ t('dashboard.streakCurrent', '当前连续天数') }}</span>
+      </div>
+      <div class="streak-divider"></div>
+      <div class="streak-item">
+        <span class="streak-flame">🏆</span>
+        <span class="streak-num">{{ progress.streak.longest }}</span>
+        <span class="streak-label">{{ t('dashboard.streakLongest', '最长连续天数') }}</span>
+      </div>
+    </div>
+
+    <!-- Contribution heatmap -->
+    <div v-if="progress?.streak?.daily_counts" class="chart-section">
+      <h2>{{ t('dashboard.activity', '练习活跃度') }}</h2>
+      <HeatMap :daily-counts="progress.streak.daily_counts" :weeks="12" />
+    </div>
+
     <!-- Score Trend Chart -->
     <div class="chart-section" v-if="hasScoreData">
       <h2>{{ t('dashboard.scoreTrends') }}</h2>
       <div class="chart-container">
         <Line :data="trendChartData" :options="trendChartOptions" />
+      </div>
+    </div>
+
+    <!-- Skill radar + scenario distribution side by side -->
+    <div class="dual-charts" v-if="hasRadarData || hasDistribution">
+      <div class="chart-section half" v-if="hasRadarData">
+        <h2>{{ t('dashboard.skillRadar', '能力雷达') }}</h2>
+        <div class="chart-container small">
+          <Radar :data="radarChartData" :options="radarChartOptions" />
+        </div>
+      </div>
+      <div class="chart-section half" v-if="hasDistribution">
+        <h2>{{ t('dashboard.scenarioDist', '场景分布') }}</h2>
+        <div class="chart-container small">
+          <Doughnut :data="distChartData" :options="distChartOptions" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Weakness analysis -->
+    <div v-if="progress?.weakness" class="weakness-section">
+      <h2>{{ t('dashboard.weakness', '弱项分析') }}</h2>
+      <div class="weakness-grid">
+        <div class="weakness-card" v-if="progress.weakness.low_dimension">
+          <span class="wk-icon">🎯</span>
+          <span class="wk-title">{{ t('dashboard.weakestDimension', '最需提升') }}</span>
+          <span class="wk-value">{{ dimensionLabel(progress.weakness.low_dimension) }}</span>
+        </div>
+        <div class="weakness-card" v-if="progress.weakness.weak_scenarios?.length">
+          <span class="wk-icon">📉</span>
+          <span class="wk-title">{{ t('dashboard.weakScenarios', '薄弱场景') }}</span>
+          <ul class="wk-list">
+            <li v-for="s in progress.weakness.weak_scenarios" :key="s.scenario">
+              {{ getScenarioIcon(s.scenario) }} {{ s.scenario }}
+              <span class="wk-score">{{ s.avg_score?.toFixed(0) }}</span>
+            </li>
+          </ul>
+        </div>
+        <div class="weakness-card wide" v-if="progress.weakness.common_grammar_errors?.length">
+          <span class="wk-icon">📝</span>
+          <span class="wk-title">{{ t('dashboard.commonErrors', '常见语法错误') }}</span>
+          <ul class="wk-list">
+            <li v-for="e in progress.weakness.common_grammar_errors" :key="e.pattern">
+              {{ e.pattern }} <span class="wk-score">×{{ e.count }}</span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
 
@@ -116,22 +208,30 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { isAuthenticated } from '../composables/useAuth'
-import { Line } from 'vue-chartjs'
+import { Line, Radar, Doughnut } from 'vue-chartjs'
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
+  RadialLinearScale,
+  ArcElement,
+  Filler,
   Title,
   Tooltip,
   Legend,
 } from 'chart.js'
 import { CONFIG } from '../../shared/config'
 import { useI18n } from '../composables/useI18n'
+import { getScene } from '../styles/scenes'
 import Toast from '../components/Toast.vue'
+import HeatMap from '../components/HeatMap.vue'
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
+ChartJS.register(
+  CategoryScale, LinearScale, PointElement, LineElement,
+  RadialLinearScale, ArcElement, Filler, Title, Tooltip, Legend
+)
 
 const { t } = useI18n()
 const API = CONFIG.API.BASE_URL
@@ -193,6 +293,73 @@ const trendChartOptions = {
   plugins: {
     legend: { position: 'top' },
   },
+}
+
+// --- Skill radar (3 dimensions overall) ---
+const hasRadarData = computed(() =>
+  progress.value?.avg_pronunciation != null ||
+  progress.value?.avg_fluency != null ||
+  progress.value?.avg_accuracy != null
+)
+
+const radarChartData = computed(() => ({
+  labels: [
+    t('dashboard.pronunciation', 'Pronunciation'),
+    t('dashboard.fluency', 'Fluency'),
+    t('dashboard.accuracy', 'Accuracy'),
+  ],
+  datasets: [{
+    label: t('dashboard.avgScore', '平均分'),
+    data: [
+      progress.value?.avg_pronunciation || 0,
+      progress.value?.avg_fluency || 0,
+      progress.value?.avg_accuracy || 0,
+    ],
+    borderColor: '#2563eb',
+    backgroundColor: 'rgba(37, 99, 235, 0.15)',
+    pointBackgroundColor: '#2563eb',
+  }],
+}))
+
+const radarChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: { r: { min: 0, max: 100, ticks: { stepSize: 25 } } },
+  plugins: { legend: { display: false } },
+}
+
+// --- Scenario distribution (doughnut) ---
+const hasDistribution = computed(() =>
+  progress.value?.scenario_distribution &&
+  Object.keys(progress.value.scenario_distribution).length > 0
+)
+
+const distChartData = computed(() => {
+  const dist = progress.value?.scenario_distribution || {}
+  const entries = Object.entries(dist).sort((a, b) => b[1] - a[1])
+  return {
+    labels: entries.map(([k]) => k),
+    datasets: [{
+      data: entries.map(([, v]) => v),
+      backgroundColor: entries.map(([k]) => getScene(k).accent),
+      borderWidth: 1,
+    }],
+  }
+})
+
+const distChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } },
+}
+
+function dimensionLabel(dim) {
+  const map = {
+    pronunciation: t('dashboard.pronunciation', '发音'),
+    fluency: t('dashboard.fluency', '流利度'),
+    accuracy: t('dashboard.accuracy', '准确度'),
+  }
+  return map[dim] || dim
 }
 
 function formatScore(val) {
@@ -296,6 +463,15 @@ h2 {
   text-align: center;
   border: 1px solid var(--color-border);
   transition: all var(--transition-fast);
+  animation: slide-up 400ms ease both;
+}
+.summary-cards .card:nth-child(1) { animation-delay: 0ms; }
+.summary-cards .card:nth-child(2) { animation-delay: 60ms; }
+.summary-cards .card:nth-child(3) { animation-delay: 120ms; }
+.summary-cards .card:nth-child(4) { animation-delay: 180ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
 }
 
 .card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
@@ -329,6 +505,114 @@ h2 {
 }
 
 .chart-container { height: 280px; }
+.chart-container.small { height: 240px; }
+
+/* Daily plan card */
+.daily-plan {
+  padding: var(--space-5) var(--space-6);
+  margin-bottom: var(--space-6);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+  color: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  animation: slide-up 400ms ease both;
+}
+.plan-header { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+.plan-header h2 { font-size: var(--text-lg); font-weight: 700; color: white; }
+.plan-icon { font-size: 1.4rem; }
+.plan-target {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+}
+.plan-tasks { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-4); }
+.plan-tasks li { display: flex; gap: var(--space-2); font-size: var(--text-sm); line-height: 1.5; }
+.plan-check { opacity: 0.8; }
+.plan-start-btn {
+  background: white;
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-full);
+  transition: transform var(--transition-fast);
+}
+.plan-start-btn:hover { transform: translateY(-2px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-plan { animation: none; }
+}
+
+/* Streak banner */
+.streak-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  padding: var(--space-5);
+  margin-bottom: var(--space-8);
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  border: 1px solid #fed7aa;
+  border-radius: var(--radius-lg);
+}
+[data-theme="dark"] .streak-banner {
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.1), rgba(234, 88, 12, 0.08));
+  border-color: rgba(251, 146, 60, 0.25);
+}
+.streak-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.streak-flame { font-size: 1.8rem; }
+.streak-num { font-size: var(--text-3xl); font-weight: 800; color: #c2410c; line-height: 1; }
+[data-theme="dark"] .streak-num { color: #fb923c; }
+.streak-label { font-size: var(--text-xs); color: var(--color-text-muted); }
+.streak-divider { width: 1px; height: 48px; background: var(--color-border); }
+
+/* Dual charts row */
+.dual-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+.chart-section.half { margin-bottom: 0; }
+
+/* Weakness analysis */
+.weakness-section { margin-bottom: var(--space-8); }
+.weakness-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+.weakness-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  border-left: 3px solid var(--color-warning);
+}
+.weakness-card.wide { grid-column: 1 / -1; }
+.wk-icon { font-size: 1.4rem; }
+.wk-title { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-secondary); }
+.wk-value { font-size: var(--text-lg); font-weight: 700; color: var(--color-text); }
+.wk-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
+.wk-list li {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  padding: var(--space-1) 0;
+}
+.wk-score { font-weight: 600; color: var(--color-text-muted); }
+
+@media (max-width: 768px) {
+  .dual-charts { grid-template-columns: 1fr; }
+  .chart-section.half { margin-bottom: var(--space-6); }
+}
 
 /* History */
 .history-section { margin-bottom: var(--space-8); }
