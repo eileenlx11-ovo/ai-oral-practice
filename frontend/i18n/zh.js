@@ -184,6 +184,7 @@ export default {
     logout: '退出登录',
     saving: '保存中...',
     saveSettings: '保存设置',
+    saved: '设置已保存',
     voices: {
       americanFemale: '美式女声',
       americanMale: '美式男声',

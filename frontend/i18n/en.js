@@ -184,6 +184,7 @@ export default {
     logout: 'Log out',
     saving: 'Saving...',
     saveSettings: 'Save settings',
+    saved: 'Settings saved',
     voices: {
       americanFemale: 'US female',
       americanMale: 'US male',

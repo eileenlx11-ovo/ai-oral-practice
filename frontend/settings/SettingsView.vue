@@ -1,5 +1,6 @@
 <template>
   <div class="settings-page">
+    <Toast :message="toast.message" :type="toast.type" @close="toast.message = ''" />
     <header class="settings-header">
       <button @click="$router.back()" class="back-btn">← {{ t('settings.back') }}</button>
       <h1>{{ t('settings.title') }}</h1>
@@ -89,14 +90,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { currentUser, getAuthHeaders, logout, isAuthenticated } from '../composables/useAuth'
 import { useI18n } from '../composables/useI18n'
 import { setTheme } from '../composables/useTheme'
+import Toast from '../components/Toast.vue'
 
 const router = useRouter()
 const { t, setLocale } = useI18n()
+const toast = reactive({ message: '', type: 'success' })
 
 const voices = [
   { key: 'american_female', labelKey: 'settings.voices.americanFemale', flag: '🇺🇸' },
@@ -176,6 +179,8 @@ async function saveSettings() {
   }
   original = { nickname: nickname.value, voice: selectedVoice.value, theme: selectedTheme.value, locale: selectedLocale.value }
   saving.value = false
+  toast.type = 'success'
+  toast.message = t('settings.saved', '设置已保存')
 }
 
 function previewVoice(voiceKey) {
