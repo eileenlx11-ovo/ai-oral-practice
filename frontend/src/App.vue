@@ -9,23 +9,27 @@
       <div class="nav-links">
         <router-link to="/" class="nav-link" active-class="active" :exact="true">
           <span class="nav-icon">🏠</span>
-          <span>首页</span>
+          <span>{{ t('app.nav.home') }}</span>
         </router-link>
         <router-link to="/pronunciation" class="nav-link" active-class="active">
           <span class="nav-icon">🎯</span>
-          <span>发音</span>
+          <span>{{ t('app.nav.pronunciation') }}</span>
         </router-link>
         <router-link to="/dashboard" class="nav-link" active-class="active">
           <span class="nav-icon">📊</span>
-          <span>进度</span>
+          <span>{{ t('app.nav.progress') }}</span>
         </router-link>
       </div>
       <div class="nav-auth">
         <template v-if="isAuthenticated">
-          <span class="user-badge">{{ currentUser?.nickname || '用户' }}</span>
-          <button class="logout-btn" @click="handleLogout">退出</button>
+          <router-link to="/settings" class="nav-settings-btn" title="设置">⚙️</router-link>
+          <span class="user-badge">{{ currentUser?.nickname || t('app.nav.user') }}</span>
+          <button class="logout-btn" @click="handleLogout">{{ t('app.nav.logout') }}</button>
         </template>
-        <router-link v-else to="/login" class="login-btn">登录</router-link>
+        <template v-else>
+          <router-link to="/settings" class="nav-settings-btn" title="设置">⚙️</router-link>
+          <router-link to="/login" class="login-btn">{{ t('app.nav.login') }}</router-link>
+        </template>
       </div>
     </nav>
 
@@ -42,15 +46,19 @@
     <nav class="tab-bar">
       <router-link to="/" class="tab-item" active-class="active" :exact="true">
         <span class="tab-icon">🏠</span>
-        <span class="tab-label">练习</span>
+        <span class="tab-label">{{ t('app.nav.practice') }}</span>
       </router-link>
       <router-link to="/pronunciation" class="tab-item" active-class="active">
         <span class="tab-icon">🎯</span>
-        <span class="tab-label">发音</span>
+        <span class="tab-label">{{ t('app.nav.pronunciation') }}</span>
       </router-link>
       <router-link to="/dashboard" class="tab-item" active-class="active">
         <span class="tab-icon">📊</span>
-        <span class="tab-label">进度</span>
+        <span class="tab-label">{{ t('app.nav.progress') }}</span>
+      </router-link>
+      <router-link to="/settings" class="tab-item" active-class="active">
+        <span class="tab-icon">⚙️</span>
+        <span class="tab-label">{{ t('app.nav.settings') }}</span>
       </router-link>
     </nav>
   </div>
@@ -58,9 +66,13 @@
 
 <script setup>
 import { isAuthenticated, currentUser, logout } from '../composables/useAuth'
+import { useI18n } from '../composables/useI18n'
+import { useTheme } from '../composables/useTheme'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const { t } = useI18n()
+useTheme()
 
 function handleLogout() {
   logout()
@@ -247,6 +259,14 @@ main {
   transition: all var(--transition-fast);
 }
 .login-btn:hover { background: var(--color-primary); color: white; }
+
+.nav-settings-btn {
+  font-size: 1.2rem;
+  padding: var(--space-1);
+  opacity: 0.7;
+  transition: opacity var(--transition-fast);
+}
+.nav-settings-btn:hover { opacity: 1; }
 
 /* --- Responsive --- */
 @media (max-width: 768px) {
