@@ -5,11 +5,11 @@
 
     <!-- Offline banner -->
     <div v-if="!isOnline" class="offline-banner">
-      ⚠️ 网络已断开，录音功能暂不可用
+      ⚠️ {{ t('chat.offline') }}
     </div>
 
     <header class="chat-header">
-      <button @click="$router.push('/')" class="back-btn">← 返回</button>
+      <button @click="$router.push('/')" class="back-btn">← {{ t('chat.back') }}</button>
       <div class="header-info">
         <h2>{{ characterAvatar }} {{ scenarioName }}</h2>
         <span v-if="characterName" class="char-name">{{ characterName }}</span>
@@ -41,12 +41,12 @@
       >
         <div class="bubble">
           <p>{{ msg.text }}</p>
-          <span v-if="msg.audio" class="play-btn" @click="handleManualPlay(msg.audio)">
+          <span v-if="msg.audioUrls && msg.audioUrls.length" class="play-btn" @click="handleManualPlay(msg.audioUrls)">
             🔊
           </span>
           <!-- Grammar corrections -->
           <div v-if="msg.corrections && msg.corrections.length" class="corrections">
-            <p class="correction-title">📝 语法建议：</p>
+            <p class="correction-title">📝 {{ t('chat.grammarSuggestions') }}</p>
             <div v-for="(c, j) in msg.corrections" :key="j" class="correction-item">
               <span class="original">{{ c.original }}</span>
               <span class="arrow">→</span>
@@ -70,7 +70,7 @@
 
       <!-- Hint panel -->
       <div v-if="showHintPanel && hints.length" class="hint-panel">
-        <p class="hint-title">💡 不知道说什么？试试这些：</p>
+        <p class="hint-title">💡 {{ t('chat.hintTitle') }}</p>
         <div
           v-for="(h, i) in hints"
           :key="i"
@@ -80,7 +80,7 @@
           <p class="hint-text">"{{ h.text }}"</p>
           <p class="hint-zh">{{ h.hint }}</p>
         </div>
-        <button class="hint-dismiss" @click="showHintPanel = false">知道了</button>
+        <button class="hint-dismiss" @click="showHintPanel = false">{{ t('chat.hintDismiss') }}</button>
       </div>
     </div>
 
@@ -93,7 +93,7 @@
         :disabled="loadingHints"
         @click="requestHints"
       >
-        💡 {{ loadingHints ? '...' : '提示' }}
+        💡 {{ loadingHints ? t('chat.hintLoading') : t('chat.hintButton') }}
       </button>
 
       <button
@@ -102,7 +102,7 @@
         :disabled="state === 'PROCESSING' || state === 'STREAMING' || !isOnline"
         @click="handleToggle"
       >
-        🎙️ {{ !isOnline ? '离线中' : buttonText }}
+        🎙️ {{ !isOnline ? t('chat.status.offline') : buttonText }}
       </button>
       <!-- Retry button on error -->
       <button
@@ -110,7 +110,7 @@
         class="retry-btn"
         @click="retryLast"
       >
-        🔄 重试
+        🔄 {{ t('chat.retry') }}
       </button>
 
       <!-- End session button -->
@@ -119,33 +119,33 @@
         class="end-btn"
         @click="endSession"
       >
-        📋 结束练习
+        📋 {{ t('chat.endSession') }}
       </button>
     </div>
 
     <!-- Session Report Modal -->
     <div v-if="showReport" class="modal-overlay" @click.self="showReport = false">
       <div class="modal">
-        <h3>📋 本次练习报告</h3>
+        <h3>📋 {{ t('chat.reportTitle') }}</h3>
         <div class="report-stats">
           <div class="stat">
             <span class="stat-value">{{ reportData.total_turns || 0 }}</span>
-            <span class="stat-label">对话轮次</span>
+            <span class="stat-label">{{ t('chat.turns') }}</span>
           </div>
           <div class="stat">
             <span class="stat-value">{{ reportData.total_corrections || 0 }}</span>
-            <span class="stat-label">语法建议</span>
+            <span class="stat-label">{{ t('chat.corrections') }}</span>
           </div>
           <div class="stat" v-if="reportData.avg_pronunciation">
             <span class="stat-value">{{ reportData.avg_pronunciation?.toFixed(0) }}</span>
-            <span class="stat-label">发音评分</span>
+            <span class="stat-label">{{ t('chat.pronunciationScore') }}</span>
           </div>
         </div>
         <div v-if="reportData.report" class="report-narrative">
           <p>{{ reportData.report }}</p>
         </div>
         <div v-if="reportData.common_errors?.length" class="report-errors">
-          <h4>常见问题：</h4>
+          <h4>{{ t('chat.commonIssues') }}</h4>
           <ul>
             <li v-for="e in reportData.common_errors" :key="e.pattern">
               {{ e.pattern }} (×{{ e.count }})
@@ -153,7 +153,7 @@
           </ul>
         </div>
         <button class="modal-close-btn" @click="showReport = false; $router.push('/')">
-          返回首页
+          {{ t('chat.backHome') }}
         </button>
       </div>
     </div>
@@ -167,10 +167,12 @@ import { useRecorder } from '../../voice/audio/useRecorder'
 import { streamChat } from '../../voice/asr/service'
 import { useNetwork } from '../composables/useNetwork'
 import { classifyError } from '../composables/useErrorHandler'
+import { useI18n } from '../composables/useI18n'
 import { CONFIG } from '../../shared/config'
 import Toast from '../components/Toast.vue'
 
 const route = useRoute()
+const { t } = useI18n()
 const { isOnline } = useNetwork()
 const scenarioId = route.params.scenario
 const scenario = CONFIG.SCENARIOS.find((s) => s.id === scenarioId)
@@ -237,21 +239,21 @@ const statusClass = computed(() => ({
 
 const statusText = computed(() => {
   switch (state.value) {
-    case 'RECORDING': return '🔴 录音中'
-    case 'PROCESSING': return '⏳ 识别中...'
-    case 'STREAMING': return '💬 生成中...'
-    case 'PLAYING': return '🔊 回复中'
-    default: return '⏸️ 点击录音'
+    case 'RECORDING': return `🔴 ${t('chat.status.recording')}`
+    case 'PROCESSING': return `⏳ ${t('chat.status.processing')}`
+    case 'STREAMING': return `💬 ${t('chat.status.streaming')}`
+    case 'PLAYING': return `🔊 ${t('chat.status.playing')}`
+    default: return `⏸️ ${t('chat.status.idle')}`
   }
 })
 
 const buttonText = computed(() => {
   switch (state.value) {
-    case 'RECORDING': return '点击停止'
-    case 'PROCESSING': return '处理中...'
-    case 'STREAMING': return '生成中...'
-    case 'PLAYING': return '点击打断'
-    default: return '点击录音'
+    case 'RECORDING': return t('chat.status.stop')
+    case 'PROCESSING': return t('chat.status.processingButton')
+    case 'STREAMING': return t('chat.status.streamingButton')
+    case 'PLAYING': return t('chat.status.interrupt')
+    default: return t('chat.status.idle')
   }
 })
 
@@ -313,7 +315,7 @@ async function handleToggle() {
       await start()
     } catch (err) {
       state.value = 'IDLE'
-      showToast('麦克风权限被拒绝，请在浏览器设置中允许麦克风访问', 'warning')
+      showToast(t('chat.errors.micDenied'), 'warning')
       scrollToBottom()
     }
   }
@@ -351,20 +353,20 @@ function sendStreaming(blob) {
     },
     onSentence(data) {
       if (aiMsgIndex === -1) {
-        messages.value.push({ role: 'assistant', text: data.text, audio: data.audio_url, corrections: [], feedback: null })
+        messages.value.push({ role: 'assistant', text: data.text, audioUrls: [], corrections: [], feedback: null })
         aiMsgIndex = messages.value.length - 1
       } else {
         messages.value[aiMsgIndex].text += ' ' + data.text
-        messages.value[aiMsgIndex].audio = data.audio_url
       }
-      scrollToBottom()
       if (data.audio_url) {
+        messages.value[aiMsgIndex].audioUrls.push(data.audio_url)
         audioQueue.push(data.audio_url)
-        if (audioQueue.length === 1 && state.value === 'STREAMING') {
+        if (!currentAudio && state.value !== 'IDLE') {
           state.value = 'PLAYING'
           playNext()
         }
       }
+      scrollToBottom()
     },
     onCorrections(corrections) {
       const userMsg = messages.value.filter((m) => m.role === 'user').pop()
@@ -387,7 +389,7 @@ function sendStreaming(blob) {
       const err = classifyError(msg)
       showToast(`${err.title}：${err.message}`, 'error')
       if (err.action === 'refresh') {
-        setTimeout(() => { if (confirm('是否刷新页面？')) location.reload() }, 5000)
+        setTimeout(() => { if (confirm(t('chat.errors.refreshConfirm'))) location.reload() }, 5000)
       }
       showRetry.value = true
       state.value = 'IDLE'
@@ -405,11 +407,19 @@ function playNext() {
   currentAudio.play().catch(() => playNext())
 }
 
-function handleManualPlay(url) {
+function handleManualPlay(urls) {
   if (currentAudio) { currentAudio.pause(); currentAudio = null }
-  currentAudio = new Audio(url)
-  currentAudio.play().catch(() => {})
-  currentAudio.onended = () => { currentAudio = null }
+  if (!urls || !urls.length) return
+  const queue = [...urls]
+  function playFromQueue() {
+    if (queue.length === 0) { currentAudio = null; return }
+    const url = queue.shift()
+    currentAudio = new Audio(url)
+    currentAudio.onended = () => { currentAudio = null; playFromQueue() }
+    currentAudio.onerror = () => { currentAudio = null; playFromQueue() }
+    currentAudio.play().catch(() => { currentAudio = null; playFromQueue() })
+  }
+  playFromQueue()
 }
 
 function scrollToBottom() {
@@ -424,10 +434,10 @@ async function endSession() {
       reportData.value = await res.json()
       showReport.value = true
     } else {
-      showToast('获取报告失败', 'error')
+      showToast(t('chat.errors.reportFailed'), 'error')
     }
   } catch {
-    showToast('网络错误', 'error')
+    showToast(t('chat.errors.network'), 'error')
   }
 }
 
@@ -442,7 +452,7 @@ onMounted(async () => {
       characterAvatar.value = data.character.avatar || scenario?.icon || '💬'
     }
   } catch {
-    messages.value.push({ role: 'assistant', text: `Welcome! Let's practice English. Press the button to speak.` })
+    messages.value.push({ role: 'assistant', text: t('chat.fallbackGreeting') })
   } finally {
     loadingGreeting.value = false
     resetHintTimer()
@@ -818,7 +828,7 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .chat-view { height: calc(100vh - 160px); }
   .bubble { max-width: 85%; }
-  .record-btn { padding: var(--space-3) var(--space-6); font-size: var(--text-base); }
+  .record-btn { padding: var(--space-4) var(--space-6); font-size: var(--text-base); min-height: 52px; min-width: 52px; }
   .chat-header { padding: var(--space-2) 0; }
 }
 </style>
