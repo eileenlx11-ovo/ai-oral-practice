@@ -615,6 +615,13 @@ async def get_progress():
     return store.get_progress()
 
 
+@app.get("/api/analytics")
+async def get_analytics(days: int = 30):
+    """Get learning analytics (vocabulary trend, pronunciation curve, etc.)."""
+    from .analytics import get_analytics as _get_analytics
+    return _get_analytics(days)
+
+
 # --- Hint System ---
 
 @app.post("/api/hint")

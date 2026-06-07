@@ -501,6 +501,53 @@ app.post('/api/integrations/talent-agent/sync', upload.none(), (req, res) => {
   res.json({ synced: false, error: 'Talent Agent not configured (mock mode)' })
 })
 
+// --- Analytics ---
+app.get('/api/analytics', (req, res) => {
+  const days = parseInt(req.query.days) || 30
+  res.json({
+    vocabulary_trend: [
+      { week: '2026-W20', unique_words: 45 },
+      { week: '2026-W21', unique_words: 82 },
+      { week: '2026-W22', unique_words: 134 },
+      { week: '2026-W23', unique_words: 189 },
+    ],
+    pronunciation_curve: [
+      { date: '2026-06-02', avg_score: 72.3 },
+      { date: '2026-06-03', avg_score: 74.8 },
+      { date: '2026-06-04', avg_score: 76.1 },
+      { date: '2026-06-05', avg_score: 78.5 },
+      { date: '2026-06-06', avg_score: 80.2 },
+    ],
+    error_distribution: {
+      grammar_tense: 12,
+      grammar_articles: 8,
+      grammar_prepositions: 6,
+      vocabulary: 4,
+      pronunciation: 3,
+      other: 5,
+    },
+    scenario_coverage: {
+      coffee_shop: 5,
+      interview: 4,
+      restaurant: 3,
+      smalltalk: 6,
+      meeting: 2,
+    },
+    practice_duration: [
+      { date: '2026-06-02', minutes: 8.5 },
+      { date: '2026-06-03', minutes: 12.0 },
+      { date: '2026-06-04', minutes: 6.5 },
+      { date: '2026-06-05', minutes: 15.0 },
+      { date: '2026-06-06', minutes: 10.0 },
+    ],
+    summary: {
+      total_sessions: 20,
+      total_words_spoken: 1847,
+      unique_words: 189,
+    },
+  })
+})
+
 // ========== Start ==========
 app.listen(PORT, () => {
   console.log(`\n🎯 Mock Server running at http://localhost:${PORT}`)
