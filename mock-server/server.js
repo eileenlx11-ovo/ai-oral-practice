@@ -635,6 +635,32 @@ app.post('/api/sessions/:id/review', (req, res) => {
   }, 800)
 })
 
+// --- Daily Tip ---
+app.get('/api/daily-tip', (req, res) => {
+  res.json({
+    date: new Date().toISOString().slice(0, 10),
+    tip: {
+      type: 'expression',
+      scenario: 'Coffee Shop',
+      phrase: 'What can I get you?',
+      phonetic: '/wɒt kæn aɪ ɡet juː/',
+      meaning: '您要点什么？（店员用语）',
+      example: 'Hi there! What can I get you today?',
+    },
+  })
+})
+
+// --- Scenario Recommendation ---
+app.get('/api/recommend', (req, res) => {
+  const recommended = SCENARIOS.filter(s => s.difficulty === 'beginner').slice(0, 4)
+    .concat(SCENARIOS.filter(s => s.difficulty === 'intermediate').slice(0, 2))
+  res.json({
+    level: null,
+    message: 'Take the level test for personalized recommendations!',
+    scenarios: recommended,
+  })
+})
+
 // --- Analytics ---
 app.get('/api/analytics', (req, res) => {
   const days = parseInt(req.query.days) || 30
