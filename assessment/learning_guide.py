@@ -150,6 +150,106 @@ SCENARIO_GUIDES = {
             {"speaker": "B", "text": "Yes, under Li. I booked a deluxe room for three nights.", "translation": "有的，姓李。我订了一间豪华房住三晚。", "notes": [{"term": "deluxe room", "explanation": "豪华房；酒店房型从低到高：standard → superior → deluxe → suite"}]},
         ],
     },
+    "renting": {
+        "title": "Renting an Apartment",
+        "vocabulary": [
+            {"word": "lease", "phonetic": "/liːs/", "meaning": "租约/租赁合同", "example": "The lease is for twelve months."},
+            {"word": "deposit", "phonetic": "/dɪˈpɒzɪt/", "meaning": "押金", "example": "The security deposit is one month's rent."},
+            {"word": "utilities", "phonetic": "/juːˈtɪlɪtiz/", "meaning": "水电煤等费用", "example": "Are utilities included in the rent?"},
+            {"word": "landlord", "phonetic": "/ˈlændlɔːrd/", "meaning": "房东", "example": "The landlord lives upstairs."},
+            {"word": "furnished", "phonetic": "/ˈfɜːrnɪʃt/", "meaning": "带家具的", "example": "Is the apartment fully furnished?"},
+        ],
+        "expressions": [
+            {"phrase": "What's included in the rent?", "phonetic": "/wɒts ɪnˈkluːdɪd ɪn ðə rent/", "meaning": "房租包含哪些？", "example": "Just to clarify — what's included in the rent?"},
+            {"phrase": "Is there a minimum lease term?",  "phonetic": "/ɪz ðeər ə ˈmɪnɪməm liːs tɜːrm/", "meaning": "有最短租期吗？", "example": "Is there a minimum lease term, or is it month-to-month?"},
+            {"phrase": "When would I be able to move in?", "phonetic": "/wen wʊd aɪ biː ˈeɪbəl tə muːv ɪn/", "meaning": "什么时候能入住？", "example": "If I decide today, when would I be able to move in?"},
+        ],
+        "tips": [
+            {"title": "用 Just to clarify 开头提问", "description": "看房时确认细节用 Just to clarify... 比直接问更自然，表示你在认真考虑", "example": "Just to clarify — does the rent include internet?", "note": "房东会觉得你是认真的租客"},
+            {"title": "表达顾虑用 My only concern is...", "description": "委婉表达不满意的地方，比直接说 I don't like 更成熟", "example": "My only concern is the noise from the street. Is it usually this loud?", "note": "给房东回应的空间，可能有解决方案"},
+        ],
+        "dialogue": [
+            {"speaker": "A", "text": "So, this is the one-bedroom. The rent is $1,200 a month, utilities not included.", "translation": "这就是一居室。月租1200美元，不含水电。", "notes": [{"term": "utilities not included", "explanation": "水电煤气等不包含在房租内，需要另付"}]},
+            {"speaker": "B", "text": "It's nice and bright. Just to clarify — is there a parking spot included?", "translation": "挺明亮的。确认一下——含车位吗？", "notes": [{"term": "Just to clarify", "explanation": "确认细节的礼貌开场，比 Does it have... 更成熟"}]},
+            {"speaker": "A", "text": "There's street parking, but we do have a garage spot available for an extra $50 a month.", "translation": "有路边停车位，不过车库车位每月另加50美元。", "notes": [{"term": "available for an extra", "explanation": "可以额外付费获得；available = 有的/可用的"}]},
+            {"speaker": "B", "text": "Got it. And what's the policy on pets? I have a small dog.", "translation": "明白了。养宠物的政策是什么？我有一只小狗。", "notes": [{"term": "policy on", "explanation": "关于...的政策/规定；租房常问问题"}]},
+        ],
+    },
+    "counseling": {
+        "title": "Counseling Session",
+        "vocabulary": [
+            {"word": "overwhelmed", "phonetic": "/ˌəʊvərˈwelmd/", "meaning": "不堪重负的", "example": "I've been feeling really overwhelmed lately."},
+            {"word": "cope", "phonetic": "/kəʊp/", "meaning": "应对/处理", "example": "How do you usually cope with stress?"},
+            {"word": "anxious", "phonetic": "/ˈæŋkʃəs/", "meaning": "焦虑的", "example": "I get anxious before presentations."},
+            {"word": "boundary", "phonetic": "/ˈbaʊndəri/", "meaning": "界限/边界", "example": "Setting boundaries is important for mental health."},
+            {"word": "burnout", "phonetic": "/ˈbɜːrnaʊt/", "meaning": "倦怠/精疲力竭", "example": "I think I'm experiencing burnout from work."},
+        ],
+        "expressions": [
+            {"phrase": "I've been feeling...", "phonetic": "/aɪv biːn ˈfiːlɪŋ/", "meaning": "我最近一直感觉...", "example": "I've been feeling really stressed about work."},
+            {"phrase": "It's hard to put into words", "phonetic": "/ɪts hɑːrd tə pʊt ˈɪntə wɜːrdz/", "meaning": "很难用语言表达", "example": "It's hard to put into words, but I just feel stuck."},
+            {"phrase": "What do you suggest?", "phonetic": "/wɒt duː juː səˈdʒest/", "meaning": "你有什么建议？", "example": "I want to improve things. What do you suggest?"},
+        ],
+        "tips": [
+            {"title": "用 I've been feeling + 形容词 表达情绪", "description": "现在完成进行时表示持续状态，比 I feel 更强调'一直以来'的感受", "example": "I've been feeling anxious about the future.", "note": "咨询师会根据这个了解持续时间"},
+            {"title": "表达不确定用 I'm not sure if/why...", "description": "表达自己也说不清楚的情绪，在心理咨询中很正常", "example": "I'm not sure why, but I've been losing motivation.", "note": "承认不确定比假装了解自己更有帮助"},
+        ],
+        "dialogue": [
+            {"speaker": "A", "text": "Hi, welcome back. How have things been since we last talked?", "translation": "嗨，欢迎回来。上次聊完之后感觉怎么样？", "notes": [{"term": "since we last talked", "explanation": "自从上次谈话以来；咨询师的标准回访开场"}]},
+            {"speaker": "B", "text": "Honestly, it's been a rough week. I've been feeling overwhelmed with everything.", "translation": "说实话，这周挺难熬的。我一直感觉压力很大。", "notes": [{"term": "a rough week", "explanation": "艰难的一周；rough = 困难的/不顺的"}]},
+            {"speaker": "A", "text": "I'm sorry to hear that. Can you tell me more about what's been weighing on you?", "translation": "很遗憾听到这些。能具体说说什么让你感到压力吗？", "notes": [{"term": "weighing on you", "explanation": "压在心头的；weigh on = 使感到沉重/烦心"}]},
+            {"speaker": "B", "text": "It's mainly work. The deadlines keep piling up and I can't seem to say no to new tasks.", "translation": "主要是工作。截止日期不断堆积，我好像没法拒绝新任务。", "notes": [{"term": "piling up", "explanation": "堆积；pile up = 越积越多"}]},
+        ],
+    },
+    "family": {
+        "title": "Family Gathering",
+        "vocabulary": [
+            {"word": "catch up", "phonetic": "/kætʃ ʌp/", "meaning": "叙旧/了解近况", "example": "It's so nice to catch up with everyone!"},
+            {"word": "settle down", "phonetic": "/ˈsetl daʊn/", "meaning": "安定下来（结婚成家）", "example": "Are you thinking about settling down soon?"},
+            {"word": "reunion", "phonetic": "/riːˈjuːniən/", "meaning": "团聚/重聚", "example": "The family reunion is next month."},
+            {"word": "in-laws", "phonetic": "/ɪn lɔːz/", "meaning": "姻亲/公婆/岳父母", "example": "My in-laws are coming for dinner."},
+            {"word": "get-together", "phonetic": "/ˈɡet təˌɡeðər/", "meaning": "聚会/小型聚会", "example": "We should have a get-together more often."},
+        ],
+        "expressions": [
+            {"phrase": "Long time no see!", "phonetic": "/lɒŋ taɪm nəʊ siː/", "meaning": "好久不见！", "example": "Hey! Long time no see! You look great!"},
+            {"phrase": "How's everything going?", "phonetic": "/haʊz ˈevriθɪŋ ˈɡəʊɪŋ/", "meaning": "一切都好吗？", "example": "So, how's everything going? Still at the same company?"},
+            {"phrase": "You haven't changed a bit!", "phonetic": "/juː ˈhævnt tʃeɪndʒd ə bɪt/", "meaning": "你一点都没变！", "example": "Wow, you haven't changed a bit! Still look the same."},
+        ],
+        "tips": [
+            {"title": "回答 How are you 不要只说 Fine", "description": "家庭聚会中亲戚真的想知道你的近况，多说几句", "example": "I'm doing well! Actually, I just got promoted last month, so that's been exciting.", "note": "给对方接话的机会"},
+            {"title": "用 Actually / To be honest 引入真实想法", "description": "家人问起敏感话题（工作、恋爱）时，用这些可以诚实但不尴尬", "example": "To be honest, I'm taking a break from dating right now. Focusing on myself.", "note": "诚实但设了界限"},
+        ],
+        "dialogue": [
+            {"speaker": "A", "text": "There you are! We haven't seen you since Christmas! How's the new job going?", "translation": "你来了！圣诞节之后就没见了！新工作怎么样？", "notes": [{"term": "There you are!", "explanation": "终于见到你了！带有惊喜和开心的语气"}]},
+            {"speaker": "B", "text": "Hey Uncle Frank! It's going great, actually. I just finished a big project.", "translation": "嘿 Frank 叔叔！其实挺好的。我刚完成了一个大项目。", "notes": [{"term": "actually", "explanation": "加 actually 暗示'比预期的好'，增加真实感"}]},
+            {"speaker": "A", "text": "That's wonderful! Your mom was telling me about it. So, anyone special in your life?", "translation": "太好了！你妈跟我说了。那，有没有特别的人啊？", "notes": [{"term": "anyone special", "explanation": "委婉问'有没有对象'；家庭聚会经典问题"}]},
+            {"speaker": "B", "text": "Ha, you sound just like Mom! I'm keeping my options open for now.", "translation": "哈，你跟我妈一样！我目前保持开放态度。", "notes": [{"term": "keeping my options open", "explanation": "保持开放态度；委婉回避'没有'的说法"}]},
+        ],
+    },
+    "fitness": {
+        "title": "Sports & Exercise",
+        "vocabulary": [
+            {"word": "warm up", "phonetic": "/wɔːrm ʌp/", "meaning": "热身", "example": "Always warm up before lifting heavy."},
+            {"word": "rep", "phonetic": "/rep/", "meaning": "重复次数（一组中）", "example": "I usually do 3 sets of 12 reps."},
+            {"word": "cardio", "phonetic": "/ˈkɑːrdiəʊ/", "meaning": "有氧运动", "example": "I do 30 minutes of cardio before weights."},
+            {"word": "pace", "phonetic": "/peɪs/", "meaning": "配速/节奏", "example": "What's your usual running pace?"},
+            {"word": "recovery", "phonetic": "/rɪˈkʌvəri/", "meaning": "恢复", "example": "Rest days are important for recovery."},
+        ],
+        "expressions": [
+            {"phrase": "How often do you work out?", "phonetic": "/haʊ ˈɒfən duː juː wɜːrk aʊt/", "meaning": "你多久锻炼一次？", "example": "How often do you work out? I try to go four times a week."},
+            {"phrase": "I've been getting into...", "phonetic": "/aɪv biːn ˈɡetɪŋ ˈɪntə/", "meaning": "我最近开始喜欢上...", "example": "I've been getting into swimming lately."},
+            {"phrase": "Do you have any tips for...?", "phonetic": "/duː juː hæv ˈeni tɪps fɔːr/", "meaning": "你有...方面的建议吗？", "example": "Do you have any tips for improving my form?"},
+        ],
+        "tips": [
+            {"title": "描述频率用 I try to + 动词", "description": "比 I always 更真实，表达努力但不一定每次做到", "example": "I try to run three times a week, but sometimes life gets in the way.", "note": "更自然，也更容易引起共鸣"},
+            {"title": "用 I've been... + -ing 描述新习惯", "description": "表达最近开始做某事，暗示在持续中", "example": "I've been doing yoga in the mornings. It really helps with flexibility.", "note": "现在完成进行时表示'到目前为止一直在做'"},
+        ],
+        "dialogue": [
+            {"speaker": "A", "text": "Hey! I just signed up for a 5K next month. Have you ever done a race before?", "translation": "嘿！我刚报了下个月的5公里跑。你以前跑过比赛吗？", "notes": [{"term": "signed up for", "explanation": "报名参加；sign up = 注册/报名"}]},
+            {"speaker": "B", "text": "I did a 10K last year, actually! It was tough but so rewarding. What's your training plan?", "translation": "我去年跑了个10公里！挺累但很有成就感。你训练计划是什么？", "notes": [{"term": "rewarding", "explanation": "有回报的/值得的；比 good 更精确地表达成就感"}]},
+            {"speaker": "A", "text": "I'm doing Couch to 5K — basically building up from walking to running over 8 weeks.", "translation": "我在用 Couch to 5K 计划——大概8周从走路到跑步逐步提升。", "notes": [{"term": "building up from... to...", "explanation": "从...逐步提升到...；描述渐进过程"}]},
+            {"speaker": "B", "text": "That's smart! Don't push too hard too fast. And make sure you get good running shoes.", "translation": "聪明！别急着加量。还有一定要买双好跑鞋。", "notes": [{"term": "push too hard", "explanation": "过度逼自己；运动场景常用表达"}]},
+        ],
+    },
     "sightseeing": {
         "title": "Sightseeing — China Travel Edition",
         "vocabulary": [
