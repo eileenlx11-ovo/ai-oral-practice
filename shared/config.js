@@ -26,6 +26,7 @@ export const CONFIG = {
     LEVEL_TEST: '/api/level-test',
     PROFILE: '/api/profile',
     INTEGRATIONS: '/api/integrations',
+    ANALYTICS: '/api/analytics',
   },
 
   // Hint system
