@@ -715,6 +715,18 @@ async def text_to_speech(text: str = Form(...)):
 import httpx as _httpx
 
 _ASR_PROVIDER_SPECS = {
+    "dashscope": {
+        # Alibaba Model Studio (百炼). Qwen-ASR is NOT a Whisper-style
+        # transcriptions endpoint — it runs through chat/completions with an
+        # input_audio message, so it uses the "chat_audio" call style.
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "key_envs": ("DASHSCOPE_API_KEY",),
+        "model_env": "DASHSCOPE_ASR_MODEL",
+        "default_model": "qwen3-asr-flash",
+        "word_timestamps": False,
+        "needs_proxy": False,
+        "call_style": "chat_audio",
+    },
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
         "key_envs": ("GROQ_API_KEY", "ASR_API_KEY"),
@@ -722,6 +734,7 @@ _ASR_PROVIDER_SPECS = {
         "default_model": "whisper-large-v3-turbo",
         "word_timestamps": True,  # Groq Whisper returns word-level timestamps
         "needs_proxy": True,      # may need HTTPS_PROXY in mainland China
+        "call_style": "transcriptions",
     },
     "siliconflow": {
         "base_url": "https://api.siliconflow.cn/v1",
@@ -730,12 +743,15 @@ _ASR_PROVIDER_SPECS = {
         "default_model": "FunAudioLLM/SenseVoiceSmall",
         "word_timestamps": False,  # SenseVoice does not support word timestamps
         "needs_proxy": False,
+        "call_style": "transcriptions",
     },
 }
 
-# Order is configurable; defaults to groq first, then siliconflow.
+# Order is configurable; defaults to dashscope first, siliconflow fallback.
+# Groq is omitted by default (account access pending) but stays available via
+# ASR_PROVIDER_ORDER once a working key exists.
 _ASR_ORDER = [
-    p.strip() for p in os.getenv("ASR_PROVIDER_ORDER", "groq,siliconflow").split(",") if p.strip()
+    p.strip() for p in os.getenv("ASR_PROVIDER_ORDER", "dashscope,siliconflow").split(",") if p.strip()
 ]
 
 _proxy_url = os.getenv("HTTPS_PROXY") or os.getenv("ALL_PROXY") or os.getenv("HTTP_PROXY")
@@ -765,6 +781,7 @@ def _build_asr_providers() -> list[dict]:
             "model": os.getenv(spec["model_env"]) or os.getenv("ASR_MODEL") or spec["default_model"],
             "base_url": base_url,
             "word_timestamps": spec["word_timestamps"],
+            "call_style": spec.get("call_style", "transcriptions"),
         })
     return providers
 
@@ -785,11 +802,16 @@ async def _transcribe(filepath: str) -> str:
 
     last_exc = None
     for provider in _asr_providers:
-        kwargs = {"model": provider["model"], "language": "en"}
-        if provider["word_timestamps"]:
-            kwargs["response_format"] = "verbose_json"
-            kwargs["timestamp_granularities"] = ["word"]
         try:
+            if provider["call_style"] == "chat_audio":
+                text = await _transcribe_chat_audio(provider, filepath)
+                _transcribe._last_words = None  # chat-style ASR has no word timestamps
+                return text
+
+            kwargs = {"model": provider["model"], "language": "en"}
+            if provider["word_timestamps"]:
+                kwargs["response_format"] = "verbose_json"
+                kwargs["timestamp_granularities"] = ["word"]
             with open(filepath, "rb") as f:
                 resp = await provider["client"].audio.transcriptions.create(file=f, **kwargs)
         except Exception as exc:
@@ -816,6 +838,38 @@ async def _transcribe(filepath: str) -> str:
     raise last_exc if last_exc else RuntimeError("ASR transcription failed")
 
 _transcribe._last_words = None
+
+
+def _audio_mime(filepath: str) -> str:
+    ext = os.path.splitext(filepath)[1].lower().lstrip(".")
+    return {
+        "wav": "audio/wav", "mp3": "audio/mpeg", "webm": "audio/webm",
+        "ogg": "audio/ogg", "m4a": "audio/mp4", "flac": "audio/flac",
+    }.get(ext, "audio/wav")
+
+
+async def _transcribe_chat_audio(provider: dict, filepath: str) -> str:
+    """Transcribe via a chat/completions ASR model (Qwen-ASR on DashScope).
+
+    Unlike Whisper-style providers, Qwen-ASR takes the audio as an input_audio
+    message part. The local recording is sent as a base64 data URI; ITN is
+    disabled to keep raw words for pronunciation scoring.
+    """
+    import base64
+
+    with open(filepath, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("ascii")
+    data_uri = f"data:{_audio_mime(filepath)};base64,{b64}"
+
+    resp = await provider["client"].chat.completions.create(
+        model=provider["model"],
+        messages=[{
+            "role": "user",
+            "content": [{"type": "input_audio", "input_audio": {"data": data_uri}}],
+        }],
+        extra_body={"asr_options": {"enable_itn": False}},
+    )
+    return (resp.choices[0].message.content or "").strip()
 
 
 async def _chat_with_correction(

@@ -139,6 +139,11 @@ export default {
     micDenied: 'Microphone permission was denied',
     demoFailed: 'Failed to play standard pronunciation',
     allDone: 'All done. Nice work!',
+    scoringInBackground: 'Scoring in the background — feel free to continue',
+    history: 'History',
+    scoreUnit: '',
+    focusPhone: 'Focus on',
+    tipHint: 'this phoneme scored low — compare with the demo and repeat',
   },
   interview: {
     title: 'AI oral interview',

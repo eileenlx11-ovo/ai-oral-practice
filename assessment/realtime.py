@@ -49,18 +49,11 @@ class RealtimeSession:
         self.audio_buffer.clear()
 
         try:
-            # ASR
-            from openai import AsyncOpenAI
-            asr_client = AsyncOpenAI(
-                api_key=os.getenv("ASR_API_KEY") or os.getenv("GROQ_API_KEY") or "sk-placeholder",
-                base_url=os.getenv("ASR_BASE_URL", "https://api.groq.com/openai/v1"),
-            )
-            with open(tmp.name, "rb") as f:
-                resp = await asr_client.audio.transcriptions.create(
-                    model=os.getenv("ASR_MODEL", "whisper-large-v3-turbo"),
-                    file=f, language="en",
-                )
-            text = resp.text.strip() if hasattr(resp, "text") else str(resp).strip()
+            # ASR via the shared multi-provider transcriber (DashScope →
+            # SiliconFlow fallback). Deferred import avoids a circular import
+            # with app.py, which owns the provider pool.
+            from .app import _transcribe
+            text = (await _transcribe(tmp.name)).strip()
 
             if not text:
                 await self.ws.send_json({"type": "silence"})
