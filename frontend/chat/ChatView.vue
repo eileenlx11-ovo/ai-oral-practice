@@ -681,16 +681,21 @@ onMounted(async () => {
     const res = await fetch(sessionId ? `/api/sessions/${sessionId}/handoff` : `/api/scenarios/${scenarioId}`)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json()
-    messages.value.push({ role: 'assistant', text: data.greeting || t('chat.fallbackGreeting') })
+    // Prefer greeting from query params (set by CustomTopicView) over handoff fallback
+    const greeting = route.query.greeting || data.greeting || t('chat.fallbackGreeting')
+    messages.value.push({ role: 'assistant', text: greeting })
     if (data.character) {
-      characterName.value = data.character.name
+      // For custom_topic, query param partner_name overrides if handoff returned stale data
+      characterName.value = route.query.partner_name || data.character.name
       characterAvatar.value = data.character.avatar || scenario?.icon || '💬'
       characterRole.value = data.character.role || ''
       characterPersonality.value = data.character.personality || ''
     }
     if (data.objective) scenarioObjective.value = data.objective
   } catch {
-    messages.value.push({ role: 'assistant', text: t('chat.fallbackGreeting') })
+    const greeting = route.query.greeting || t('chat.fallbackGreeting')
+    messages.value.push({ role: 'assistant', text: greeting })
+    if (route.query.partner_name) characterName.value = route.query.partner_name
   } finally {
     loadingGreeting.value = false
     resetHintTimer()

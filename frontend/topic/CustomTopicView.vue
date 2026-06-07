@@ -159,6 +159,7 @@ async function startPractice() {
         session_id: data.session_id,
         greeting: data.greeting,
         topic: data.topic,
+        partner_name: data.partner?.name || '',
       },
     })
   } catch {
