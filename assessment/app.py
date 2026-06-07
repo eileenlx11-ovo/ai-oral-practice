@@ -982,13 +982,23 @@ async def create_topic_session(
         partner_personality=partner_personality,
         speed=speed,
     )
-    session = store.create_session("custom_topic", custom_prompt=prompt)
-
     # Determine voice based on country
     voice_id = get_voice_for_custom_partner(partner_country or "us", partner_name)
 
-    # Generate greeting via LLM
     name = partner_name.strip() or "Alex"
+    session = store.create_session(
+        "custom_topic",
+        custom_prompt=prompt,
+        metadata={
+            "partner_name": name,
+            "partner_country": partner_country.strip() or "US",
+            "partner_personality": partner_personality.strip() or "friendly and encouraging",
+            "partner_speed": speed,
+            "partner_voice_id": voice_id,
+        },
+    )
+
+    # Generate greeting via LLM
     greeting = f"Hi there! I'm {name}. Let's chat about {topic.strip()}. What's on your mind?"
     try:
         resp = await llm.chat.completions.create(
@@ -1008,6 +1018,9 @@ async def create_topic_session(
                 greeting = raw
     except Exception:
         pass
+
+    # Persist greeting so handoff endpoint can return it
+    store.update_session_fields(session["id"], greeting=greeting)
 
     return {
         "session_id": session["id"],
@@ -1090,7 +1103,19 @@ async def get_session_handoff(
     """Return initial chat metadata for a pre-created external handoff session."""
     session = _require_session_owner(session_id, user)
     scenario = session.get("scenario", "interview")
-    character = get_character(scenario)
+
+    # For custom_topic sessions, build character from stored partner metadata
+    if scenario == "custom_topic" and session.get("partner_name"):
+        character = {
+            "name": session["partner_name"],
+            "role": f"Practice partner from {session.get('partner_country', 'US')}",
+            "personality": session.get("partner_personality", "friendly and encouraging"),
+            "avatar": "🗣️",
+            "voice_id": session.get("partner_voice_id", ""),
+        }
+    else:
+        character = get_character(scenario)
+
     return {
         "session_id": session_id,
         "scenario": scenario,
