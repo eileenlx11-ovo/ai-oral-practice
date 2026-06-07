@@ -53,9 +53,12 @@ async def assess(audio_path: str, reference_text: str) -> dict | None:
     pron_config = speechsdk.PronunciationAssessmentConfig(
         reference_text=reference_text,
         grading_system=speechsdk.PronunciationAssessmentGradingSystem.HundredMark,
-        granularity=speechsdk.PronunciationAssessmentGranularity.Word,
+        granularity=speechsdk.PronunciationAssessmentGranularity.Phoneme,
         enable_miscue=True,
     )
+    # IPA phoneme symbols (vs Azure's default SAPI set) so the UI can show the
+    # international phonetic spelling per word, matching the SOE IPA output shape.
+    pron_config.phoneme_alphabet = "IPA"
     audio_config = speechsdk.audio.AudioConfig(filename=wav_path)
     recognizer = speechsdk.SpeechRecognizer(
         speech_config=config, audio_config=audio_config, language="en-US",
@@ -80,10 +83,23 @@ def _recognize_sync(recognizer) -> dict | None:
     if result.reason != speechsdk.ResultReason.RecognizedSpeech:
         return None
     r = speechsdk.PronunciationAssessmentResult(result)
-    words = [
-        {"word": w.word, "accuracy_score": w.accuracy_score, "error_type": w.error_type}
-        for w in r.words
-    ]
+    words = []
+    for w in r.words:
+        word = {
+            "word": w.word,
+            "accuracy_score": w.accuracy_score,
+            "error_type": w.error_type,
+        }
+        # Per-phoneme IPA + score, shaped like the SOE provider's `phones` so the
+        # frontend renders both providers with one code path. `phonemes` is only
+        # present at Phoneme granularity; guard so a missing field never crashes.
+        phones = [
+            {"phone": p.phoneme, "accuracy_score": p.accuracy_score}
+            for p in (getattr(w, "phonemes", None) or [])
+        ]
+        if phones:
+            word["phones"] = phones
+        words.append(word)
     return {
         "accuracy_score": r.accuracy_score,
         "fluency_score": r.fluency_score,
