@@ -820,6 +820,18 @@ async def get_character_memory(scenario_id: str):
     return {"memories": memories, "affinity_level": affinity}
 
 
+# --- Real-time Pronunciation (WebSocket) ---
+
+from fastapi import WebSocket as _WebSocket
+
+
+@app.websocket("/ws/realtime-pronunciation")
+async def ws_realtime_pronunciation(websocket: _WebSocket):
+    """WebSocket endpoint for real-time pronunciation feedback."""
+    from .realtime import realtime_pronunciation_endpoint
+    await realtime_pronunciation_endpoint(websocket)
+
+
 # --- Talent Agent Integration ---
 
 @app.get("/api/integrations/talent-agent/status")
