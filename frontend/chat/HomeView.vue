@@ -79,6 +79,16 @@
       </div>
     </div>
 
+    <!-- Custom Topic Entry -->
+    <div class="custom-topic-entry" @click="$router.push('/topic')">
+      <span class="entry-icon">🎯</span>
+      <div class="entry-text">
+        <strong>自定义话题</strong>
+        <span>输入任意话题，选择对话伙伴，开始自由练习</span>
+      </div>
+      <span class="entry-arrow">→</span>
+    </div>
+
     <!-- Scenario grid -->
     <div class="scenarios">
       <div
@@ -94,6 +104,7 @@
       >
         <div class="card-icon-wrap">
           <span class="card-icon">{{ s.icon }}</span>
+          <button class="guide-btn" @click.stop="$router.push(`/guide/${s.id}`)" :title="t('home.guide', '学习指南')">📖</button>
         </div>
         <div class="card-body">
           <div class="card-top">
@@ -345,9 +356,48 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+.guide-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.35rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+  box-shadow: var(--shadow-sm);
+  opacity: 0;
+  transition: opacity var(--transition-base), border-color var(--transition-base);
+}
+.scenario-card:hover .guide-btn { opacity: 1; }
+.guide-btn:hover { border-color: var(--color-primary); }
+
+.tools {
+  display: flex;
+  justify-content: center;
   flex-shrink: 0;
   transition: transform var(--transition-base);
 }
+
+.custom-topic-entry {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1rem 1.5rem; margin-bottom: 1.5rem;
+  background: var(--color-primary-50);
+  border: 1.5px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  cursor: pointer; transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+.custom-topic-entry:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.entry-icon { font-size: 1.8rem; }
+.entry-text { display: flex; flex-direction: column; flex: 1; }
+.entry-text strong { font-size: 1.05rem; color: var(--color-text); }
+.entry-text span { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.entry-arrow { font-size: 1.3rem; color: var(--color-primary); }
 
 .scenario-card:hover .card-icon-wrap {
   transform: scale(1.12) rotate(-4deg);

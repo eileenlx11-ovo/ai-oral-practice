@@ -150,6 +150,85 @@
       </div>
     </div>
 
+    <!-- Learning Analytics -->
+    <div class="analytics-section" v-if="analytics">
+      <h2>Learning Analytics</h2>
+
+      <!-- Time Range Picker -->
+      <div class="time-range-picker">
+        <button
+          v-for="range in timeRanges"
+          :key="range.value"
+          :class="['range-btn', { active: selectedRange === range.value }]"
+          @click="selectedRange = range.value"
+        >
+          {{ range.label }}
+        </button>
+      </div>
+
+      <!-- Vocabulary Trend Chart -->
+      <div class="analytics-card" v-if="analytics.vocabulary_trend && analytics.vocabulary_trend.length">
+        <h3>Vocabulary Growth</h3>
+        <div class="chart-container">
+          <Line :data="vocabChartData" :options="vocabChartOptions" />
+        </div>
+      </div>
+
+      <!-- Error Distribution (HTML/CSS bars) -->
+      <div class="analytics-card" v-if="analytics.error_distribution && Object.keys(analytics.error_distribution).length">
+        <h3>Error Distribution</h3>
+        <div class="bar-chart-horizontal">
+          <div
+            v-for="(count, category) in analytics.error_distribution"
+            :key="category"
+            class="bar-row"
+          >
+            <span class="bar-label">{{ formatCategory(category) }}</span>
+            <div class="bar-track">
+              <div
+                class="bar-fill"
+                :style="{ width: getBarWidth(count, analytics.error_distribution) }"
+              ></div>
+            </div>
+            <span class="bar-value">{{ count }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scenario Coverage (HTML/CSS bars) -->
+      <div class="analytics-card" v-if="analytics.scenario_coverage && Object.keys(analytics.scenario_coverage).length">
+        <h3>Scenario Coverage</h3>
+        <div class="bar-chart-horizontal">
+          <div
+            v-for="(count, scenario) in analytics.scenario_coverage"
+            :key="scenario"
+            class="bar-row"
+          >
+            <span class="bar-label">{{ scenario }}</span>
+            <div class="bar-track">
+              <div
+                class="bar-fill scenario-bar"
+                :style="{ width: getBarWidth(count, analytics.scenario_coverage) }"
+              ></div>
+            </div>
+            <span class="bar-value">{{ count }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary Stats -->
+      <div class="analytics-card summary-stats" v-if="analytics.summary">
+        <div class="stat-item">
+          <span class="stat-value">{{ analytics.summary.unique_words }}</span>
+          <span class="stat-label">Unique Words</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{ analytics.summary.total_words_spoken }}</span>
+          <span class="stat-label">Total Words Spoken</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Session History -->
     <div class="history-section">
       <h2>{{ t('dashboard.practiceHistory') }}</h2>
@@ -175,6 +254,7 @@
             <span v-if="s.avg_fluency" class="score-badge">
               🗣️ {{ s.avg_fluency.toFixed(0) }}
             </span>
+            <button class="playback-btn" @click.stop="$router.push('/playback/' + s.session_id)">回放</button>
           </div>
         </div>
       </div>
@@ -227,7 +307,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { isAuthenticated } from '../composables/useAuth'
 import { Line, Radar, Doughnut } from 'vue-chartjs'
 import {
@@ -260,6 +340,14 @@ const progress = ref(null)
 const sessions = ref([])
 const selectedSummary = ref(null)
 const toast = reactive({ message: '', type: 'info' })
+const analytics = ref(null)
+const selectedRange = ref(30)
+
+const timeRanges = [
+  { label: '7天', value: 7 },
+  { label: '30天', value: 30 },
+  { label: '全部', value: 0 },
+]
 
 // Personalized grammar coaching (lazy — only fetched when the user asks)
 const grammarAnalysis = ref(null)
@@ -403,6 +491,69 @@ function dimensionLabel(dim) {
   return map[dim] || dim
 }
 
+const vocabChartData = computed(() => {
+  if (!analytics.value?.vocabulary_trend?.length) return { labels: [], datasets: [] }
+  const trend = analytics.value.vocabulary_trend
+  return {
+    labels: trend.map((t) => t.week),
+    datasets: [
+      {
+        label: 'Cumulative Unique Words',
+        data: trend.map((t) => t.unique_words),
+        borderColor: '#8e44ad',
+        backgroundColor: 'rgba(142, 68, 173, 0.1)',
+        tension: 0.3,
+        fill: true,
+      },
+    ],
+  }
+})
+
+const vocabChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  scales: {
+    y: { min: 0, title: { display: true, text: 'Words' } },
+    x: { title: { display: true, text: 'Week' } },
+  },
+  plugins: {
+    legend: { position: 'top' },
+  },
+}
+
+function getBarWidth(count, distribution) {
+  const max = Math.max(...Object.values(distribution), 1)
+  return `${Math.round((count / max) * 100)}%`
+}
+
+function formatCategory(category) {
+  const labels = {
+    grammar_tense: 'Tense',
+    grammar_articles: 'Articles',
+    grammar_prepositions: 'Prepositions',
+    vocabulary: 'Vocabulary',
+    pronunciation: 'Pronunciation',
+    other: 'Other',
+  }
+  return labels[category] || category
+}
+
+async function loadAnalytics(days) {
+  try {
+    const res = await fetch(`${API}${CONFIG.API.ANALYTICS}?days=${days}`)
+    if (res.ok) {
+      analytics.value = await res.json()
+    }
+  } catch {
+    // Analytics load failure is non-critical
+  }
+}
+
+// Watch selectedRange changes
+watch(selectedRange, (newVal) => {
+  loadAnalytics(newVal)
+})
+
 function formatScore(val) {
   return val != null ? val.toFixed(1) : '—'
 }
@@ -446,6 +597,9 @@ onMounted(async () => {
   } catch {
     showToast(t('dashboard.serverFailed'))
   }
+
+  // Load analytics with default range
+  loadAnalytics(selectedRange.value)
 })
 </script>
 
@@ -868,5 +1022,135 @@ h2 {
   .summary-cards { grid-template-columns: repeat(2, 1fr); }
   .session-item { flex-direction: column; align-items: flex-start; gap: var(--space-2); }
   .report-grid { grid-template-columns: 1fr; }
+}
+
+.playback-btn {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid #1f4e79;
+  border-radius: 4px;
+  background: white;
+  color: #1f4e79;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.playback-btn:hover {
+  background: #1f4e79;
+  color: white;
+}
+
+/* Analytics Section */
+.analytics-section {
+  margin-bottom: 2rem;
+}
+
+.time-range-picker {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+}
+
+.range-btn {
+  padding: 0.4rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  background: white;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.range-btn.active {
+  background: #1f4e79;
+  color: white;
+  border-color: #1f4e79;
+}
+
+.range-btn:hover:not(.active) {
+  border-color: #1f4e79;
+  color: #1f4e79;
+}
+
+.analytics-card {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.analytics-card h3 {
+  color: #333;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.bar-chart-horizontal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.bar-label {
+  min-width: 100px;
+  font-size: 0.85rem;
+  color: #555;
+  text-transform: capitalize;
+}
+
+.bar-track {
+  flex: 1;
+  height: 20px;
+  background: #f0f0f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #e67e22, #f39c12);
+  border-radius: 10px;
+  transition: width 0.4s ease;
+}
+
+.bar-fill.scenario-bar {
+  background: linear-gradient(90deg, #1f4e79, #2980b9);
+}
+
+.bar-value {
+  min-width: 30px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333;
+  text-align: right;
+}
+
+.summary-stats {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f4e79;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #666;
 }
 </style>

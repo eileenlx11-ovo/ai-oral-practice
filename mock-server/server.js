@@ -25,7 +25,6 @@ const PORT = 8001
 app.use(cors())
 app.use(express.json())
 
-// ========== Mock Data ==========
 
 const SCENARIOS = [
   { id: 'coffee_shop', icon: '☕', name: 'Coffee Shop', category: 'daily', difficulty: 'beginner', description: '在咖啡店点饮品', objective: 'Successfully order a customized coffee drink', greeting: "Hey there! Welcome to Bean & Brew. What can I get started for you today?", character: { name: 'Maya', avatar: '👩‍🦱' } },
@@ -46,6 +45,29 @@ const SCENARIOS = [
   { id: 'party', icon: '🎉', name: 'Party Chat', category: 'social', difficulty: 'intermediate', description: '派对认识新朋友', objective: 'Introduce yourself and find common interests', greeting: "Hi! I don't think we've met — I'm Olivia. How do you know the host?", character: { name: 'Olivia', avatar: '🎉' } },
   { id: 'neighbor', icon: '🏠', name: 'Neighbor Chat', category: 'social', difficulty: 'beginner', description: '邻居日常寒暄', objective: 'Have a friendly exchange', greeting: "Oh hello! I noticed you moved in recently. How are you settling in?", character: { name: 'Robert', avatar: '🏠' } },
   { id: 'gym', icon: '💪', name: 'Gym Buddy', category: 'social', difficulty: 'intermediate', description: '健身房社交', objective: 'Discuss fitness and share tips', greeting: "Hey! I've seen you here a few times. How long have you been working out?", character: { name: 'Kevin', avatar: '💪' } },
+  // Daily expanded
+  { id: 'weather', icon: '🌤️', name: 'Weather Chat', category: 'daily', difficulty: 'beginner', description: '聊天气做计划', objective: 'Discuss weather and adjust plans', greeting: "Wow, can you believe this weather?", character: { name: 'Sam', avatar: '🌤️' } },
+  { id: 'renting', icon: '🏢', name: 'Renting an Apartment', category: 'daily', difficulty: 'intermediate', description: '租房看房', objective: 'Ask about price and amenities', greeting: "Hi! The rent is $1,200/month. Shall I show you around?", character: { name: 'Patricia', avatar: '🏢' } },
+  { id: 'counseling', icon: '🧠', name: 'Counseling Session', category: 'daily', difficulty: 'advanced', description: '心理咨询', objective: 'Express feelings and discuss strategies', greeting: "How have you been feeling since our last conversation?", character: { name: 'Dr. Rivera', avatar: '🧠' } },
+  { id: 'family', icon: '👨‍👩‍👧‍👦', name: 'Family Gathering', category: 'daily', difficulty: 'beginner', description: '家庭聚会闲聊', objective: 'Share life updates with family', greeting: "Hey, we haven't seen you since Thanksgiving! What's new?", character: { name: 'Uncle Frank', avatar: '👨‍👩‍👧‍👦' } },
+  // Campus
+  { id: 'debate', icon: '🎤', name: 'Classroom Debate', category: 'campus', difficulty: 'advanced', description: '课堂辩论', objective: 'Present arguments clearly', greeting: "Today's motion: 'Social media does more harm than good.' Your response?", character: { name: 'Prof. Adams', avatar: '🎤' } },
+  { id: 'study_abroad', icon: '🌍', name: 'Study Abroad', category: 'campus', difficulty: 'intermediate', description: '出国留学咨询', objective: 'Ask about programs and requirements', greeting: "Which country are you thinking about for exchange?", character: { name: 'Ms. Park', avatar: '🌍' } },
+  { id: 'roommate', icon: '🛏️', name: 'Meeting Your Roommate', category: 'campus', difficulty: 'beginner', description: '认识新舍友', objective: 'Introduce yourself and set expectations', greeting: "Hey! You must be my new roommate! Where are you from?", character: { name: 'Chris', avatar: '🛏️' } },
+  { id: 'group_project', icon: '📋', name: 'Group Project', category: 'campus', difficulty: 'intermediate', description: '小组作业分工', objective: 'Divide work and set deadlines', greeting: "OK team, presentation due next Friday. How do we split it?", character: { name: 'Taylor', avatar: '📋' } },
+  { id: 'enrollment', icon: '📝', name: 'Campus Enrollment', category: 'campus', difficulty: 'beginner', description: '入校手续', objective: 'Complete registration steps', greeting: "Welcome! Are you here for new student registration?", character: { name: 'Mrs. Williams', avatar: '📝' } },
+  { id: 'club', icon: '🎭', name: 'Joining a Club', category: 'campus', difficulty: 'beginner', description: '社团报名', objective: 'Learn about activities and join', greeting: "Interested in the Drama Club? No experience needed!", character: { name: 'Mia', avatar: '🎭' } },
+  { id: 'campus_event', icon: '🎪', name: 'Campus Event', category: 'campus', difficulty: 'intermediate', description: '校园活动', objective: 'Participate in event planning', greeting: "Thanks for volunteering! Which area interests you?", character: { name: 'Jordan', avatar: '🎪' } },
+  { id: 'ielts_speaking', icon: '📖', name: 'IELTS Speaking Practice', category: 'campus', difficulty: 'advanced', description: '雅思口语真题', objective: 'Practice structured IELTS responses', greeting: "Can you tell me your full name and where you are from?", character: { name: 'Examiner Johnson', avatar: '📖' } },
+  // Travel expanded
+  { id: 'sightseeing', icon: '📸', name: 'Sightseeing', category: 'travel', difficulty: 'beginner', description: '景区浏览', objective: 'Ask about history and buy tickets', greeting: "Welcome! Tickets are £29. Would you like an audio guide?", character: { name: 'William', avatar: '📸' } },
+  { id: 'public_transport', icon: '🚇', name: 'Public Transport', category: 'travel', difficulty: 'beginner', description: '搭乘地铁/公交', objective: 'Find the right route', greeting: "You look confused. Where are you headed? I can help!", character: { name: 'Aisha', avatar: '🚇' } },
+  { id: 'lost_item', icon: '🔍', name: 'Lost & Found', category: 'travel', difficulty: 'intermediate', description: '物品遗失', objective: 'Report and describe lost item', greeting: "Can you describe the item? When did you last have it?", character: { name: 'Officer Chen', avatar: '🔍' } },
+  // Hobbies
+  { id: 'books', icon: '📚', name: 'Book Discussion', category: 'hobbies', difficulty: 'intermediate', description: '阅读与书籍', objective: 'Discuss books and get recommendations', greeting: "I see you're reading that one! What do you think so far?", character: { name: 'Eleanor', avatar: '📚' } },
+  { id: 'nutrition', icon: '🥗', name: 'Diet & Health', category: 'hobbies', difficulty: 'intermediate', description: '饮食与健康', objective: 'Discuss healthy eating', greeting: "I started meal prepping. Do you pay attention to diet?", character: { name: 'Marcus', avatar: '🥗' } },
+  { id: 'fitness', icon: '🏃', name: 'Sports & Exercise', category: 'hobbies', difficulty: 'beginner', description: '运动锻炼', objective: 'Share fitness experiences', greeting: "I just signed up for a 5K! Do you do any running?", character: { name: 'Diana', avatar: '🏃' } },
+  { id: 'music', icon: '🎵', name: 'Music & Creation', category: 'hobbies', difficulty: 'intermediate', description: '音乐创作', objective: 'Discuss music and instruments', greeting: "Is that a guitar case? I've been learning piano. What music are you into?", character: { name: 'Ethan', avatar: '🎵' } },
 ]
 
 // Mock AI replies per scenario (cycles through them)
@@ -180,7 +202,6 @@ function getNextReply(scenario) {
   return reply
 }
 
-// ========== Routes ==========
 
 // --- Categories ---
 app.get('/api/categories', (req, res) => {
@@ -499,6 +520,192 @@ app.post('/api/integrations/talent-agent/interview-prep', upload.none(), (req, r
 
 app.post('/api/integrations/talent-agent/sync', upload.none(), (req, res) => {
   res.json({ synced: false, error: 'Talent Agent not configured (mock mode)' })
+})
+
+app.post('/api/sessions/topic', upload.none(), (req, res) => {
+  const topic = req.body?.topic || 'general conversation'
+  const name = req.body?.partner_name || 'Alex'
+  const country = req.body?.partner_country || 'US'
+  const personality = req.body?.partner_personality || 'friendly'
+  const speed = req.body?.speed || 'normal'
+  const sessionId = randomUUID().slice(0, 12)
+  res.json({
+    session_id: sessionId,
+    topic,
+    greeting: `Hey! I'm ${name} from ${country}. So you want to chat about ${topic}? That's interesting! Tell me more.`,
+    partner: { name, country, personality, speed, voice_id: 'en-US-GuyNeural' },
+  })
+})
+
+app.get('/api/topics/trending', (req, res) => {
+  res.json({ topics: [
+    { title: 'AI in Daily Life', description: '讨论人工智能如何改变我们的日常生活' },
+    { title: 'Remote Work Culture', description: '聊聊远程工作的利弊和未来趋势' },
+    { title: 'Sustainable Living', description: '环保生活方式和可持续发展' },
+    { title: 'Social Media Impact', description: '社交媒体对人际关系的影响' },
+    { title: 'Space Exploration', description: '太空探索的最新进展和未来' },
+    { title: 'Mental Health Awareness', description: '心理健康意识和自我关怀' },
+  ]})
+})
+
+app.get('/api/scenarios/:id/guide', (req, res) => {
+  // Return coffee_shop guide as sample for any scenario
+  res.json({
+    title: req.params.id,
+    vocabulary: [
+      { word: "latte", phonetic: "/ˈlɑːteɪ/", meaning: "拿铁咖啡", example: "I'd like a medium latte, please." },
+      { word: "espresso", phonetic: "/eˈspresəʊ/", meaning: "浓缩咖啡", example: "Can I get a double espresso?" },
+      { word: "oat milk", phonetic: "/əʊt mɪlk/", meaning: "燕麦奶", example: "Could I have that with oat milk?" },
+    ],
+    expressions: [
+      { phrase: "What can I get you?", phonetic: "/wɒt kæn aɪ ɡet juː/", meaning: "您要点什么？", example: "Hi! What can I get you today?" },
+      { phrase: "for here or to go", phonetic: "/fɔːr hɪər ɔːr tə ɡəʊ/", meaning: "堂食还是外带", example: "Is that for here or to go?" },
+    ],
+    tips: [
+      { title: "用 Could I have 代替 I want", description: "点单时更礼貌自然", example: "Could I have a medium latte?", note: "母语者几乎不在点餐时说 I want" },
+    ],
+    dialogue: [
+      { speaker: "A", text: "Hey! Welcome to Bean & Brew. What can I get started for you?", translation: "嘿！欢迎来到 Bean & Brew。想喝点什么？", notes: [{ term: "get started for you", explanation: "咖啡店开场用语" }] },
+      { speaker: "B", text: "Could I get a medium oat milk latte to go?", translation: "我要一杯中杯燕麦拿铁外带。", notes: [{ term: "to go", explanation: "外带；反义 for here" }] },
+    ],
+  })
+})
+
+// --- Session Playback ---
+app.get('/api/sessions/:id/turns-full', (req, res) => {
+  res.json({
+    id: req.params.id,
+    scenario: 'interview',
+    started_at: '2026-06-05T10:00:00Z',
+    turns: [
+      { user_text: "I have three years of experience in web development.", reply_text: "That's great! Can you tell me about a challenging project you worked on?", corrections: [{ original: "I have three years experience", corrected: "I have three years of experience", explanation: "Use 'of' between quantity and noun" }] },
+      { user_text: "I led a team to build a real-time dashboard.", reply_text: "Impressive! What technologies did you use for that?", corrections: [] },
+      { user_text: "We used React and Node.js for the backend.", reply_text: "Good choices. How did you handle scalability?", corrections: [{ original: "for the backend", corrected: "on the backend", explanation: "Use 'on' when referring to the platform/layer" }] },
+    ],
+  })
+})
+
+// ========== Achievements ==========
+app.get('/api/achievements', (req, res) => {
+  res.json({
+    achievements: [
+      { id: 'streak_3', name: 'Getting Started', icon: '🔥', description: '连续练习 3 天', condition: 'streak', threshold: 3, unlocked: true, progress: 3, is_new: false },
+      { id: 'streak_7', name: 'One Week Strong', icon: '💪', description: '连续练习 7 天', condition: 'streak', threshold: 7, unlocked: false, progress: 3, is_new: false },
+      { id: 'sessions_5', name: 'First Steps', icon: '👣', description: '完成 5 次练习', condition: 'sessions', threshold: 5, unlocked: true, progress: 5, is_new: false },
+      { id: 'sessions_20', name: 'Regular Learner', icon: '📚', description: '完成 20 次练习', condition: 'sessions', threshold: 20, unlocked: false, progress: 8, is_new: false },
+      { id: 'turns_50', name: 'Chatty', icon: '💬', description: '累计对话 50 轮', condition: 'turns', threshold: 50, unlocked: true, progress: 50, is_new: true },
+      { id: 'pron_80', name: 'Clear Voice', icon: '🎯', description: '单次发音评分达到 80+', condition: 'max_pronunciation', threshold: 80, unlocked: true, progress: 85, is_new: false },
+      { id: 'scenarios_5', name: 'Explorer', icon: '🗺️', description: '尝试 5 个不同场景', condition: 'unique_scenarios', threshold: 5, unlocked: false, progress: 3, is_new: false },
+    ],
+    stats: { sessions: 8, turns: 52, max_pronunciation: 85, unique_scenarios: 3 },
+  })
+})
+
+app.get('/api/streak', (req, res) => {
+  const today = new Date()
+  const calendar = []
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i)
+    calendar.push({ date: d.toISOString().slice(0, 10), checked: Math.random() > 0.6 })
+  }
+  calendar[calendar.length - 1].checked = true
+  res.json({ streak: 3, calendar })
+})
+
+app.post('/api/checkin', (req, res) => {
+  res.json({ date: new Date().toISOString().slice(0, 10), streak: 4 })
+})
+
+app.get('/api/sessions/:id/recording/:turn', (req, res) => {
+  // Minimal valid MP3 frame (silent)
+  const silentMp3 = Buffer.from(
+    'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRwmHAAAAAAD/+1DEAAAHAAGf9AAAIgAAM/8AAABM',
+    'base64'
+  )
+  res.setHeader('Content-Type', 'audio/mpeg')
+  res.setHeader('Content-Length', silentMp3.length)
+  res.end(silentMp3)
+})
+
+app.post('/api/sessions/:id/review', (req, res) => {
+  setTimeout(() => {
+    res.json({
+      review: '整体表现：你在面试场景中的表达比较流利，能够清楚地描述自己的工作经验和技术栈。\n\n主要错误模式：介词使用偶尔不准确（如 "for the backend" 应为 "on the backend"），以及名词短语中遗漏 "of" 等小词。\n\n改进建议：建议多注意介词搭配的固定用法，可以通过阅读技术文章来积累常见的表达方式。整体来看进步明显，继续保持练习节奏。',
+    })
+  }, 800)
+})
+
+// --- Daily Tip ---
+app.get('/api/daily-tip', (req, res) => {
+  res.json({
+    date: new Date().toISOString().slice(0, 10),
+    tip: {
+      type: 'expression',
+      scenario: 'Coffee Shop',
+      phrase: 'What can I get you?',
+      phonetic: '/wɒt kæn aɪ ɡet juː/',
+      meaning: '您要点什么？（店员用语）',
+      example: 'Hi there! What can I get you today?',
+    },
+  })
+})
+
+// --- Scenario Recommendation ---
+app.get('/api/recommend', (req, res) => {
+  const recommended = SCENARIOS.filter(s => s.difficulty === 'beginner').slice(0, 4)
+    .concat(SCENARIOS.filter(s => s.difficulty === 'intermediate').slice(0, 2))
+  res.json({
+    level: null,
+    message: 'Take the level test for personalized recommendations!',
+    scenarios: recommended,
+  })
+})
+
+// --- Analytics ---
+app.get('/api/analytics', (req, res) => {
+  const days = parseInt(req.query.days) || 30
+  res.json({
+    vocabulary_trend: [
+      { week: '2026-W20', unique_words: 45 },
+      { week: '2026-W21', unique_words: 82 },
+      { week: '2026-W22', unique_words: 134 },
+      { week: '2026-W23', unique_words: 189 },
+    ],
+    pronunciation_curve: [
+      { date: '2026-06-02', avg_score: 72.3 },
+      { date: '2026-06-03', avg_score: 74.8 },
+      { date: '2026-06-04', avg_score: 76.1 },
+      { date: '2026-06-05', avg_score: 78.5 },
+      { date: '2026-06-06', avg_score: 80.2 },
+    ],
+    error_distribution: {
+      grammar_tense: 12,
+      grammar_articles: 8,
+      grammar_prepositions: 6,
+      vocabulary: 4,
+      pronunciation: 3,
+      other: 5,
+    },
+    scenario_coverage: {
+      coffee_shop: 5,
+      interview: 4,
+      restaurant: 3,
+      smalltalk: 6,
+      meeting: 2,
+    },
+    practice_duration: [
+      { date: '2026-06-02', minutes: 8.5 },
+      { date: '2026-06-03', minutes: 12.0 },
+      { date: '2026-06-04', minutes: 6.5 },
+      { date: '2026-06-05', minutes: 15.0 },
+      { date: '2026-06-06', minutes: 10.0 },
+    ],
+    summary: {
+      total_sessions: 20,
+      total_words_spoken: 1847,
+      unique_words: 189,
+    },
+  })
 })
 
 // ========== Start ==========

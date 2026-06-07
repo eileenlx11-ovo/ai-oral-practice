@@ -10,9 +10,13 @@ const routes = [
   { path: '/stories', name: 'Stories', component: () => import('../story/StoryListView.vue') },
   { path: '/story/:storyId', name: 'Story', component: () => import('../story/StoryView.vue') },
   { path: '/interview-prep', name: 'InterviewPrep', component: () => import('../interview/InterviewPrepView.vue') },
+  { path: '/guide/:scenario', name: 'Guide', component: () => import('../guide/ScenarioGuideView.vue') },
   { path: '/pronunciation', name: 'Pronunciation', component: () => import('../pronunciation/PronunciationView.vue') },
   { path: '/dashboard', name: 'Dashboard', component: () => import('../dashboard/DashboardView.vue') },
   { path: '/assessment', name: 'Assessment', component: () => import('../assessment/LevelTest.vue') },
+  { path: '/topic', name: 'CustomTopic', component: () => import('../topic/CustomTopicView.vue') },
+  { path: '/achievements', name: 'Achievements', component: () => import('../achievements/AchievementsView.vue') },
+  { path: '/playback/:sessionId', name: 'Playback', component: () => import('../playback/PlaybackView.vue') },
   { path: '/settings', name: 'Settings', component: () => import('../settings/SettingsView.vue'), meta: { requiresAuth: true } },
 ]
 

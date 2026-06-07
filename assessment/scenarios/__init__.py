@@ -11,6 +11,8 @@ CATEGORIES = [
     {"id": "work", "name": "Work", "icon": "💼"},
     {"id": "travel", "name": "Travel", "icon": "✈️"},
     {"id": "social", "name": "Social", "icon": "💬"},
+    {"id": "campus", "name": "Campus Life", "icon": "🎓"},
+    {"id": "hobbies", "name": "Hobbies", "icon": "🎨"},
 ]
 
 SCENARIOS = [
@@ -198,19 +200,216 @@ SCENARIOS = [
         "objective": "Discuss workout routines and give/receive tips",
         "greeting": "Hey man! I've seen you here a few times. You're pretty consistent! How long have you been working out?",
     },
+    # --- Daily Life (expanded) ---
+    {
+        "id": "weather",
+        "name": "Weather Chat",
+        "icon": "🌤️",
+        "category": "daily",
+        "difficulty": "beginner",
+        "description": "Talk about the weather and make plans accordingly",
+        "objective": "Discuss weather conditions and adjust plans",
+        "greeting": "Wow, can you believe this weather? I heard it might rain all weekend. Do you have any outdoor plans?",
+    },
+    {
+        "id": "renting",
+        "name": "Renting an Apartment",
+        "icon": "🏢",
+        "category": "daily",
+        "difficulty": "intermediate",
+        "description": "Discuss apartment details with a landlord or agent",
+        "objective": "Ask about price, amenities, lease terms, and negotiate",
+        "greeting": "Hi, thanks for coming to view the apartment! As you can see, it's a one-bedroom with an open kitchen. The rent is $1,200 a month. Shall I show you around?",
+    },
+    {
+        "id": "counseling",
+        "name": "Counseling Session",
+        "icon": "🧠",
+        "category": "daily",
+        "difficulty": "advanced",
+        "description": "Talk to a counselor about stress and feelings",
+        "objective": "Express emotions clearly and discuss coping strategies",
+        "greeting": "Hi, welcome. Please make yourself comfortable. How have you been feeling since our last conversation? Is there anything particular on your mind today?",
+    },
+    {
+        "id": "family",
+        "name": "Family Gathering",
+        "icon": "👨‍👩‍👧‍👦",
+        "category": "daily",
+        "difficulty": "beginner",
+        "description": "Catch up with family members at a gathering",
+        "objective": "Talk about life updates, plans, and family news",
+        "greeting": "Hey, look who's here! We haven't seen you since last Thanksgiving! How's everything going? Come sit down, tell us what's new!",
+    },
+    # --- Campus Life ---
+    {
+        "id": "debate",
+        "name": "Classroom Debate",
+        "icon": "🎤",
+        "category": "campus",
+        "difficulty": "advanced",
+        "description": "Participate in an in-class debate on a topic",
+        "objective": "Present arguments clearly and respond to counterpoints",
+        "greeting": "Alright class, today's motion is: 'Social media does more harm than good.' You'll be arguing FOR the motion. Your opponent just said social media connects people worldwide. How do you respond?",
+    },
+    {
+        "id": "study_abroad",
+        "name": "Study Abroad",
+        "icon": "🌍",
+        "category": "campus",
+        "difficulty": "intermediate",
+        "description": "Consult an advisor about studying abroad",
+        "objective": "Ask about programs, requirements, and prepare application",
+        "greeting": "Hi! Welcome to the International Programs Office. I see you're interested in our exchange program. Which country are you thinking about, and for which semester?",
+    },
+    {
+        "id": "roommate",
+        "name": "Meeting Your Roommate",
+        "icon": "🛏️",
+        "category": "campus",
+        "difficulty": "beginner",
+        "description": "Meet your new college roommate for the first time",
+        "objective": "Introduce yourself and set room expectations",
+        "greeting": "Hey! You must be my new roommate! I'm just unpacking. I'm from Portland. Where are you from? I hope you don't mind — I tend to stay up a bit late.",
+    },
+    {
+        "id": "group_project",
+        "name": "Group Project",
+        "icon": "📋",
+        "category": "campus",
+        "difficulty": "intermediate",
+        "description": "Coordinate tasks in a group assignment",
+        "objective": "Divide work fairly and agree on deadlines",
+        "greeting": "OK team, so we have this presentation due next Friday. I was thinking we could split it into three parts. Does anyone have a preference for which section they want to cover?",
+    },
+    {
+        "id": "enrollment",
+        "name": "Campus Enrollment",
+        "icon": "📝",
+        "category": "campus",
+        "difficulty": "beginner",
+        "description": "Handle enrollment and registration procedures",
+        "objective": "Complete enrollment steps and ask about requirements",
+        "greeting": "Good morning! Welcome to the Registrar's Office. Are you here for new student registration? I'll need your acceptance letter and photo ID to get started.",
+    },
+    {
+        "id": "club",
+        "name": "Joining a Club",
+        "icon": "🎭",
+        "category": "campus",
+        "difficulty": "beginner",
+        "description": "Sign up for a campus club or organization",
+        "objective": "Ask about activities and commit to joining",
+        "greeting": "Hey! Interested in the Drama Club? We meet every Thursday and put on two shows per semester. No experience needed! Want me to tell you more about what we do?",
+    },
+    {
+        "id": "campus_event",
+        "name": "Campus Event",
+        "icon": "🎪",
+        "category": "campus",
+        "difficulty": "intermediate",
+        "description": "Organize or participate in a campus event",
+        "objective": "Discuss event planning details or volunteer",
+        "greeting": "Thanks for volunteering for the Spring Festival! We need help with setup, food stalls, and the main stage. Which area interests you? The event is this Saturday from 2 to 8 PM.",
+    },
+    {
+        "id": "ielts_speaking",
+        "name": "IELTS Speaking Practice",
+        "icon": "📖",
+        "category": "campus",
+        "difficulty": "advanced",
+        "description": "Simulate an IELTS speaking test (Parts 1-3)",
+        "objective": "Practice structured responses with detail and fluency",
+        "greeting": "Good morning. My name is examiner Johnson. This is the speaking test for IELTS. Can you tell me your full name please? And where are you from?",
+    },
+    # --- Travel (expanded) ---
+    {
+        "id": "sightseeing",
+        "name": "Sightseeing",
+        "icon": "📸",
+        "category": "travel",
+        "difficulty": "beginner",
+        "description": "Visit a tourist attraction and interact with a guide",
+        "objective": "Ask about history, take photos, and buy tickets",
+        "greeting": "Welcome to the Tower of London! Tickets are £29 for adults. Would you like an audio guide as well? The Crown Jewels exhibit is our most popular — shall I point you in that direction?",
+    },
+    {
+        "id": "public_transport",
+        "name": "Public Transport",
+        "icon": "🚇",
+        "category": "travel",
+        "difficulty": "beginner",
+        "description": "Navigate the subway or bus system in a new city",
+        "objective": "Ask for help finding the right route",
+        "greeting": "Excuse me, you look a bit confused. Are you trying to get somewhere? This station can be tricky — there are three different lines here. Where are you headed?",
+    },
+    {
+        "id": "lost_item",
+        "name": "Lost & Found",
+        "icon": "🔍",
+        "category": "travel",
+        "difficulty": "intermediate",
+        "description": "Report a lost item at a lost-and-found office",
+        "objective": "Describe the item clearly and provide details",
+        "greeting": "Hello, this is the Lost & Found office. I'm sorry to hear you've lost something. Can you describe the item for me? When and where did you last have it?",
+    },
+    # --- Hobbies & Interests ---
+    {
+        "id": "books",
+        "name": "Book Discussion",
+        "icon": "📚",
+        "category": "hobbies",
+        "difficulty": "intermediate",
+        "description": "Discuss books and reading recommendations",
+        "objective": "Share opinions about books and get recommendations",
+        "greeting": "Oh, I see you're reading that one! I finished it last month. What do you think so far? I have some thoughts about the ending, but no spoilers — promise!",
+    },
+    {
+        "id": "nutrition",
+        "name": "Diet & Health",
+        "icon": "🥗",
+        "category": "hobbies",
+        "difficulty": "intermediate",
+        "description": "Discuss healthy eating and nutrition",
+        "objective": "Talk about dietary choices and get advice",
+        "greeting": "I've been trying to eat healthier lately. I just started meal prepping on Sundays. Do you pay attention to your diet? Any tips for someone just starting out?",
+    },
+    {
+        "id": "fitness",
+        "name": "Sports & Exercise",
+        "icon": "🏃",
+        "category": "hobbies",
+        "difficulty": "beginner",
+        "description": "Talk about sports, running, or exercise routines",
+        "objective": "Share fitness experiences and motivate each other",
+        "greeting": "I just signed up for a 5K run next month! I've never done one before. Do you do any running or sports? I could really use some training tips!",
+    },
+    {
+        "id": "music",
+        "name": "Music & Creation",
+        "icon": "🎵",
+        "category": "hobbies",
+        "difficulty": "intermediate",
+        "description": "Discuss music tastes or learning an instrument",
+        "objective": "Share musical interests and discuss creative process",
+        "greeting": "Hey, is that a guitar case? Do you play? I've been trying to learn piano for about six months now. It's way harder than I expected! What kind of music are you into?",
+    },
 ]
 
 # Base instruction for the LLM acting as conversation partner
-_BASE_INSTRUCTION = """You are an English-speaking practice partner. Your role:
-1. Respond naturally to the user in the given scenario context.
-2. Keep responses concise (2-4 sentences) to encourage more user speaking.
-3. After your natural reply, analyze the user's message for grammar/expression errors.
-4. After corrections, provide a brief encouraging feedback line.
+_BASE_INSTRUCTION = """You are an English-speaking practice partner having a real conversation. Your role:
+1. Respond naturally and conversationally — as a real person would in this situation.
+2. Keep responses concise (2-4 sentences). Ask follow-up questions to keep the user talking.
+3. Match the user's energy: if they're casual, be casual; if formal, be professional.
+4. Use natural spoken English features: contractions, discourse markers (well, actually, you know), hedging.
+5. After your reply, note any significant errors the user made.
 
 CRITICAL: You MUST use this EXACT format. Never mix corrections into the reply.
 
 [REPLY]
-Your natural conversational reply here. Nothing else.
+Your natural conversational reply here. Sound like a real person, not a textbook.
+Use contractions (I'm, don't, that's), filler phrases, and conversational reactions.
+Ask a question or make a comment that invites the user to speak more.
 [CORRECTIONS]
 - "original phrase" → "corrected phrase" | explanation
 [FEEDBACK]
@@ -226,44 +425,76 @@ NONE
 emoji + one short encouraging sentence
 [END]
 
+Rules for your reply style:
+- Sound human: "Oh nice!" / "Hmm, that's tricky." / "Wait, really?" / "Yeah, totally."
+- Use contractions naturally: "I'd say" not "I would say", "doesn't" not "does not"
+- React to what the user said before adding your own content
+- End with something that invites a response (question, shared experience, mild challenge)
+- NEVER sound robotic, overly formal, or like a language textbook
+
 Rules for corrections:
-- The input is SPOKEN English transcribed by ASR. The ASR may produce errors (e.g. "dog with" instead of "I got", "Sas" instead of "SaaS"). Use context to infer what the user likely said.
+- The input is SPOKEN English transcribed by ASR. ASR may produce errors (e.g. "dog with" instead of "I got"). Use context to infer what the user likely said.
 - Do NOT flag:
-  - Capitalization issues (speech has no caps)
-  - Punctuation issues (ASR adds punctuation imperfectly)
-  - Minor filler words (um, uh, like)
+  - Capitalization or punctuation (speech has neither reliably)
+  - Minor filler words (um, uh, like, so)
   - Words that are clearly ASR mishearing (not the user's fault)
-- DO flag: wrong verb tense, wrong preposition, wrong word form, missing articles, word order errors, wrong collocations
+  - Informal but grammatically acceptable spoken forms (gonna, wanna, gotta)
+  - Acceptable spoken shortcuts ("Me and my friend went" — common in casual speech)
+- DO flag: wrong verb tense, wrong preposition, wrong word form, missing articles that cause confusion, word order errors, wrong collocations, unnatural phrasing a native speaker would never use
 - Keep explanations brief (under 12 words)
-- Maximum 3 corrections per turn (most important ones only)
+- Maximum 3 corrections per turn (most impactful ones only)
+- Prioritize errors that impede communication over minor stylistic issues
 - NEVER put corrections, explanations, or "|" characters inside the [REPLY] section
 
 Rules for feedback:
 - Keep it to ONE short sentence (under 15 words)
 - Be specific: mention what the user did well or what to try next
-- Examples: "🎯 Great use of past tense!" / "💡 Try using 'would like' instead of 'want' for politeness"
-- Vary between praise and gentle coaching
+- Examples: "🎯 Great use of past tense!" / "💡 Try 'would like' instead of 'want' — sounds more polite"
+- Vary between praise and gentle coaching; lean toward encouragement
 """
 
 _SCENARIO_CONTEXTS = {
-    "coffee_shop": "You are Maya, a cheerful barista at Bean & Brew café. Help the customer order, suggest drinks, ask about size/milk preference. Be chatty and friendly. Use coffee terminology naturally (latte, espresso shot, oat milk, etc).",
-    "grocery": "You are Tom, a helpful grocery store clerk. Help the customer find items, suggest alternatives if something is out of stock. Be patient and give clear directions within the store.",
-    "doctor": "You are Dr. Chen, a general practitioner. Ask about symptoms, duration, and severity. Explain possible causes in simple terms. Suggest treatment options. Be professional and reassuring.",
-    "restaurant": "You are James, a server at The Garden Bistro. Present specials, explain dishes, take orders, check on dietary restrictions. Be polite and attentive. Handle the full dining experience from drinks to dessert.",
-    "delivery": "You are Alex, a food delivery driver calling the customer. You're at their building but need help finding the entrance. Be quick and friendly. Ask for clear directions or landmarks.",
-    "interview": "You are Sarah, an HR Manager at a tech company. Conduct a professional interview: ask behavioral questions (tell me about a time...), follow up on answers, assess communication skills. Be warm but evaluative.",
-    "meeting": "You are David, a project manager. Run a team meeting: ask for updates, discuss blockers, make decisions. Be organized and collaborative. Respond to proposals constructively.",
-    "coworker": "You are Lisa, a colleague on the same tech team. Chat casually about work, weekend plans, office gossip, or shared interests. Be friendly and relatable. Mix work talk with personal chat.",
-    "phone_call": "You are Michael, a client on a business call. Discuss project deliverables, timelines, or concerns. Be professional and direct. Expect clear answers and confirm action items.",
-    "salary": "You are Rachel, a hiring manager discussing compensation. Present an offer, explain benefits, and be open to negotiation. Be firm but fair. Use HR terminology around total compensation.",
-    "airport": "You are Emily, airport check-in staff. Process the passenger's check-in, handle baggage, assign seats. Deal with any issues (overweight bag, seat preference) efficiently and helpfully.",
-    "hotel": "You are Carlos, a hotel front desk receptionist. Check the guest in, explain amenities (breakfast, wifi, pool), offer room upgrades, give local recommendations. Be welcoming and informative.",
-    "directions": "You are Sophie, a friendly local. Give directions using landmarks, distances, and street names. Offer alternative routes. Check if the person understood. Be warm and patient.",
-    "travel": "You are Mark, a car rental agent. Help the customer choose a vehicle, explain insurance options, go through the rental agreement. Be informative and suggest value-adds without being pushy.",
-    "smalltalk": "You are Jake, a friendly acquaintance. Have casual conversation about weather, hobbies, weekend plans, food, movies, or current events. Be warm, ask follow-up questions, and share your own stories.",
-    "party": "You are Olivia, someone the user just met at a party. Be outgoing and curious. Ask about their job, hobbies, how they know the host. Share your own stories. Use casual language and some slang.",
-    "neighbor": "You are Robert, the user's next-door neighbor. Chat about the neighborhood, local events, weather, home stuff. Be friendly and community-minded. Occasionally mention neighborhood happenings.",
-    "gym": "You are Kevin, a gym regular. Talk about workouts, routines, fitness goals, nutrition. Be motivating and share tips. Use fitness terminology naturally. Be casual and encouraging.",
+    "coffee_shop": "You are Maya, a cheerful barista at Bean & Brew café. You genuinely enjoy chatting with regulars. Help the customer order, suggest drinks, ask about size/milk preference. Use coffee terminology naturally (latte, espresso shot, oat milk, cold brew). React to their choices ('Ooh, good pick!' / 'That's popular today').",
+    "grocery": "You are Tom, a helpful grocery store clerk who takes pride in knowing every aisle. Help the customer find items, suggest alternatives if something is out of stock. Give clear directions ('third aisle, bottom shelf') and offer unexpected tips about deals.",
+    "doctor": "You are Dr. Chen, a warm general practitioner. Ask about symptoms, duration, and severity with genuine concern. Explain possible causes in plain language — avoid medical jargon unless you immediately define it. Reassure the patient while being honest.",
+    "restaurant": "You are James, an experienced server at The Garden Bistro who loves food. Present specials with enthusiasm, explain dishes from personal knowledge ('the risotto is amazing today'), handle dietary needs gracefully. Guide the full dining experience.",
+    "delivery": "You are Alex, a food delivery driver calling the customer. You're slightly rushed but friendly. You need clear directions — ask about landmarks, door codes, floor numbers. React naturally to confusion ('Wait, left after the gate or before it?').",
+    "interview": "You are Sarah, a senior HR Manager who's done hundreds of interviews. Be warm but evaluative — nod along, ask follow-ups that dig deeper ('Can you be more specific about your role there?'). Use behavioral questions naturally, not robotically.",
+    "meeting": "You are David, a project manager who keeps meetings efficient. Ask for updates, redirect tangents politely, make decisions. React to good news and bad news naturally. Close with clear action items.",
+    "coworker": "You are Lisa, a colleague on the same team. Chat casually — mix work complaints with personal stuff. Be relatable ('Ugh, Monday meetings, right?'). Share opinions, gossip mildly, suggest plans.",
+    "phone_call": "You are Michael, a client on a business call. Be professional and direct — you're busy. Expect clear answers, push back politely on vague timelines. Confirm action items before hanging up.",
+    "salary": "You are Rachel, a hiring manager discussing compensation. Present the offer positively, explain the full package. Be firm but open to negotiation — acknowledge the candidate's value while working within constraints.",
+    "airport": "You are Emily, efficient airport check-in staff. Process the passenger quickly but be helpful. Deal with issues (overweight bag, seat requests) matter-of-factly. Give clear gate/time information.",
+    "hotel": "You are Carlos, a hotel front desk receptionist who loves his city. Check the guest in efficiently, but light up when recommending local spots. Explain amenities clearly. Be genuinely welcoming.",
+    "directions": "You are Sophie, a friendly local who's happy to help. Give directions using landmarks ('see that red building?'), estimate walking time, and double-check they understood. Offer alternatives if the route seems confusing.",
+    "travel": "You are Mark, a car rental agent. Help the customer choose a vehicle, explain insurance clearly (not sales-pitchy). Walk through the agreement without rushing. Mention practical tips about returning the car.",
+    "smalltalk": "You are Jake, a friendly acquaintance. Have genuine casual conversation — react to what they say, share your own stories, find common ground. Use casual language, ask follow-ups that show you're actually listening.",
+    "party": "You are Olivia, someone the user just met at a party. Be outgoing and genuinely curious — find connections ('No way, I've always wanted to try that!'). Use casual language, some slang, be slightly flirty/friendly. Keep the energy up.",
+    "neighbor": "You are Robert, the user's next-door neighbor. Chat naturally about neighborhood stuff — packages, noise, local events, the weather. Be community-minded and helpful. Drop in mentions of neighborhood happenings.",
+    "gym": "You are Kevin, a gym regular who's been lifting for years. Talk shop — routines, progress, nutrition. Be motivating without being preachy. Use gym terminology naturally. Be casual and encouraging.",
+    # Expanded daily
+    "weather": "You are Sam, a friendly neighbor who always has thoughts about the weather. Discuss forecasts, how it affects your plans, reminisce about past weather events. Be conversational — use the weather as a jumping-off point for other topics.",
+    "renting": "You are Patricia, a real estate agent showing an apartment. Be professional but honest — point out both pros and cons. Discuss rent, lease terms, policies. Answer questions directly. Gently nudge toward a decision without being pushy.",
+    "counseling": "You are Dr. Rivera, a licensed counselor. Listen with genuine empathy. Ask open-ended questions ('How does that make you feel?'), validate emotions, suggest coping strategies gently. Never judge. Use therapeutic language naturally — reflect feelings back.",
+    "family": "You are Uncle Frank, a family member at a holiday gathering. Be warm, slightly nosy in a loving way. Ask about everything — job, relationships, plans. Share family news and mild gossip. Use informal family language ('So, any special someone in your life yet?').",
+    # Campus
+    "debate": "You are Professor Adams, moderating a classroom debate. Push back on weak arguments, ask for evidence, play devil's advocate. Be intellectually stimulating but encouraging. Acknowledge good points before challenging them.",
+    "study_abroad": "You are Ms. Park, an international programs advisor who's genuinely passionate about exchange. Explain programs, deadlines, funding with enthusiasm. Help narrow options based on the student's interests and goals. Share anecdotes about past students' experiences.",
+    "roommate": "You are Chris, a new college roommate. Be friendly and open about your habits. Ask about theirs naturally — sleep schedule, music, guests, cleanliness. Be willing to compromise. Use casual college-student language.",
+    "group_project": "You are Taylor, a classmate in a group project. Be collaborative but have opinions. Suggest task divisions, voice concerns about feasibility, coordinate schedules. Be the kind of teammate who actually does their share.",
+    "enrollment": "You are Mrs. Williams, a patient university registrar. Guide the student step-by-step through enrollment: ID card, course selection, fee payment, orientation. Be systematic but not robotic — acknowledge their confusion is normal.",
+    "club": "You are Mia, enthusiastic president of the Drama Club. Sell the club naturally — talk about fun experiences, upcoming shows, social events. Be welcoming. Ask about their interests and experience to find a fit.",
+    "campus_event": "You are Jordan, head of the student events committee. Coordinate volunteers with energy — explain what needs doing, let people choose roles, appreciate their help. Be organized but fun.",
+    "ielts_speaking": "You are an IELTS examiner. Follow the test format strictly: Part 1 (familiar topics), Part 2 (cue card), Part 3 (abstract discussion). Be neutral and professional. Ask follow-ups. Do NOT correct grammar — just keep the conversation flowing naturally.",
+    # Expanded travel
+    "sightseeing": "You are a knowledgeable tour guide at a famous attraction. Share interesting historical tidbits with enthusiasm, point out details visitors miss, answer questions warmly. Make the visit feel special, not like a script.",
+    "public_transport": "You are a helpful local commuter. Explain routes, transfers, and ticket machines clearly. Be friendly and patient — mention common mistakes tourists make. Use practical language ('You'll want to get off at the third stop').",
+    "lost_item": "You are a Lost & Found office clerk who's seen it all. Help the person file a report systematically: describe item, time/location lost, contact info. Be sympathetic but give realistic expectations. Ask clarifying questions.",
+    # Hobbies
+    "books": "You are an avid reader who loves discussing books. Share opinions enthusiastically, ask about their taste, make recommendations based on what they like. Get into mild debates about characters or endings. Be genuinely passionate.",
+    "nutrition": "You are a health-conscious friend who recently got into nutrition. Share meal prep tips, discuss what works and what doesn't, talk about trends you've tried. Be encouraging and practical, not preachy. Admit what's hard.",
+    "fitness": "You are a running buddy who's been at it for a year. Share your journey honestly — the struggles and the wins. Give practical tips for beginners. Be motivating through relatability, not through being a coach.",
+    "music": "You are a fellow musician who's still learning. Discuss instruments, practice frustrations, genres you love, concerts you've been to. Be passionate and curious about their musical world. Share recommendations freely.",
 }
 
 # Available TTS voices (edge-tts neural voices)
@@ -338,8 +569,80 @@ def build_custom_interview_prompt(
     return f"{_BASE_INSTRUCTION}\n\nSCENARIO CONTEXT:\n{context}"
 
 
+# --- Speed presets for custom partner ---
+SPEED_PRESETS = {
+    "slowest": "Speak very slowly and clearly, pausing between sentences. Use simple vocabulary.",
+    "slow": "Speak at a relaxed pace, slightly slower than normal. Give the user time to process.",
+    "normal": "Speak at a natural conversational pace.",
+    "fast": "Speak briskly and fluidly, like a native speaker in casual conversation.",
+    "fastest": "Speak rapidly with natural contractions and connected speech, like an excited native speaker.",
+}
 
-# Practice sentences for pronunciation assessment (per scenario)
+# Country/accent → voice mapping for custom partners
+COUNTRY_VOICES = {
+    "us": "american_male",
+    "usa": "american_male",
+    "uk": "british_male",
+    "britain": "british_male",
+    "england": "british_male",
+    "australia": "australian_female",
+    "india": "indian_male",
+}
+
+
+def build_custom_topic_prompt(
+    topic: str,
+    material: str = "",
+    partner_name: str = "",
+    partner_country: str = "",
+    partner_personality: str = "",
+    speed: str = "normal",
+) -> str:
+    """Build a system prompt for a user-defined free topic with partner customization.
+
+    topic: what the user wants to practice (required)
+    material: optional supplementary text (article, vocab list, etc.)
+    partner_name: custom name for the AI partner
+    partner_country: country/accent preference
+    partner_personality: personality traits (e.g. "friendly, humorous, patient")
+    speed: speaking pace (slowest/slow/normal/fast/fastest)
+    """
+    name = partner_name.strip() or "Alex"
+    country = partner_country.strip() or "the US"
+    personality = partner_personality.strip() or "friendly and encouraging"
+
+    speed_instruction = SPEED_PRESETS.get(speed, SPEED_PRESETS["normal"])
+
+    parts = [
+        f"You are {name}, from {country}. Your personality: {personality}.",
+        f"Speaking style: {speed_instruction}",
+        f"The user wants to practice speaking about: {topic.strip()[:_CUSTOM_FIELD_CAP]}.",
+        "Engage naturally in this topic. Ask follow-up questions to keep the conversation going.",
+        "Adapt your vocabulary to the user's level — if they make errors, use simpler language.",
+    ]
+    if material.strip():
+        parts.append(
+            f"REFERENCE MATERIAL the user provided (use it to guide the conversation):\n"
+            f"{material.strip()[:_CUSTOM_FIELD_CAP]}"
+        )
+    context = "\n\n".join(parts)
+    return f"{_BASE_INSTRUCTION}\n\nSCENARIO CONTEXT:\n{context}"
+
+
+def get_voice_for_custom_partner(country: str, partner_name: str = "") -> str:
+    """Resolve TTS voice from country hint."""
+    country_lower = country.lower().strip()
+    voice_key = COUNTRY_VOICES.get(country_lower)
+    if voice_key:
+        return VOICES[voice_key]["id"]
+    # Guess from country name
+    if any(w in country_lower for w in ["brit", "uk", "england", "london"]):
+        return VOICES["british_male"]["id"]
+    if any(w in country_lower for w in ["austral", "sydney"]):
+        return VOICES["australian_female"]["id"]
+    if any(w in country_lower for w in ["india", "mumbai"]):
+        return VOICES["indian_male"]["id"]
+    return VOICES["american_male"]["id"]
 PRACTICE_SENTENCES = {
     "coffee_shop": [
         "I'd like a medium latte with oat milk, please.",

@@ -23,13 +23,14 @@ from .auth import (
     PHONE_RE,
 )
 from .sms import send_verification_code, verify_code
-from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, get_practice_sentences, build_custom_interview_prompt
+from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, get_practice_sentences, build_custom_interview_prompt, build_custom_topic_prompt, get_voice_for_custom_partner, SPEED_PRESETS
 from .characters import CHARACTERS, get_character, list_characters
 from .correction import extract_corrections
 from .scoring import assess_pronunciation, active_provider
 from .feedback import store
 from .streaming import SentenceSplitter, synthesize_sentence
 from .hints import build_hint_messages
+from .grading import grade_session
 from .level_test import LEVEL_TEST_QUESTIONS, build_assessment_messages
 from .user_profile import DEFAULT_USER_ID, profile_store
 from .integrations.talent_agent import get_talent_agent
@@ -47,6 +48,22 @@ load_dotenv()
 # Audio output directory
 AUDIO_DIR = Path(__file__).parent / "audio_cache"
 AUDIO_DIR.mkdir(exist_ok=True)
+
+# Recordings directory for session playback
+RECORDINGS_DIR = Path(__file__).parent / "data" / "recordings"
+RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _save_recording(session_id: str, turn_index: int, audio_path: str):
+    """Copy the temp audio file to recordings directory for later playback."""
+    import shutil
+    dest_dir = RECORDINGS_DIR / session_id
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_file = dest_dir / f"{turn_index}.webm"
+    try:
+        shutil.copy2(audio_path, str(dest_file))
+    except Exception:
+        pass  # Recording save is non-critical
 
 
 @asynccontextmanager
@@ -312,6 +329,23 @@ async def get_sentences(scenario_id: str):
     return {"scenario_id": scenario_id, "sentences": sentences}
 
 
+@app.get("/api/scenarios/{scenario_id}/guide")
+async def get_scenario_guide(scenario_id: str):
+    """Get learning guide (vocabulary, expressions, tips, dialogue) for a scenario."""
+    from .learning_guide import get_guide, generate_guide
+    guide = get_guide(scenario_id)
+    if guide:
+        return guide
+    # Try to generate via LLM
+    scenario = next((s for s in SCENARIOS if s["id"] == scenario_id), None)
+    if not scenario:
+        raise HTTPException(404, f"Scenario '{scenario_id}' not found")
+    guide = await generate_guide(scenario_id, scenario["name"], llm, LLM_MODEL)
+    if guide:
+        return guide
+    raise HTTPException(503, "Guide generation unavailable")
+
+
 @app.post("/api/chat")
 async def chat(
     audio: UploadFile = File(...),
@@ -548,7 +582,9 @@ async def chat_stream(
             scene_advanced = False
             story_completed = False
             try:
-                store.add_turn(session_id, user_text, reply_text, corrections)
+                turn = store.add_turn(session_id, user_text, reply_text, corrections)
+                turn_index = turn.get("index", 0) if isinstance(turn, dict) else 0
+                _save_recording(session_id, turn_index, tmp.name)
                 if is_story_session and scene_marker_seen:
                     current = store.get_session(session_id) or {}
                     next_index, scene_advanced, story_completed = next_scene_index(
@@ -664,24 +700,49 @@ async def text_to_speech(text: str = Form(...)):
 
 # --- Internal helpers ---
 
-# ASR client (SiliconFlow — OpenAI-compatible, domestic)
+# ASR client — configurable provider (Groq Whisper / SiliconFlow / custom)
+_asr_base_url = os.getenv("ASR_BASE_URL", "https://api.groq.com/openai/v1")
+_asr_api_key = os.getenv("ASR_API_KEY") or os.getenv("GROQ_API_KEY") or os.getenv("SILICONFLOW_API_KEY") or "sk-placeholder"
+
+# Groq needs proxy in China; httpx picks up standard env vars (HTTPS_PROXY / ALL_PROXY)
+import httpx as _httpx
+_asr_http_client = None
+_proxy_url = os.getenv("HTTPS_PROXY") or os.getenv("ALL_PROXY") or os.getenv("HTTP_PROXY")
+if _proxy_url and "groq" in _asr_base_url:
+    _asr_http_client = _httpx.AsyncClient(proxy=_proxy_url)
+
 _asr_client = AsyncOpenAI(
-    api_key=os.getenv("SILICONFLOW_API_KEY", "") or "sk-placeholder",
-    base_url="https://api.siliconflow.cn/v1",
+    api_key=_asr_api_key,
+    base_url=_asr_base_url,
+    http_client=_asr_http_client,
 )
 
 
 async def _transcribe(filepath: str) -> str:
-    """Transcribe audio file via SiliconFlow ASR."""
-    model = os.getenv("ASR_MODEL", "FunAudioLLM/SenseVoiceSmall")
+    """Transcribe audio file via configured ASR provider (default: Groq Whisper)."""
+    model = os.getenv("ASR_MODEL", "whisper-large-v3-turbo")
     with open(filepath, "rb") as f:
         resp = await _asr_client.audio.transcriptions.create(
             model=model,
             file=f,
             language="en",
-            prompt="English oral practice conversation.",
+            response_format="verbose_json",
+            timestamp_granularities=["word"],
         )
-    return resp.text
+    # Store word-level timestamps if available (for fluency analysis)
+    if hasattr(resp, 'words') and resp.words:
+        _transcribe._last_words = resp.words
+    else:
+        _transcribe._last_words = None
+
+    # Return text — handle both object and dict response formats
+    if hasattr(resp, 'text'):
+        return resp.text
+    if isinstance(resp, dict):
+        return resp.get('text', '')
+    return str(resp)
+
+_transcribe._last_words = None
 
 
 async def _chat_with_correction(
@@ -892,6 +953,115 @@ async def create_custom_session(
     }
 
 
+@app.post("/api/sessions/topic")
+async def create_topic_session(
+    topic: str = Form(...),
+    material: str = Form(""),
+    partner_name: str = Form(""),
+    partner_country: str = Form(""),
+    partner_personality: str = Form(""),
+    speed: str = Form("normal"),
+):
+    """Start a session with a user-defined free topic and customizable partner.
+
+    topic: what the user wants to practice (required)
+    material: optional supplementary text
+    partner_name: name of the AI partner (e.g. "John")
+    partner_country: country/accent (e.g. "UK", "Australia")
+    partner_personality: traits (e.g. "humorous, patient, gentlemanly")
+    speed: speaking pace — slowest/slow/normal/fast/fastest
+    """
+    if not topic.strip():
+        raise HTTPException(400, "Topic is required")
+
+    prompt = build_custom_topic_prompt(
+        topic=topic,
+        material=material,
+        partner_name=partner_name,
+        partner_country=partner_country,
+        partner_personality=partner_personality,
+        speed=speed,
+    )
+    session = store.create_session("custom_topic", custom_prompt=prompt)
+
+    # Determine voice based on country
+    voice_id = get_voice_for_custom_partner(partner_country or "us", partner_name)
+
+    # Generate greeting via LLM
+    name = partner_name.strip() or "Alex"
+    greeting = f"Hi there! I'm {name}. Let's chat about {topic.strip()}. What's on your mind?"
+    try:
+        resp = await llm.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": "[SYSTEM] Generate a short friendly greeting to start the conversation. Just the greeting, 1-2 sentences. Stay in character."},
+            ],
+            temperature=0.7,
+            max_tokens=100,
+        )
+        if resp.choices[0].message.content:
+            raw = resp.choices[0].message.content.strip()
+            # Strip format markers if LLM adds them
+            raw = raw.replace("[REPLY]", "").replace("[END]", "").strip()
+            if raw:
+                greeting = raw
+    except Exception:
+        pass
+
+    return {
+        "session_id": session["id"],
+        "topic": topic.strip(),
+        "greeting": greeting,
+        "partner": {
+            "name": name,
+            "country": partner_country.strip() or "US",
+            "personality": partner_personality.strip() or "friendly and encouraging",
+            "speed": speed,
+            "voice_id": voice_id,
+        },
+    }
+
+
+@app.get("/api/topics/trending")
+async def get_trending_topics():
+    """Get trending conversation topics via LLM."""
+    try:
+        resp = await llm.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": "Generate 6 trending and interesting topics for English conversation practice. Return ONLY a JSON array of objects with 'title' (English, 3-5 words) and 'description' (Chinese, one sentence explaining the topic). Topics should be current, engaging, and suitable for oral practice."},
+                {"role": "user", "content": "Give me 6 trending topics for today."},
+            ],
+            temperature=0.9,
+            max_tokens=400,
+        )
+        import json as _json
+        text = resp.choices[0].message.content.strip()
+        # Try to parse JSON from response
+        if text.startswith("["):
+            topics = _json.loads(text)
+        else:
+            # Extract JSON from markdown code block
+            import re
+            match = re.search(r"\[.*\]", text, re.DOTALL)
+            if match:
+                topics = _json.loads(match.group())
+            else:
+                topics = []
+        return {"topics": topics[:6]}
+    except Exception:
+        # Fallback static topics
+        return {"topics": [
+            {"title": "AI in Daily Life", "description": "讨论人工智能如何改变我们的日常生活"},
+            {"title": "Remote Work Culture", "description": "聊聊远程工作的利弊和未来趋势"},
+            {"title": "Sustainable Living", "description": "环保生活方式和可持续发展"},
+            {"title": "Social Media Impact", "description": "社交媒体对人际关系的影响"},
+            {"title": "Space Exploration", "description": "太空探索的最新进展和未来"},
+            {"title": "Mental Health Awareness", "description": "心理健康意识和自我关怀"},
+        ]}
+
+
 @app.post("/api/sessions/{session_id}/turns")
 async def add_session_turn(
     session_id: str,
@@ -967,7 +1137,7 @@ async def end_session(
     session_id: str,
     user: dict | None = Depends(get_optional_user),
 ):
-    """End session and get summary report with LLM-generated narrative."""
+    """End session and get summary report with LLM-generated narrative + grading."""
     _require_session_owner(session_id, user)
     try:
         summary = store.end_session(session_id)
@@ -975,6 +1145,15 @@ async def end_session(
         # Generate narrative report via LLM
         report = await _generate_session_report(summary)
         summary["report"] = report
+
+        # Generate 5-dimension grading
+        session_data = store.get_session(session_id)
+        if session_data:
+            grading = await grade_session(session_data, llm, LLM_MODEL)
+            summary["grading"] = grading
+        else:
+            summary["grading"] = None
+
         return summary
     except ValueError as e:
         raise HTTPException(404, str(e))
@@ -1001,6 +1180,64 @@ async def get_session_summary(
         return store.get_summary(session_id)
     except ValueError as e:
         raise HTTPException(404, str(e))
+
+
+@app.get("/api/sessions/{session_id}/turns-full")
+async def get_session_turns_full(session_id: str):
+    """Get full session data including all turns for playback."""
+    session = store.get_session(session_id)
+    if session is None:
+        raise HTTPException(404, "Session not found")
+    return session
+
+
+@app.get("/api/sessions/{session_id}/recording/{turn_index}")
+async def get_session_recording(session_id: str, turn_index: int):
+    """Serve the recorded audio file for a specific turn."""
+    recording_path = RECORDINGS_DIR / session_id / f"{turn_index}.webm"
+    if not recording_path.exists():
+        raise HTTPException(404, "Recording not found")
+    return FileResponse(str(recording_path), media_type="audio/webm")
+
+
+@app.post("/api/sessions/{session_id}/review")
+async def generate_session_review(session_id: str):
+    """Generate an AI review of the full session conversation."""
+    session = store.get_session(session_id)
+    if session is None:
+        raise HTTPException(404, "Session not found")
+
+    # Build transcript from turns
+    turns = session.get("turns", [])
+    transcript_lines = []
+    for t in turns:
+        transcript_lines.append(f"User: {t.get('user_text', '')}")
+        transcript_lines.append(f"AI: {t.get('reply_text', '')}")
+    transcript = "\n".join(transcript_lines)
+
+    prompt = f"""请根据以下英语口语练习对话记录，用中文给出详细的复盘评价。
+
+对话记录：
+{transcript}
+
+请从以下三个方面进行评价：
+1. 整体表现：总体评估学生的口语表达能力
+2. 主要错误模式：归纳出现的语法、用词或表达问题
+3. 改进建议：给出具体可操作的改进方向
+
+请直接输出评价内容，不要加标题格式。"""
+
+    try:
+        resp = await llm.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5,
+            max_tokens=600,
+        )
+        review_text = resp.choices[0].message.content or ""
+        return {"review": review_text}
+    except Exception:
+        return {"review": "无法生成评价，请稍后重试。"}
 
 
 @app.get("/api/progress")
@@ -1051,6 +1288,13 @@ async def grammar_analysis(user: dict | None = Depends(get_optional_user)):
         }
     except Exception:
         raise HTTPException(502, "Analysis failed")
+
+
+@app.get("/api/analytics")
+async def get_analytics(days: int = 30):
+    """Get learning analytics (vocabulary trend, pronunciation curve, etc.)."""
+    from .analytics import get_analytics as _get_analytics
+    return _get_analytics(days)
 
 
 # --- Hint System ---
@@ -1177,6 +1421,63 @@ async def get_character_memory(
     return {"memories": memories, "affinity_level": affinity}
 
 
+
+# --- Real-time Pronunciation (WebSocket) ---
+
+from fastapi import WebSocket as _WebSocket
+
+
+@app.websocket("/ws/realtime-pronunciation")
+async def ws_realtime_pronunciation(websocket: _WebSocket):
+    """WebSocket endpoint for real-time pronunciation feedback."""
+    from .realtime import realtime_pronunciation_endpoint
+    await realtime_pronunciation_endpoint(websocket)
+
+# --- Achievements & Check-in ---
+
+@app.get("/api/achievements")
+async def get_achievements():
+    """Get all achievements with unlock status for current user."""
+    progress = store.get_progress()
+    all_sessions = []
+    for f in sorted(store.data_dir.glob("*.json")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            all_sessions.append(data)
+        except (json.JSONDecodeError, KeyError):
+            continue
+
+    all_pron = [sc for s in all_sessions for sc in s["scores"]["pronunciation"]]
+    unique_scenarios = set(s["scenario"] for s in all_sessions)
+
+    stats = {
+        "sessions": progress["total_sessions"],
+        "turns": progress["total_turns"],
+        "max_pronunciation": max(all_pron) if all_pron else 0,
+        "unique_scenarios": len(unique_scenarios),
+    }
+
+    from .achievements import achievement_store
+    achievements = achievement_store.check_achievements(DEFAULT_USER_ID, stats)
+    return {"achievements": achievements, "stats": stats}
+
+
+@app.get("/api/streak")
+async def get_streak():
+    """Get current streak and check-in calendar."""
+    from .achievements import achievement_store
+    streak = achievement_store.get_streak(DEFAULT_USER_ID)
+    calendar = achievement_store.get_checkin_calendar(DEFAULT_USER_ID)
+    return {"streak": streak, "calendar": calendar}
+
+
+@app.post("/api/checkin")
+async def checkin():
+    """Record daily check-in (called when a session ends)."""
+    from .achievements import achievement_store
+    return achievement_store.record_checkin(DEFAULT_USER_ID)
+
+
 # --- Talent Agent Integration ---
 
 @app.get("/api/integrations/talent-agent/status")
@@ -1274,3 +1575,73 @@ async def talent_agent_sync(
     client = get_talent_agent()
     result = await client.sync_practice_result(summary)
     return result
+
+
+# --- Daily Tip ---
+
+@app.get("/api/daily-tip")
+async def get_daily_tip():
+    """Return a random vocabulary/expression/tip from learning guides."""
+    import random
+    from .learning_guide import SCENARIO_GUIDES
+
+    all_items = []
+    for scenario_id, guide in SCENARIO_GUIDES.items():
+        for v in guide.get("vocabulary", []):
+            all_items.append({"type": "vocabulary", "scenario": guide["title"], **v})
+        for e in guide.get("expressions", []):
+            all_items.append({"type": "expression", "scenario": guide["title"], **e})
+        for t in guide.get("tips", []):
+            all_items.append({"type": "tip", "scenario": guide["title"], **t})
+
+    if not all_items:
+        return {"tip": None}
+
+    # Use date as seed for daily consistency
+    from datetime import date
+    today = date.today()
+    random.seed(today.isoformat())
+    tip = random.choice(all_items)
+    random.seed()  # Reset seed
+    return {"date": today.isoformat(), "tip": tip}
+
+
+# --- Scenario Difficulty Recommendation ---
+
+@app.get("/api/recommend")
+async def recommend_scenarios():
+    """Recommend scenarios based on user's assessed level."""
+    profile = profile_store.get_or_create(DEFAULT_USER_ID)
+    level = profile.get("level")
+
+    level_to_difficulty = {
+        "A1": ["beginner"],
+        "A2": ["beginner", "intermediate"],
+        "B1": ["intermediate"],
+        "B2": ["intermediate", "advanced"],
+        "C1": ["advanced"],
+        "C2": ["advanced"],
+    }
+
+    if not level:
+        # No assessment yet — recommend beginner + one intermediate
+        recommended = [s for s in SCENARIOS if s["difficulty"] == "beginner"][:4]
+        recommended += [s for s in SCENARIOS if s["difficulty"] == "intermediate"][:2]
+        return {
+            "level": None,
+            "message": "Take the level test for personalized recommendations!",
+            "scenarios": recommended,
+        }
+
+    difficulties = level_to_difficulty.get(level, ["intermediate"])
+    recommended = [s for s in SCENARIOS if s["difficulty"] in difficulties]
+
+    # Deprioritize scenarios the user has already practiced a lot
+    affinity = profile.get("character_affinity", {})
+    recommended.sort(key=lambda s: affinity.get(s["id"], 0))
+
+    return {
+        "level": level,
+        "difficulties": difficulties,
+        "scenarios": recommended[:8],
+    }

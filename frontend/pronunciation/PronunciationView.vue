@@ -111,6 +111,60 @@
           </button>
         </div>
       </div>
+
+      <!-- Summary panel (shown after all sentences are done) -->
+      <div v-if="showSummary" class="summary-panel">
+        <h3>📊 本次练习总结</h3>
+        <div class="summary-scores">
+          <div class="summary-item">
+            <span class="summary-value" :class="scoreClass(avgScore('pronunciation_score'))">{{ avgScore('pronunciation_score') }}</span>
+            <span class="summary-label">平均总分</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-value" :class="scoreClass(avgScore('accuracy_score'))">{{ avgScore('accuracy_score') }}</span>
+            <span class="summary-label">平均准确度</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-value" :class="scoreClass(avgScore('fluency_score'))">{{ avgScore('fluency_score') }}</span>
+            <span class="summary-label">平均流利度</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-value" :class="scoreClass(avgScore('completeness_score'))">{{ avgScore('completeness_score') }}</span>
+            <span class="summary-label">平均完整度</span>
+          </div>
+        </div>
+        <div class="summary-detail">
+          <p>共练习 <strong>{{ Object.keys(results).length }}</strong> / {{ sentences.length }} 句</p>
+          <p v-if="weakWords.length">
+            <span class="weak-title">需加强的单词：</span>
+            <span v-for="w in weakWords" :key="w" class="weak-word">{{ w }}</span>
+          </p>
+        </div>
+        <button class="summary-btn" @click="selectedScenario = null; showSummary = false; result = null">
+          返回选择场景
+        </button>
+      </div>
+    </div>
+
+    <!-- Realtime Mode -->
+    <div class="realtime-section">
+      <h2>🔄 实时纠音模式</h2>
+      <p class="realtime-desc">边说边看发音反馈，实时高亮每个词的发音质量</p>
+      <button class="realtime-btn" :class="{ active: realtimeActive }" @click="toggleRealtime">
+        {{ realtimeActive ? '⏹ 停止' : '▶ 开始实时纠音' }}
+      </button>
+
+      <div v-if="realtimeActive || realtimeWords.length" class="realtime-display">
+        <div class="realtime-words" v-if="realtimeWords.length">
+          <span v-for="(w, i) in realtimeWords" :key="i" class="rt-word" :class="rtWordClass(w)" :title="'Score: ' + w.score">{{ w.word }}</span>
+        </div>
+        <div v-if="realtimeScore !== null" class="realtime-score">
+          总分: <strong :class="scoreClass(realtimeScore)">{{ realtimeScore }}</strong>
+        </div>
+        <div v-if="realtimeActive" class="realtime-listening">
+          <span class="pulse-dot"></span> 正在倾听...
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -134,6 +188,7 @@ const isProcessing = ref(false)
 const isPlaying = ref(false)
 const playingDemo = ref(false)
 const demoAudio = ref(null)
+const showSummary = ref(false)
 let currentAudio = null
 
 const toast = reactive({ message: '', type: 'info' })
@@ -266,11 +321,35 @@ function nextSentence() {
     currentIndex.value++
     result.value = results.value[currentIndex.value] || null
   } else {
-    // Done - could navigate back
+    // All done — show summary
     toast.message = t('pronunciation.allDone')
     toast.type = 'success'
+    showSummary.value = true
+    currentIndex.value = -1
+    result.value = null
   }
 }
+
+function avgScore(key) {
+  const vals = Object.values(results.value).map(r => r[key]).filter(v => v != null)
+  if (!vals.length) return '--'
+  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+}
+
+const weakWords = computed(() => {
+  const words = []
+  Object.values(results.value).forEach(r => {
+    if (r.words) {
+      r.words.forEach(w => {
+        if (w.accuracy_score != null && w.accuracy_score < 60 && w.word) {
+          words.push(w.word)
+        }
+      })
+    }
+  })
+  // Deduplicate
+  return [...new Set(words)].slice(0, 15)
+})
 
 function scoreClass(score) {
   if (score == null) return ''
@@ -284,6 +363,57 @@ function wordClass(w) {
   if (w.accuracy_score >= 80) return 'word-good'
   if (w.accuracy_score >= 60) return 'word-ok'
   return 'word-poor'
+}
+
+// --- Realtime Mode ---
+const realtimeActive = ref(false)
+const realtimeWords = ref([])
+const realtimeScore = ref(null)
+let rtWebSocket = null
+let rtMediaRecorder = null
+let rtStream = null
+
+function rtWordClass(w) {
+  if (w.score >= 80) return 'rt-good'
+  if (w.score >= 60) return 'rt-ok'
+  return 'rt-poor'
+}
+
+async function toggleRealtime() {
+  if (realtimeActive.value) { stopRealtime() } else { await startRealtime() }
+}
+
+async function startRealtime() {
+  realtimeWords.value = []
+  realtimeScore.value = null
+  try { rtStream = await navigator.mediaDevices.getUserMedia({ audio: true }) }
+  catch { toast.message = '麦克风权限被拒绝'; toast.type = 'warning'; return }
+
+  const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:'
+  rtWebSocket = new WebSocket(`${wsProto}//${location.host}/ws/realtime-pronunciation`)
+  rtWebSocket.onopen = () => {
+    rtWebSocket.send(JSON.stringify({ reference_text: sentences.value[currentIndex.value] || '' }))
+    realtimeActive.value = true
+    rtMediaRecorder = new MediaRecorder(rtStream, { mimeType: 'audio/webm;codecs=opus' })
+    rtMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0 && rtWebSocket?.readyState === WebSocket.OPEN) rtWebSocket.send(e.data) }
+    rtMediaRecorder.start(2500)
+  }
+  rtWebSocket.onmessage = (event) => {
+    const msg = JSON.parse(event.data)
+    if (msg.type === 'assessment' && msg.words?.length) {
+      realtimeWords.value = [...realtimeWords.value, ...msg.words]
+      if (msg.overall_score != null) realtimeScore.value = msg.overall_score
+    }
+  }
+  rtWebSocket.onerror = () => { toast.message = 'WebSocket 连接失败'; toast.type = 'error'; stopRealtime() }
+  rtWebSocket.onclose = () => { realtimeActive.value = false }
+}
+
+function stopRealtime() {
+  realtimeActive.value = false
+  if (rtMediaRecorder?.state !== 'inactive') rtMediaRecorder?.stop()
+  rtWebSocket?.close(); rtWebSocket = null
+  rtStream?.getTracks().forEach(t => t.stop()); rtStream = null
 }
 </script>
 
@@ -583,4 +713,84 @@ function wordClass(w) {
   .score-value { width: 48px; height: 48px; font-size: var(--text-lg); }
   .reference-text .text { font-size: var(--text-lg); }
 }
+
+/* Summary panel */
+.summary-panel {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  text-align: center;
+}
+.summary-panel h3 {
+  color: #1f4e79;
+  margin-bottom: 1.2rem;
+}
+.summary-scores {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 1.2rem;
+  flex-wrap: wrap;
+}
+.summary-item { text-align: center; }
+.summary-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f4e79;
+}
+.summary-value.good { color: #2e7d32; }
+.summary-value.ok { color: #f57c00; }
+.summary-value.poor { color: #c62828; }
+.summary-label {
+  font-size: 0.8rem;
+  color: #888;
+}
+.summary-detail {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #555;
+}
+.weak-title {
+  font-weight: 600;
+  color: #e65100;
+}
+.weak-word {
+  display: inline-block;
+  background: #fce4ec;
+  color: #c62828;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  margin: 0.2rem;
+  font-size: 0.85rem;
+}
+.summary-btn {
+  padding: 0.7rem 1.5rem;
+  background: #1f4e79;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+.summary-btn:hover { background: #2a6399; }
+
+.realtime-section { margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid #eee; text-align: center; }
+.realtime-desc { color: #666; font-size: 0.9rem; margin-bottom: 1rem; }
+.realtime-btn { padding: 0.75rem 2rem; background: #27ae60; color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+.realtime-btn:hover { background: #219a52; }
+.realtime-btn.active { background: #e74c3c; }
+.realtime-btn.active:hover { background: #c0392b; }
+.realtime-display { margin-top: 1.5rem; padding: 1.5rem; background: #fafafa; border-radius: 12px; border: 1px solid #eee; text-align: left; }
+.realtime-words { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+.rt-word { padding: 0.3rem 0.5rem; border-radius: 4px; font-size: 1.05rem; font-weight: 500; }
+.rt-good { background: #d4edda; color: #155724; }
+.rt-ok { background: #fff3cd; color: #856404; }
+.rt-poor { background: #f8d7da; color: #721c24; }
+.realtime-score { font-size: 1.1rem; margin-bottom: 0.5rem; }
+.realtime-listening { display: flex; align-items: center; gap: 0.5rem; color: #666; }
+.pulse-dot { width: 10px; height: 10px; background: #e74c3c; border-radius: 50%; animation: pulse-anim 1.2s infinite; }
+@keyframes pulse-anim { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
 </style>

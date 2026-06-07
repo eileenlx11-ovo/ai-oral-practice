@@ -213,8 +213,52 @@
 
     <!-- Session Report Modal -->
     <div v-if="showReport" class="modal-overlay" @click.self="showReport = false">
-      <div class="modal">
+      <div class="modal report-modal">
         <h3>📋 {{ t('chat.reportTitle') }}</h3>
+
+        <!-- Grading Score Header -->
+        <div v-if="reportData.grading && !reportData.grading.insufficient" class="grading-header">
+          <div class="total-score">
+            <span class="score-number">{{ reportData.grading.total_score }}</span>
+            <span class="score-max">/ 100</span>
+          </div>
+          <div class="level-badge" :class="'level-' + reportData.grading.level">
+            {{ reportData.grading.level_label_cn }}
+          </div>
+          <div class="equiv-tags">
+            <span class="equiv-tag">雅思 {{ reportData.grading.ielts_equiv }}</span>
+            <span class="equiv-tag">托福 {{ reportData.grading.toefl_equiv }}</span>
+          </div>
+        </div>
+
+        <!-- Insufficient turns notice -->
+        <div v-if="reportData.grading && reportData.grading.insufficient" class="grading-insufficient">
+          <p class="insufficient-icon">📊</p>
+          <p class="insufficient-text">{{ reportData.grading.overall_comment_cn }}</p>
+          <p class="insufficient-hint">已完成 {{ reportData.grading.current_turns }} / {{ reportData.grading.min_turns_required }} 轮</p>
+        </div>
+
+        <!-- 5 Dimension Bars -->
+        <div v-if="reportData.grading && !reportData.grading.insufficient" class="grading-dimensions">
+          <div v-for="(dim, key) in reportData.grading.dimensions" :key="key" class="dimension-row">
+            <div class="dim-header">
+              <span class="dim-name">{{ dimensionLabels[key] }}</span>
+              <span class="dim-score">{{ dim.score }}<span class="dim-max">/{{ dim.max }}</span></span>
+              <span class="dim-level" :class="'level-' + dim.level">{{ dim.level }}</span>
+            </div>
+            <div class="dim-bar">
+              <div class="dim-bar-fill" :style="{ width: (dim.score / dim.max * 100) + '%' }" :class="'bar-' + dim.level"></div>
+            </div>
+            <div class="dim-comment">{{ dim.comment }}</div>
+          </div>
+        </div>
+
+        <!-- Overall Comment -->
+        <div v-if="reportData.grading && !reportData.grading.insufficient" class="grading-comment">
+          <p>{{ reportData.grading.overall_comment_cn }}</p>
+        </div>
+
+        <!-- Basic Stats -->
         <div class="report-stats">
           <div class="stat">
             <span class="stat-value">{{ reportData.total_turns || 0 }}</span>
@@ -229,6 +273,8 @@
             <span class="stat-label">{{ t('chat.pronunciationScore') }}</span>
           </div>
         </div>
+
+        <!-- LLM Narrative -->
         <div v-if="reportData.report" class="report-narrative">
           <p>{{ reportData.report }}</p>
         </div>
@@ -360,6 +406,13 @@ const reportData = ref({})
 const syncingTalent = ref(false)
 const talentSynced = ref(false)
 const isInterviewSession = computed(() => scenarioId === 'interview' || reportData.value?.scenario === 'interview')
+const dimensionLabels = {
+  fc: '流利与连贯 FC',
+  lr: '词汇运用 LR',
+  gra: '语法广度 GRA',
+  pro: '语音发音 PRO',
+  pc: '语用交际 PC',
+}
 
 function showToast(message, type = 'error') {
   toast.message = message
@@ -1429,5 +1482,146 @@ async function toggleTranslate(msg) {
   .bubble { max-width: 85%; }
   .char-line2 { display: none; }
   .char-switcher, .char-popover { left: var(--space-3); right: var(--space-3); width: auto; }
+}
+/* Grading styles */
+.report-modal { max-width: 560px; }
+
+.grading-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid #eee;
+}
+.total-score {
+  margin-bottom: 0.4rem;
+}
+.score-number {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #1f4e79;
+}
+.score-max {
+  font-size: 1.2rem;
+  color: #999;
+  margin-left: 0.2rem;
+}
+.level-badge {
+  display: inline-block;
+  padding: 0.3rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.6rem;
+}
+.level-badge.level-L5 { background: #e8f5e9; color: #2e7d32; }
+.level-badge.level-L4 { background: #e3f2fd; color: #1565c0; }
+.level-badge.level-L3 { background: #fff3e0; color: #e65100; }
+.level-badge.level-L2 { background: #fce4ec; color: #c62828; }
+.level-badge.level-L1 { background: #f3e5f5; color: #6a1b9a; }
+.equiv-tags {
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+}
+.equiv-tag {
+  font-size: 0.78rem;
+  color: #666;
+  background: #f5f5f5;
+  padding: 0.2rem 0.6rem;
+  border-radius: 10px;
+}
+
+.grading-dimensions {
+  margin-bottom: 1.2rem;
+}
+.dimension-row {
+  margin-bottom: 1rem;
+}
+.dim-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
+}
+.dim-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333;
+  flex: 1;
+}
+.dim-score {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1f4e79;
+}
+.dim-max {
+  font-size: 0.75rem;
+  color: #999;
+  font-weight: 400;
+}
+.dim-level {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 8px;
+}
+.dim-level.level-L5 { background: #e8f5e9; color: #2e7d32; }
+.dim-level.level-L4 { background: #e3f2fd; color: #1565c0; }
+.dim-level.level-L3 { background: #fff3e0; color: #e65100; }
+.dim-level.level-L2 { background: #fce4ec; color: #c62828; }
+.dim-level.level-L1 { background: #f3e5f5; color: #6a1b9a; }
+.dim-bar {
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.3rem;
+}
+.dim-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+.bar-L5 { background: linear-gradient(90deg, #4caf50, #66bb6a); }
+.bar-L4 { background: linear-gradient(90deg, #1976d2, #42a5f5); }
+.bar-L3 { background: linear-gradient(90deg, #f57c00, #ffb74d); }
+.bar-L2 { background: linear-gradient(90deg, #e53935, #ef5350); }
+.bar-L1 { background: linear-gradient(90deg, #7b1fa2, #ab47bc); }
+.dim-comment {
+  font-size: 0.78rem;
+  color: #777;
+  line-height: 1.4;
+}
+
+.grading-comment {
+  background: #f0f7ff;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1.2rem;
+  font-size: 0.88rem;
+  color: #333;
+  line-height: 1.6;
+}
+
+.grading-insufficient {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  margin-bottom: 1.2rem;
+  background: #fffde7;
+  border-radius: 12px;
+  border: 1px solid #fff9c4;
+}
+.insufficient-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+.insufficient-text {
+  font-size: 0.92rem;
+  color: #555;
+  margin-bottom: 0.4rem;
+}
+.insufficient-hint {
+  font-size: 0.82rem;
+  color: #999;
 }
 </style>
