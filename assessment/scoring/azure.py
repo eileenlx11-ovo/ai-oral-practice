@@ -18,6 +18,20 @@ def available() -> bool:
     return _HAS_SDK and bool(os.getenv("AZURE_SPEECH_KEY", ""))
 
 
+# Azure emits strict IPA (e.g. the alveolar approximant ɹ for English /r/).
+# Learner dictionaries write a plain r, which is what the dictionary IPA on the
+# reference sentence uses — normalize so both UI surfaces agree.
+_PHONEME_NORMALIZE = {
+    "ɹ": "r",
+}
+
+
+def _normalize_phoneme(phone: str) -> str:
+    for src, dst in _PHONEME_NORMALIZE.items():
+        phone = phone.replace(src, dst)
+    return phone
+
+
 def _speech_config():
     key = os.getenv("AZURE_SPEECH_KEY", "")
     region = os.getenv("AZURE_SPEECH_REGION", "eastasia")
@@ -94,7 +108,7 @@ def _recognize_sync(recognizer) -> dict | None:
         # frontend renders both providers with one code path. `phonemes` is only
         # present at Phoneme granularity; guard so a missing field never crashes.
         phones = [
-            {"phone": p.phoneme, "accuracy_score": p.accuracy_score}
+            {"phone": _normalize_phoneme(p.phoneme), "accuracy_score": p.accuracy_score}
             for p in (getattr(w, "phonemes", None) or [])
         ]
         if phones:

@@ -469,7 +469,7 @@ function phoneClass(p) {
 
 <style scoped>
 .pronunciation-view {
-  max-width: 700px;
+  max-width: 820px;
   margin: 0 auto;
   animation: fade-in var(--transition-base) both;
 }
@@ -495,28 +495,35 @@ function phoneClass(p) {
 .back-btn:hover { background: var(--color-primary-50); }
 
 /* Scenario picker */
-.subtitle { color: var(--color-text-secondary); margin-bottom: var(--space-4); text-align: center; }
+.subtitle {
+  color: var(--color-text-secondary);
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-6);
+  text-align: center;
+}
 
 .scenario-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-3);
   justify-content: center;
 }
 
 .scenario-chip {
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-5);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
   cursor: pointer;
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
+  font-weight: 500;
   transition: all var(--transition-fast);
 }
 .scenario-chip:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
   background: var(--color-primary-50);
+  transform: translateY(-2px);
 }
 
 /* Practice area */
@@ -560,8 +567,8 @@ function phoneClass(p) {
 }
 .sentence-card.done { border-left: 3px solid var(--color-success); }
 
-.sent-num { font-weight: 700; color: var(--color-text-muted); min-width: 24px; font-size: var(--text-sm); }
-.sent-text { flex: 1; font-size: var(--text-sm); line-height: 1.5; }
+.sent-num { font-weight: 700; color: var(--color-text-muted); min-width: 24px; font-size: var(--text-base); }
+.sent-text { flex: 1; font-size: var(--text-base); line-height: 1.5; }
 .sent-score { font-weight: 700; color: var(--color-primary); font-size: var(--text-base); }
 
 /* Active practice */

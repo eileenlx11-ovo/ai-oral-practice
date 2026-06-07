@@ -14,12 +14,13 @@
 |------|------|
 | 🎭 场景选择 | 18 个真实场景（咖啡厅/医院/面试/会议等），分类/难度/角色人设 |
 | 🎙️ 实时语音对话 | 录音 → ASR → LLM 生成回复 → TTS 语音播放，全链路 SSE 流式 |
-| 📝 发音评测 | 逐词评分 + 诊断反馈（漏读/发音错误/多读）+ 改进建议 |
+| 📝 发音评测 | 每词标注标准词典音标（en-US IPA）；录音后逐词评分 + 逐音素诊断（漏读/发音错误/多读）+ 改进建议 |
 | ✏️ 语法纠错 | 对话中实时标注语法和表达问题 |
-| 📊 进步看板 | 图表 + 历史记录 + 详情弹窗 |
+| 📊 进步看板 | 图表 + 练习活跃热力图 + 历史记录 + 详情弹窗 |
 | 📋 课后报告 | 3 轮对话后可结束，LLM 生成总结 |
 | 💡 Hint 提示 | 10s 沉默触发 + 点击获取 |
 | 🎯 水平评估 | 5 题测试 → CEFR 等级 |
+| 🌓 主题 / 多语言 | 浅色 / 深色 / 跟随系统；中英文界面切换 |
 | 🔗 外部集成 | talent-agent 一键发起自定义面试 |
 
 ## 技术架构
@@ -31,8 +32,9 @@ FastAPI 后端
     ├── ASR: SiliconFlow SenseVoiceSmall（language=en）
     ├── LLM: Deepseek Chat（对话 + 纠错 + 报告）
     ├── TTS: SiliconFlow CosyVoice → Azure Speech SDK → edge-tts
-    ├── 发音评测: 腾讯 SOE 新版（WebSocket）→ Azure Speech → mock
-    └── Session 存储: JSON 文件（MVP）
+    ├── 发音评测: Azure Speech（主，逐音素 IPA + 韵律）→ 腾讯 SOE → mock
+    ├── 词典音标: 构建期用 eng_to_ipa 预生成每词 en-US IPA（运行时零依赖）
+    └── Session 存储: JSON 文件（MVP，按 user 隔离 + owner 校验）
 ```
 
 ## 项目结构
@@ -51,14 +53,18 @@ ai-oral-practice/
 │   └── Dockerfile
 ├── frontend/            ← 前端（Vue 3 + Vite）
 │   ├── chat/            对话界面 + 首页
-│   ├── pronunciation/   发音评测页
+│   ├── pronunciation/   发音评测页（词典音标 + 逐音素）
+│   ├── playback/        会话回放（录音 + AI 复盘）
 │   ├── assessment/      水平评估页
 │   ├── dashboard/       进步看板
+│   ├── settings/        主题 / 语言 / 语音偏好
 │   ├── composables/     网络状态检测等
 │   ├── e2e/             E2E 测试（Playwright）
 │   └── Dockerfile
 ├── voice/               ← 音频采集 + ASR 服务层
 ├── shared/              ← 共用配置
+├── scripts/             ← 构建期工具（gen_ipa：预生成词典音标）
+├── reviews/             ← 双 AI 代码审查记录（架构 / 安全 / 评测链路）
 ├── mock-server/         ← Mock API（前端独立开发用）
 ├── deploy/              ← 部署配置（nginx + 脚本）
 └── docker-compose.prod.yml

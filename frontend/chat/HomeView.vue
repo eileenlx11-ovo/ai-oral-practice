@@ -45,8 +45,8 @@
       <button v-else class="action-card assessment" @click="$router.push('/assessment')">
         <span class="action-icon">🎓</span>
         <div class="action-info">
-          <span class="action-title">重新评估</span>
-          <span class="action-desc">更新你的水平</span>
+          <span class="action-title">{{ t('home.actions.reassess') }}</span>
+          <span class="action-desc">{{ t('home.actions.reassessDesc') }}</span>
         </div>
         <span class="action-arrow">→</span>
       </button>
@@ -83,8 +83,8 @@
     <div class="custom-topic-entry" @click="$router.push('/topic')">
       <span class="entry-icon">🎯</span>
       <div class="entry-text">
-        <strong>自定义话题</strong>
-        <span>输入任意话题，选择对话伙伴，开始自由练习</span>
+        <strong>{{ t('home.customTopic.title') }}</strong>
+        <span>{{ t('home.customTopic.desc') }}</span>
       </div>
       <span class="entry-arrow">→</span>
     </div>

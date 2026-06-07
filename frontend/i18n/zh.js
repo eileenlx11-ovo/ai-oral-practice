@@ -52,6 +52,12 @@ export default {
       storyDesc: '多幕剧本口语闯关',
       assessment: '水平评估',
       assessmentDesc: '3分钟测试',
+      reassess: '重新评估',
+      reassessDesc: '更新你的水平',
+    },
+    customTopic: {
+      title: '自定义话题',
+      desc: '输入任意话题，选择对话伙伴，开始自由练习',
     },
     difficulty: {
       beginner: '入门',

@@ -91,18 +91,6 @@
         >
           <div class="bubble">
             <p>{{ msg.text }}</p>
-            <div class="bubble-actions">
-              <button v-if="msg.audioUrls && msg.audioUrls.length" class="bubble-btn" @click="handleManualPlay(msg.audioUrls)" :title="t('chat.replay', '播放')">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-              </button>
-              <a v-if="msg.localAudioUrl" class="bubble-btn" :href="msg.localAudioUrl" :download="msg.localAudioName" :title="t('chat.downloadRecording', '下载本轮录音')">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
-              </a>
-              <button v-if="msg.role === 'assistant'" class="bubble-btn" @click="toggleTranslate(msg)" :title="t('chat.translate', '翻译')">
-                <span v-if="msg.translating" class="mini-spinner"></span>
-                <span v-else>译</span>
-              </button>
-            </div>
             <p v-if="msg.showTranslation && msg.translation" class="bubble-translation">{{ msg.translation }}</p>
             <!-- Grammar corrections -->
             <div v-if="msg.corrections && msg.corrections.length" class="corrections">
@@ -118,6 +106,20 @@
             <div v-if="msg.feedback" class="feedback-line">
               {{ msg.feedback }}
             </div>
+          </div>
+          <!-- Side actions: float beside the bubble (user → left, assistant → right),
+               bottom-aligned, so they no longer occupy a sparse row of their own. -->
+          <div class="bubble-actions">
+            <button v-if="msg.audioUrls && msg.audioUrls.length" class="bubble-btn" @click="handleManualPlay(msg.audioUrls)" :title="t('chat.replay', '播放')">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            </button>
+            <a v-if="msg.localAudioUrl" class="bubble-btn" :href="msg.localAudioUrl" :download="msg.localAudioName" :title="t('chat.downloadRecording', '下载本轮录音')">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+            </a>
+            <button v-if="msg.role === 'assistant'" class="bubble-btn" @click="toggleTranslate(msg)" :title="t('chat.translate', '翻译')">
+              <span v-if="msg.translating" class="mini-spinner"></span>
+              <span v-else>译</span>
+            </button>
           </div>
         </div>
 
@@ -1095,6 +1097,8 @@ async function toggleTranslate(msg) {
 
 .message {
   display: flex;
+  align-items: flex-end;
+  gap: var(--space-1);
   margin-bottom: var(--space-4);
   animation: slide-up 300ms ease both;
 }
@@ -1123,11 +1127,25 @@ async function toggleTranslate(msg) {
   box-shadow: var(--shadow-sm);
 }
 
-/* Bubble action buttons (replay / translate) */
+/* Bubble action buttons (replay / download / translate) — float beside the
+   bubble, bottom-aligned, revealed on hover so they don't clutter the thread. */
 .bubble-actions {
   display: flex;
   gap: var(--space-1);
-  margin-top: var(--space-2);
+  align-items: flex-end;
+  padding-bottom: 2px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+/* User actions sit to the LEFT of their (right-aligned) bubble. */
+.message.user .bubble-actions { order: -1; }
+/* No buttons → no stray gap. */
+.bubble-actions:empty { display: none; }
+.message:hover .bubble-actions,
+.bubble-actions:focus-within { opacity: 1; }
+@media (hover: none) {
+  /* Touch devices can't hover — keep actions visible. */
+  .bubble-actions { opacity: 1; }
 }
 .bubble-btn {
   display: flex;
@@ -1139,11 +1157,12 @@ async function toggleTranslate(msg) {
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   color: var(--color-text-muted);
-  background: var(--color-bg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   transition: all var(--transition-fast);
 }
 .bubble-btn:visited { color: var(--color-text-muted); }
-.bubble-btn:hover { color: var(--color-primary); background: var(--color-primary-50); }
+.bubble-btn:hover { color: var(--color-primary); background: var(--color-primary-50); border-color: var(--color-primary-200); }
 .bubble-translation {
   margin-top: var(--space-2);
   padding-top: var(--space-2);

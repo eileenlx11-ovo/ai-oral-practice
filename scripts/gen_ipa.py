@@ -23,6 +23,20 @@ from assessment.scenarios import PRACTICE_SENTENCES
 
 _PUNCT = ".,!?;:\"'"
 
+# Map academic IPA symbols to their learner-dictionary equivalents. eng_to_ipa
+# emits the strict alveolar approximant ɹ for English /r/; Oxford/Cambridge
+# learner dictionaries simplify it to a plain r, which is what users expect.
+_IPA_NORMALIZE = {
+    "ɹ": "r",
+}
+
+
+def _normalize_ipa(s: str) -> str:
+    """Rewrite strict IPA symbols to learner-dictionary conventions."""
+    for src, dst in _IPA_NORMALIZE.items():
+        s = s.replace(src, dst)
+    return s
+
 # Manual IPA (en-US) for words eng_to_ipa can't resolve — proper nouns and
 # hyphenated compounds it doesn't carry. Far cheaper than wiring an LLM for 4
 # words; verified against standard dictionaries.
@@ -62,6 +76,7 @@ def sentence_to_words(sentence: str) -> tuple[list[dict], list[str]]:
             else:
                 unknown.append(clean_word)
                 clean_ipa = ""
+        clean_ipa = _normalize_ipa(clean_ipa)
         words.append({"word": clean_word, "ipa_us": clean_ipa})
     return words, unknown
 
@@ -71,8 +86,11 @@ def build() -> tuple[dict, list[str]]:
     for scenario_id, sentences in PRACTICE_SENTENCES.items():
         new_sentences = []
         for s in sentences:
-            words, unknown = sentence_to_words(s)
-            new_sentences.append({"text": s, "words": words})
+            # Corpus may already be in the new {text, words} shape (idempotent
+            # regeneration) or the legacy plain-string shape.
+            text = s["text"] if isinstance(s, dict) else s
+            words, unknown = sentence_to_words(text)
+            new_sentences.append({"text": text, "words": words})
             all_unknown.extend(unknown)
         new_corpus[scenario_id] = new_sentences
     return new_corpus, all_unknown

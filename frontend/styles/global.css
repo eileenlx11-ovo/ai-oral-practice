@@ -70,6 +70,9 @@ body {
 button {
   font-family: inherit;
   font-size: inherit;
+  /* Inherit text color so themed text (esp. dark mode) never falls back to the
+     UA default black on buttons that don't set their own color. */
+  color: inherit;
   border: none;
   background: none;
   cursor: pointer;

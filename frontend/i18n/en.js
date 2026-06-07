@@ -52,6 +52,12 @@ export default {
       storyDesc: 'Multi-scene speaking quests',
       assessment: 'Level assessment',
       assessmentDesc: '3-minute test',
+      reassess: 'Reassess',
+      reassessDesc: 'Update your level',
+    },
+    customTopic: {
+      title: 'Custom topic',
+      desc: 'Enter any topic, pick a partner, and start free practice',
     },
     difficulty: {
       beginner: 'Beginner',
