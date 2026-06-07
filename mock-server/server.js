@@ -501,6 +501,37 @@ app.post('/api/integrations/talent-agent/sync', upload.none(), (req, res) => {
   res.json({ synced: false, error: 'Talent Agent not configured (mock mode)' })
 })
 
+// ========== Achievements ==========
+app.get('/api/achievements', (req, res) => {
+  res.json({
+    achievements: [
+      { id: 'streak_3', name: 'Getting Started', icon: '🔥', description: '连续练习 3 天', condition: 'streak', threshold: 3, unlocked: true, progress: 3, is_new: false },
+      { id: 'streak_7', name: 'One Week Strong', icon: '💪', description: '连续练习 7 天', condition: 'streak', threshold: 7, unlocked: false, progress: 3, is_new: false },
+      { id: 'sessions_5', name: 'First Steps', icon: '👣', description: '完成 5 次练习', condition: 'sessions', threshold: 5, unlocked: true, progress: 5, is_new: false },
+      { id: 'sessions_20', name: 'Regular Learner', icon: '📚', description: '完成 20 次练习', condition: 'sessions', threshold: 20, unlocked: false, progress: 8, is_new: false },
+      { id: 'turns_50', name: 'Chatty', icon: '💬', description: '累计对话 50 轮', condition: 'turns', threshold: 50, unlocked: true, progress: 50, is_new: true },
+      { id: 'pron_80', name: 'Clear Voice', icon: '🎯', description: '单次发音评分达到 80+', condition: 'max_pronunciation', threshold: 80, unlocked: true, progress: 85, is_new: false },
+      { id: 'scenarios_5', name: 'Explorer', icon: '🗺️', description: '尝试 5 个不同场景', condition: 'unique_scenarios', threshold: 5, unlocked: false, progress: 3, is_new: false },
+    ],
+    stats: { sessions: 8, turns: 52, max_pronunciation: 85, unique_scenarios: 3 },
+  })
+})
+
+app.get('/api/streak', (req, res) => {
+  const today = new Date()
+  const calendar = []
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date(today); d.setDate(d.getDate() - i)
+    calendar.push({ date: d.toISOString().slice(0, 10), checked: Math.random() > 0.6 })
+  }
+  calendar[calendar.length - 1].checked = true
+  res.json({ streak: 3, calendar })
+})
+
+app.post('/api/checkin', (req, res) => {
+  res.json({ date: new Date().toISOString().slice(0, 10), streak: 4 })
+})
+
 // ========== Start ==========
 app.listen(PORT, () => {
   console.log(`\n🎯 Mock Server running at http://localhost:${PORT}`)
