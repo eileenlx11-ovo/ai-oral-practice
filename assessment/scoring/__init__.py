@@ -20,6 +20,7 @@ import logging
 import os
 
 from . import azure, tencent, mock
+from . import quota
 
 # Self-contained logger with its own stream handler. app.py's lifespan only wires
 # the `assessment` logger to uvicorn handlers IF they already exist at startup,
@@ -73,6 +74,12 @@ async def assess_pronunciation(
     for p in providers:
         if p is mock and not _allow_mock():
             continue
+        # Azure quota guard: once the monthly soft cap is hit, skip Azure so the
+        # request falls back to SOE instead of overrunning into paid usage.
+        if p is azure and not quota.under_cap():
+            logger.info("ASSESS skip azure: monthly quota reached (%.0fs used)",
+                        quota.seconds_used())
+            continue
         if not p.available():
             continue
         try:
@@ -82,6 +89,9 @@ async def assess_pronunciation(
                         p.__name__.rsplit(".", 1)[-1], type(exc).__name__, str(exc)[:200])
             continue
         if result is not None:
+            # Bill Azure usage against the monthly quota (approx from word count).
+            if p is azure:
+                quota.record(quota.estimate_seconds(reference_text))
             n_phones = sum(len(w.get("phones", [])) for w in result.get("words", []))
             logger.info("ASSESS provider=%s score=%s completeness=%s words=%d phones=%d",
                         result.get("provider"), result.get("pronunciation_score"),
