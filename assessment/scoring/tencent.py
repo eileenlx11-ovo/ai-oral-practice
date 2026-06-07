@@ -169,14 +169,24 @@ def _signed_url(reference_text: str) -> str:
     secret_id = _env("TENCENT_SECRET_ID")
     secret_key = _env("TENCENT_SECRET_KEY")
 
+    # IPA mode makes PhoneInfos[].Phone an international phonetic symbol.
+    # The {::cmd{...}} prefix must NOT affect eval_mode (word vs sentence),
+    # so compute eval_mode from the original text. Once the prefix lands in
+    # params["ref_text"], both signing (raw value) and URL (urlencoded) read
+    # the same string, so encoding stays consistent.
+    eval_mode = _eval_mode(reference_text)
+    ref_text = reference_text
+    if _ipa_enabled():
+        ref_text = "{::cmd{F_IPA=true}}" + reference_text
+
     params = {
         "appid": appid,
         "server_engine_type": _ENGINE_MODEL_TYPE,
         "text_mode": 0,
         "rec_mode": 1,
-        "ref_text": reference_text,
+        "ref_text": ref_text,
         "keyword": "",
-        "eval_mode": _eval_mode(reference_text),
+        "eval_mode": eval_mode,
         "score_coeff": 1.0,
         "sentence_info_enabled": 0,
         "secretid": secret_id,
@@ -210,6 +220,12 @@ def _eval_mode(reference_text: str) -> int:
     return 0 if len(reference_text.split()) <= 1 else 1
 
 
+def _ipa_enabled() -> bool:
+    """IPA phoneme output is on by default. Set TENCENT_ENABLE_IPA=0 to drop
+    back to plain scoring if the {::cmd{...}} prefix ever breaks signing."""
+    return _env("TENCENT_ENABLE_IPA", "1") != "0"
+
+
 def _query_path(params: dict) -> str:
     appid = params["appid"]
     query = urlencode({k: v for k, v in params.items() if k != "appid"})
@@ -227,15 +243,22 @@ def _sign(sign_string: str, secret_key: str) -> str:
 
 def _normalize(response: dict) -> dict:
     result = response.get("result") or {}
-    word_list = result.get("word_list") or []
+    word_list = result.get("word_list") or result.get("Words") or []
     words = []
     for item in word_list:
         score = _first_number(item, "pron_accuracy", "PronAccuracy", "score", "Score")
-        words.append({
+        word = {
             "word": item.get("word") or item.get("Word") or "",
             "accuracy_score": score,
             "error_type": "None" if score is None or score >= 60 else "Mispronunciation",
-        })
+        }
+        phones = _extract_phones(item)
+        if phones:
+            word["phones"] = phones
+            tip = _phone_tip(phones)
+            if tip:
+                word["tip"] = tip
+        words.append(word)
 
     accuracy = _first_number(result, "pron_accuracy", "PronAccuracy", "accuracy_score", "AccuracyScore")
     fluency = _first_number(result, "pron_fluency", "PronFluency", "fluency_score", "FluencyScore")
@@ -258,3 +281,34 @@ def _first_number(data: dict, *keys: str) -> float | None:
         if isinstance(value, (int, float)):
             return round(float(value), 1)
     return None
+
+
+def _extract_phones(word_item: dict) -> list[dict]:
+    """Pull per-phoneme IPA + accuracy from a SOE word item.
+
+    Requires IPA mode (F_IPA=true) for `Phone` to be the international phonetic
+    symbol; without it SOE returns its internal phone set. Returns [] when the
+    response carries no phoneme breakdown so the field is simply omitted.
+    """
+    phone_list = word_item.get("phone_list") or word_item.get("PhoneInfos") or []
+    phones = []
+    for p in phone_list:
+        phones.append({
+            "phone": p.get("phone") or p.get("Phone") or "",
+            "ref_phone": p.get("ref_phone") or p.get("ReferencePhone") or "",
+            "accuracy_score": _first_number(p, "pron_accuracy", "PronAccuracy"),
+            "stress": p.get("detected_stress", p.get("DetectedStress")),
+        })
+    return phones
+
+
+def _phone_tip(phones: list[dict]) -> str:
+    """Name the weakest phoneme so the UI can give a positive, actionable hint
+    instead of only flagging the word red."""
+    scored = [p for p in phones if p.get("accuracy_score") is not None]
+    if not scored:
+        return ""
+    worst = min(scored, key=lambda p: p["accuracy_score"])
+    if worst["accuracy_score"] >= 60 or not worst["phone"]:
+        return ""
+    return worst["phone"]

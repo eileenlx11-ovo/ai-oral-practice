@@ -139,6 +139,11 @@ export default {
     micDenied: '麦克风权限被拒绝',
     demoFailed: '标准发音播放失败',
     allDone: '全部完成！做得好！',
+    scoringInBackground: '正在后台评分，可继续下一句',
+    history: '历史记录',
+    scoreUnit: '分',
+    focusPhone: '重点练习',
+    tipHint: '这个音素得分偏低，对照标准发音多读几遍',
   },
   interview: {
     title: 'AI 口语面试',
