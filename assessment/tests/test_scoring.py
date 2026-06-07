@@ -92,3 +92,71 @@ def test_tencent_accepts_appid_alias(monkeypatch):
     monkeypatch.setenv("TENCENT_SECRET_ID", "sid")
     monkeypatch.setenv("TENCENT_SECRET_KEY", "skey")
     assert tencent.available() is True
+
+
+def test_tencent_normalize_extracts_phones():
+    """PhoneInfos → words[].phones with IPA symbol + per-phoneme accuracy."""
+    from assessment.scoring import tencent
+    response = {
+        "result": {
+            "SuggestedScore": 82.0,
+            "PronAccuracy": 80.0,
+            "PronFluency": 90.0,
+            "PronCompletion": 100.0,
+            "word_list": [
+                {
+                    "word": "cat",
+                    "pron_accuracy": 45.0,
+                    "phone_list": [
+                        {"phone": "k", "ref_phone": "k", "pron_accuracy": 95.0},
+                        {"phone": "æ", "ref_phone": "æ", "pron_accuracy": 30.0},
+                        {"phone": "t", "ref_phone": "t", "pron_accuracy": 88.0},
+                    ],
+                }
+            ],
+        }
+    }
+    out = tencent._normalize(response)
+    word = out["words"][0]
+    assert word["word"] == "cat"
+    assert word["error_type"] == "Mispronunciation"
+    assert len(word["phones"]) == 3
+    assert word["phones"][1]["phone"] == "æ"
+    assert word["phones"][1]["accuracy_score"] == 30.0
+    # weakest phone below threshold → surfaced as a tip
+    assert word["tip"] == "æ"
+
+
+def test_tencent_normalize_omits_phones_when_absent():
+    """No phoneme data → no `phones` key (clean fallback, e.g. IPA disabled)."""
+    from assessment.scoring import tencent
+    response = {"result": {"word_list": [{"word": "ok", "pron_accuracy": 90.0}]}}
+    out = tencent._normalize(response)
+    assert "phones" not in out["words"][0]
+    assert "tip" not in out["words"][0]
+
+
+def test_tencent_ipa_prefix_preserves_eval_mode(monkeypatch):
+    """The {::cmd{F_IPA=true}} prefix must not flip word/sentence eval_mode."""
+    from assessment.scoring import tencent
+    monkeypatch.setenv("TENCENT_APP_ID", "123456")
+    monkeypatch.setenv("TENCENT_SECRET_ID", "sid")
+    monkeypatch.setenv("TENCENT_SECRET_KEY", "skey")
+    monkeypatch.setenv("TENCENT_ENABLE_IPA", "1")
+    # single word stays word-mode (0) despite the multi-token command prefix
+    url = tencent._signed_url("cat")
+    assert "eval_mode=0" in url
+    assert "F_IPA" in url
+    # phrase stays sentence-mode (1)
+    url2 = tencent._signed_url("the quick brown fox")
+    assert "eval_mode=1" in url2
+
+
+def test_tencent_ipa_can_be_disabled(monkeypatch):
+    from assessment.scoring import tencent
+    monkeypatch.setenv("TENCENT_APP_ID", "123456")
+    monkeypatch.setenv("TENCENT_SECRET_ID", "sid")
+    monkeypatch.setenv("TENCENT_SECRET_KEY", "skey")
+    monkeypatch.setenv("TENCENT_ENABLE_IPA", "0")
+    url = tencent._signed_url("cat")
+    assert "F_IPA" not in url

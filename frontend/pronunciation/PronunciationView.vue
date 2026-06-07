@@ -24,7 +24,7 @@
 
     <!-- Practice area -->
     <div v-else class="practice-area">
-      <div class="scenario-badge" @click="selectedScenario = null; result = null">
+      <div class="scenario-badge" @click="selectedScenario = null">
         {{ selectedScenario.icon }} {{ selectedScenario.name }} ✕
       </div>
 
@@ -34,12 +34,13 @@
           v-for="(sent, i) in sentences"
           :key="i"
           class="sentence-card"
-          :class="{ active: currentIndex === i, done: results[i] }"
+          :class="{ active: currentIndex === i, done: hasResult(i) }"
           @click="selectSentence(i)"
         >
           <span class="sent-num">{{ i + 1 }}</span>
           <span class="sent-text">{{ sent }}</span>
-          <span v-if="results[i]" class="sent-score">{{ results[i].pronunciation_score?.toFixed(0) }}</span>
+          <span v-if="scoringStates[i] === 'scoring'" class="sent-spinner" :title="t('pronunciation.processing')"></span>
+          <span v-else-if="hasResult(i)" class="sent-score">{{ latestScore(i)?.toFixed(0) }}</span>
         </div>
       </div>
 
@@ -56,16 +57,28 @@
         <div class="record-area">
           <button
             class="record-btn"
-            :class="{ active: isRecording, processing: isProcessing }"
-            :disabled="isProcessing"
+            :class="{ active: isRecording }"
             @click="handleRecord"
           >
             🎙️ {{ recordBtnText }}
           </button>
+          <p v-if="scoringStates[currentIndex] === 'scoring'" class="scoring-hint">
+            {{ t('pronunciation.scoringInBackground') }}
+          </p>
         </div>
 
         <!-- Result display -->
         <div v-if="result" class="result-panel">
+          <!-- History selector: shown once the sentence has 2+ attempts -->
+          <div v-if="currentAttempts.length > 1" class="history-bar">
+            <label class="history-label">{{ t('pronunciation.history') }}</label>
+            <select class="history-select" :value="viewAttempt[currentIndex] ?? currentAttempts.length - 1" @change="selectHistory">
+              <option v-for="(a, k) in currentAttempts" :key="k" :value="k">
+                #{{ k + 1 }} · {{ a.pronunciation_score?.toFixed(0) }}{{ t('pronunciation.scoreUnit') }}
+              </option>
+            </select>
+          </div>
+
           <div class="scores-row">
             <div class="score-item">
               <span class="score-value" :class="scoreClass(result.pronunciation_score)">
@@ -93,17 +106,33 @@
             </div>
           </div>
 
-          <!-- Per-word breakdown -->
+          <!-- Per-word breakdown: click a word to see its phonetics + tip -->
           <div v-if="result.words && result.words.length" class="word-breakdown">
             <span
               v-for="(w, j) in result.words"
               :key="j"
               class="word"
-              :class="wordClass(w)"
-              :title="`${w.accuracy_score?.toFixed(0)} - ${w.error_type}`"
+              :class="[wordClass(w), { 'word-active': expandedWordIdx === j, 'word-clickable': w.phones?.length }]"
+              @click="w.phones?.length && toggleWord(j)"
             >
               {{ w.word }}
             </span>
+          </div>
+
+          <!-- Phonetic detail for the selected word -->
+          <div
+            v-if="expandedWordIdx >= 0 && result.words[expandedWordIdx]?.phones?.length"
+            class="phone-detail"
+          >
+            <div class="phone-detail-head">
+              <strong>{{ result.words[expandedWordIdx].word }}</strong>
+              <span class="phone-detail-ipa">
+                /<template v-for="(p, k) in result.words[expandedWordIdx].phones" :key="k"><span :class="phoneClass(p)">{{ p.phone }}</span></template>/
+              </span>
+            </div>
+            <p v-if="result.words[expandedWordIdx].tip" class="phone-tip">
+              💡 {{ t('pronunciation.focusPhone') }} <span class="phone-poor">/{{ result.words[expandedWordIdx].tip }}/</span> — {{ t('pronunciation.tipHint') }}
+            </p>
           </div>
 
           <button class="next-btn" @click="nextSentence">
@@ -134,13 +163,13 @@
           </div>
         </div>
         <div class="summary-detail">
-          <p>共练习 <strong>{{ Object.keys(results).length }}</strong> / {{ sentences.length }} 句</p>
+          <p>共练习 <strong>{{ practicedCount }}</strong> / {{ sentences.length }} 句</p>
           <p v-if="weakWords.length">
             <span class="weak-title">需加强的单词：</span>
             <span v-for="w in weakWords" :key="w" class="weak-word">{{ w }}</span>
           </p>
         </div>
-        <button class="summary-btn" @click="selectedScenario = null; showSummary = false; result = null">
+        <button class="summary-btn" @click="selectedScenario = null; showSummary = false">
           返回选择场景
         </button>
       </div>
@@ -183,9 +212,15 @@ const scenarios = CONFIG.SCENARIOS
 const selectedScenario = ref(null)
 const sentences = ref([])
 const currentIndex = ref(-1)
-const results = ref({})
-const result = ref(null)
-const isProcessing = ref(false)
+// Per-sentence scoring history: { index: [attempt, attempt, ...] }.
+// Each attempt is a full assess result; we keep every retry so the user can
+// compare progress via the history dropdown.
+const attempts = ref({})
+// Transient per-sentence state for async scoring: { index: 'scoring'|'done'|'error' }.
+const scoringStates = ref({})
+// Which history entry is being viewed per sentence (default: latest).
+const viewAttempt = ref({})
+const expandedWordIdx = ref(-1)
 const isPlaying = ref(false)
 const playingDemo = ref(false)
 const demoAudio = ref(null)
@@ -201,16 +236,25 @@ const { start, stop, isRecording } = useRecorder({
   },
 })
 
+// Attempts for the active sentence, and the one currently shown (selected or latest).
+const currentAttempts = computed(() => attempts.value[currentIndex.value] || [])
+const result = computed(() => {
+  const list = currentAttempts.value
+  if (!list.length) return null
+  const idx = viewAttempt.value[currentIndex.value]
+  return idx != null && list[idx] ? list[idx] : list[list.length - 1]
+})
+
 const recordBtnText = computed(() => {
-  if (isProcessing.value) return t('pronunciation.processing')
   if (isRecording.value) return t('pronunciation.stop')
   return t('pronunciation.start')
 })
 
 async function selectScenario(s) {
   selectedScenario.value = s
-  results.value = {}
-  result.value = null
+  attempts.value = {}
+  scoringStates.value = {}
+  viewAttempt.value = {}
   currentIndex.value = 0
 
   try {
@@ -233,14 +277,13 @@ async function selectScenario(s) {
 
 function selectSentence(i) {
   currentIndex.value = i
-  result.value = results.value[i] || null
+  expandedWordIdx.value = -1
 }
 
 async function handleRecord() {
   if (isRecording.value) {
     await finishRecording()
   } else {
-    result.value = null
     try {
       await start()
     } catch {
@@ -253,9 +296,14 @@ async function handleRecord() {
 async function finishRecording() {
   const blob = await stop()
   if (!blob) return
+  // Fire scoring in the background so the user can move to the next sentence
+  // immediately; the score backfills onto this sentence's card when it returns.
+  const idx = currentIndex.value
+  submitForScoring(idx, blob, sentences.value[idx])
+}
 
-  isProcessing.value = true
-  const referenceText = sentences.value[currentIndex.value]
+async function submitForScoring(idx, blob, referenceText) {
+  scoringStates.value[idx] = 'scoring'
 
   const formData = new FormData()
   formData.append('audio', blob, 'recording.webm')
@@ -270,15 +318,36 @@ async function finishRecording() {
       throw error
     }
     const data = await res.json()
-    result.value = data
-    results.value[currentIndex.value] = data
+    if (!attempts.value[idx]) attempts.value[idx] = []
+    attempts.value[idx].push(data)
+    viewAttempt.value[idx] = attempts.value[idx].length - 1
+    scoringStates.value[idx] = 'done'
+    if (idx === currentIndex.value) expandedWordIdx.value = -1
   } catch (e) {
     const err = classifyError(e, e.status)
     toast.message = `${err.title}：${err.message}`
     toast.type = 'error'
-  } finally {
-    isProcessing.value = false
+    scoringStates.value[idx] = 'error'
   }
+}
+
+function latestScore(i) {
+  const list = attempts.value[i]
+  if (!list?.length) return null
+  return list[list.length - 1].pronunciation_score
+}
+
+function hasResult(i) {
+  return (attempts.value[i]?.length || 0) > 0
+}
+
+function selectHistory(event) {
+  viewAttempt.value[currentIndex.value] = Number(event.target.value)
+  expandedWordIdx.value = -1
+}
+
+function toggleWord(j) {
+  expandedWordIdx.value = expandedWordIdx.value === j ? -1 : j
 }
 
 async function playDemo() {
@@ -320,27 +389,31 @@ async function playDemo() {
 function nextSentence() {
   if (currentIndex.value < sentences.value.length - 1) {
     currentIndex.value++
-    result.value = results.value[currentIndex.value] || null
+    expandedWordIdx.value = -1
   } else {
     // All done — show summary
     toast.message = t('pronunciation.allDone')
     toast.type = 'success'
     showSummary.value = true
     currentIndex.value = -1
-    result.value = null
   }
 }
 
+const practicedCount = computed(() => Object.keys(attempts.value).length)
+
 function avgScore(key) {
-  const vals = Object.values(results.value).map(r => r[key]).filter(v => v != null)
+  const vals = Object.values(attempts.value)
+    .map(list => list[list.length - 1]?.[key])
+    .filter(v => v != null)
   if (!vals.length) return '--'
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
 }
 
 const weakWords = computed(() => {
   const words = []
-  Object.values(results.value).forEach(r => {
-    if (r.words) {
+  Object.values(attempts.value).forEach(list => {
+    const r = list[list.length - 1]
+    if (r?.words) {
       r.words.forEach(w => {
         if (w.accuracy_score != null && w.accuracy_score < 60 && w.word) {
           words.push(w.word)
@@ -364,6 +437,13 @@ function wordClass(w) {
   if (w.accuracy_score >= 80) return 'word-good'
   if (w.accuracy_score >= 60) return 'word-ok'
   return 'word-poor'
+}
+
+function phoneClass(p) {
+  if (p.accuracy_score == null) return ''
+  if (p.accuracy_score >= 80) return 'phone-good'
+  if (p.accuracy_score >= 60) return 'phone-ok'
+  return 'phone-poor'
 }
 
 // --- Realtime Mode ---
@@ -695,6 +775,76 @@ function stopRealtime() {
 .word-ok { background: var(--color-intermediate-bg); color: #b45309; }
 .word-poor { background: var(--color-error-light); color: var(--color-error); }
 .word-error { background: var(--color-error-light); color: var(--color-error); text-decoration: underline wavy; }
+.word-clickable { cursor: pointer; }
+.word-active { box-shadow: 0 0 0 2px var(--color-primary); }
+
+/* Per-sentence scoring spinner (card corner) */
+.sent-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: rt-spin 0.7s linear infinite;
+}
+@keyframes rt-spin { to { transform: rotate(360deg); } }
+.scoring-hint {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sent-spinner { animation: none; }
+}
+
+/* History selector — native <select> renders above everything, so no
+   z-index/pointer-events trap like the old custom slider had. */
+.history-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-bottom: var(--space-4);
+}
+.history-label { font-size: var(--text-xs); color: var(--color-text-muted); font-weight: 500; }
+.history-select {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.history-select:focus { outline: none; border-color: var(--color-primary); }
+
+/* Phonetic detail panel for the selected word */
+.phone-detail {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-5);
+  text-align: left;
+  animation: scale-in var(--transition-fast) both;
+}
+.phone-detail-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.phone-detail-head strong { font-size: var(--text-lg); color: var(--color-text); }
+.phone-detail-ipa { font-size: var(--text-lg); letter-spacing: 1px; color: var(--color-text-secondary); }
+.phone-detail-ipa .phone-good { color: var(--color-score-excellent); }
+.phone-detail-ipa .phone-ok { color: var(--color-score-fair); }
+.phone-detail-ipa .phone-poor { color: var(--color-score-poor); font-weight: 700; }
+.phone-tip {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+.phone-tip .phone-poor { color: var(--color-score-poor); font-weight: 700; }
 
 /* Next button */
 .next-btn {
