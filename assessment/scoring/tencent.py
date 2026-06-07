@@ -30,6 +30,8 @@ _ENGINE_MODEL_TYPE = "16k_en"
 # arrives within 15s of connect (error 4008), which is why we send the audio
 # from inside on_open rather than after a main-thread round-trip.
 _OPEN_TIMEOUT_SECONDS = 25
+# Total connection attempts on network-class failures (see _is_retryable).
+_MAX_ATTEMPTS = 3
 _DONE_TIMEOUT_SECONDS = 60
 
 
@@ -64,14 +66,35 @@ async def assess(audio_path: str, reference_text: str) -> dict | None:
 def _assess_sync(audio_path: str, reference_text: str) -> dict:
     wav_path = _ensure_wav(audio_path)
     try:
-        response = _run_ws_assessment(wav_path, reference_text)
-        return _normalize(response)
+        # The VPS↔SOE path is flaky (slow handshakes, error 4008). Retry the
+        # connection a couple of times on network-class failures; the wav is
+        # converted once and reused. Non-network errors (bad signature, audio
+        # format) are not retried since a retry can't fix them.
+        last_exc = None
+        for attempt in range(_MAX_ATTEMPTS):
+            try:
+                response = _run_ws_assessment(wav_path, reference_text)
+                return _normalize(response)
+            except TencentSOEError as exc:
+                last_exc = exc
+                if not _is_retryable(exc) or attempt == _MAX_ATTEMPTS - 1:
+                    raise
+                continue
+        raise last_exc  # unreachable, but keeps intent explicit
     finally:
         if wav_path != audio_path:
             try:
                 os.unlink(wav_path)
             except OSError:
                 pass
+
+
+def _is_retryable(exc: TencentSOEError) -> bool:
+    """Network-class SOE failures worth retrying: slow/failed handshake, the
+    15s no-audio cutoff (4008), and generic socket timeouts."""
+    msg = str(exc)
+    return any(s in msg for s in ("4008", "did not open in time",
+                                  "timed out", "closed before final"))
 
 
 def _ensure_wav(audio_path: str) -> str:
