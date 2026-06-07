@@ -112,8 +112,10 @@ def _run_ws_assessment(audio_path: str, reference_text: str) -> dict:
 
     def on_open(ws):
         try:
-            ws.send_binary(audio_bytes)
-            ws.send(json.dumps({"type": "end"}))
+            # websocket-client's WebSocketApp exposes send(data, opcode), not
+            # send_binary (that's only on the lower-level WebSocket/ws.sock).
+            ws.send(audio_bytes, websocket.ABNF.OPCODE_BINARY)
+            ws.send(json.dumps({"type": "end"}), websocket.ABNF.OPCODE_TEXT)
         except Exception as exc:
             state["error"] = TencentSOEError(f"Failed to send audio: {exc}")
             state["done"].set()
