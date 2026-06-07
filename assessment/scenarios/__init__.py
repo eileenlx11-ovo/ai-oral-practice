@@ -72,7 +72,7 @@ SCENARIOS = [
         "id": "interview",
         "name": "Job Interview",
         "icon": "💼",
-        "category": "work",
+        "category": "interview",
         "difficulty": "advanced",
         "description": "Ace behavioral and technical interview questions",
         "objective": "Present yourself professionally and answer questions confidently",
