@@ -6,7 +6,9 @@
 
 **🌐 在线体验：https://speak.projfit.top**
 
-**🎬 Demo 视频：** [在线观看 docs/demo.mp4](docs/demo.mp4)（GitHub 网页可直接播放，无需下载） · [高清完整版（百度网盘）](https://pan.baidu.com/s/1oGhWmajS27uTgIkamJLK-g?pwd=mmvx)（提取码：mmvx）
+**🎬 Demo 视频（在线观看，无需下载）：[bilibili.com/video/BV1aoE86HEAi](https://www.bilibili.com/video/BV1aoE86HEAi/)**
+
+> 备选：[仓库内 docs/demo.mp4](docs/demo.mp4) · [百度网盘高清版](https://pan.baidu.com/s/1oGhWmajS27uTgIkamJLK-g?pwd=mmvx)（提取码：mmvx）
 
 ## 功能特性
 
