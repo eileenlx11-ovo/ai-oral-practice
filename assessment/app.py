@@ -5,6 +5,7 @@ Enhanced with: hint system, level assessment, character memory, talent-agent int
 """
 import os
 import json
+import logging
 import shutil
 import tempfile
 import uuid
@@ -68,6 +69,12 @@ def _save_recording(session_id: str, turn_index: int, audio_path: str):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Route our logger through uvicorn's handlers so errors (e.g. ASR failures)
+    # actually surface in `docker compose logs`.
+    uvicorn_logger = logging.getLogger("uvicorn.error")
+    if uvicorn_logger.handlers:
+        logger.handlers = uvicorn_logger.handlers
+        logger.setLevel(logging.INFO)
     yield
 
 
@@ -84,6 +91,8 @@ app.add_middleware(
 
 # Serve cached TTS audio
 app.mount("/audio", StaticFiles(directory=str(AUDIO_DIR)), name="audio")
+
+logger = logging.getLogger("assessment")
 
 # LLM client (lazy — allows server to start without key for dev/testing)
 _api_key = os.getenv("LLM_API_KEY", "") or "sk-placeholder"
@@ -700,47 +709,111 @@ async def text_to_speech(text: str = Form(...)):
 
 # --- Internal helpers ---
 
-# ASR client — configurable provider (Groq Whisper / SiliconFlow / custom)
-_asr_base_url = os.getenv("ASR_BASE_URL", "https://api.groq.com/openai/v1")
-_asr_api_key = os.getenv("ASR_API_KEY") or os.getenv("GROQ_API_KEY") or os.getenv("SILICONFLOW_API_KEY") or "sk-placeholder"
-
-# Groq needs proxy in China; httpx picks up standard env vars (HTTPS_PROXY / ALL_PROXY)
+# --- ASR providers (multi-provider with ordered fallback) ---
+# Groq Whisper is fast and primary; SiliconFlow SenseVoice is the fallback.
+# Each provider self-configures from env; only those with a key are activated.
 import httpx as _httpx
-_asr_http_client = None
-_proxy_url = os.getenv("HTTPS_PROXY") or os.getenv("ALL_PROXY") or os.getenv("HTTP_PROXY")
-if _proxy_url and "groq" in _asr_base_url:
-    _asr_http_client = _httpx.AsyncClient(proxy=_proxy_url)
 
-_asr_client = AsyncOpenAI(
-    api_key=_asr_api_key,
-    base_url=_asr_base_url,
-    http_client=_asr_http_client,
-)
+_ASR_PROVIDER_SPECS = {
+    "groq": {
+        "base_url": "https://api.groq.com/openai/v1",
+        "key_envs": ("GROQ_API_KEY", "ASR_API_KEY"),
+        "model_env": "GROQ_ASR_MODEL",
+        "default_model": "whisper-large-v3-turbo",
+        "word_timestamps": True,  # Groq Whisper returns word-level timestamps
+        "needs_proxy": True,      # may need HTTPS_PROXY in mainland China
+    },
+    "siliconflow": {
+        "base_url": "https://api.siliconflow.cn/v1",
+        "key_envs": ("SILICONFLOW_API_KEY",),
+        "model_env": "SILICONFLOW_ASR_MODEL",
+        "default_model": "FunAudioLLM/SenseVoiceSmall",
+        "word_timestamps": False,  # SenseVoice does not support word timestamps
+        "needs_proxy": False,
+    },
+}
+
+# Order is configurable; defaults to groq first, then siliconflow.
+_ASR_ORDER = [
+    p.strip() for p in os.getenv("ASR_PROVIDER_ORDER", "groq,siliconflow").split(",") if p.strip()
+]
+
+_proxy_url = os.getenv("HTTPS_PROXY") or os.getenv("ALL_PROXY") or os.getenv("HTTP_PROXY")
+
+
+def _build_asr_providers() -> list[dict]:
+    """Instantiate ASR clients for each configured provider that has a key."""
+    # Legacy override: ASR_BASE_URL forces the base_url of the first provider.
+    legacy_base_override = os.getenv("ASR_BASE_URL")
+    providers = []
+    for idx, name in enumerate(_ASR_ORDER):
+        spec = _ASR_PROVIDER_SPECS.get(name)
+        if not spec:
+            continue
+        api_key = next((os.getenv(e) for e in spec["key_envs"] if os.getenv(e)), None)
+        if not api_key:
+            continue  # skip providers with no key configured
+        base_url = spec["base_url"]
+        if idx == 0 and legacy_base_override:
+            base_url = legacy_base_override
+        http_client = None
+        if spec["needs_proxy"] and _proxy_url:
+            http_client = _httpx.AsyncClient(proxy=_proxy_url)
+        providers.append({
+            "name": name,
+            "client": AsyncOpenAI(api_key=api_key, base_url=base_url, http_client=http_client),
+            "model": os.getenv(spec["model_env"]) or os.getenv("ASR_MODEL") or spec["default_model"],
+            "base_url": base_url,
+            "word_timestamps": spec["word_timestamps"],
+        })
+    return providers
+
+
+_asr_providers = _build_asr_providers()
 
 
 async def _transcribe(filepath: str) -> str:
-    """Transcribe audio file via configured ASR provider (default: Groq Whisper)."""
-    model = os.getenv("ASR_MODEL", "whisper-large-v3-turbo")
-    with open(filepath, "rb") as f:
-        resp = await _asr_client.audio.transcriptions.create(
-            model=model,
-            file=f,
-            language="en",
-            response_format="verbose_json",
-            timestamp_granularities=["word"],
-        )
-    # Store word-level timestamps if available (for fluency analysis)
-    if hasattr(resp, 'words') and resp.words:
-        _transcribe._last_words = resp.words
-    else:
-        _transcribe._last_words = None
+    """Transcribe audio via the configured ASR providers in order.
 
-    # Return text — handle both object and dict response formats
-    if hasattr(resp, 'text'):
-        return resp.text
-    if isinstance(resp, dict):
-        return resp.get('text', '')
-    return str(resp)
+    Tries each provider until one succeeds. Word-level timestamps are requested
+    only from providers that support them (stored in _transcribe._last_words for
+    fluency analysis; None when unavailable).
+    """
+    if not _asr_providers:
+        logger.error("ASR transcription failed: no provider configured (set GROQ_API_KEY or SILICONFLOW_API_KEY)")
+        raise RuntimeError("No ASR provider configured")
+
+    last_exc = None
+    for provider in _asr_providers:
+        kwargs = {"model": provider["model"], "language": "en"}
+        if provider["word_timestamps"]:
+            kwargs["response_format"] = "verbose_json"
+            kwargs["timestamp_granularities"] = ["word"]
+        try:
+            with open(filepath, "rb") as f:
+                resp = await provider["client"].audio.transcriptions.create(file=f, **kwargs)
+        except Exception as exc:
+            last_exc = exc
+            logger.error(
+                "ASR provider '%s' failed: %s (base_url=%s, model=%s)",
+                provider["name"], exc, provider["base_url"], provider["model"],
+            )
+            continue  # fall back to next provider
+
+        # Word-level timestamps (only some providers return them)
+        if getattr(resp, "words", None):
+            _transcribe._last_words = resp.words
+        else:
+            _transcribe._last_words = None
+
+        if hasattr(resp, "text"):
+            return resp.text
+        if isinstance(resp, dict):
+            return resp.get("text", "")
+        return str(resp)
+
+    # All providers failed
+    raise last_exc if last_exc else RuntimeError("ASR transcription failed")
 
 _transcribe._last_words = None
 
