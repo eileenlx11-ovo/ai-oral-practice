@@ -48,7 +48,15 @@
       <div v-if="currentIndex >= 0" class="active-practice">
         <div class="reference-text">
           <p class="label">{{ t('pronunciation.readThis') }}</p>
-          <p class="text">{{ sentences[currentIndex] }}</p>
+          <!-- Word + dictionary IPA, vertically grouped, flex-wrapped (layout A).
+               Falls back to plain text when the corpus has no IPA. -->
+          <div v-if="currentWords.length" class="ipa-sentence">
+            <span v-for="(w, wi) in currentWords" :key="wi" class="ipa-word">
+              <span class="ipa-word-text">{{ w.word }}</span>
+              <span v-if="w.ipa_us" class="ipa-word-ipa">/{{ w.ipa_us }}/</span>
+            </span>
+          </div>
+          <p v-else class="text">{{ sentences[currentIndex] }}</p>
           <button class="demo-btn" :disabled="playingDemo" @click="playDemo">
             {{ playingDemo ? t('pronunciation.playing') : t('pronunciation.listenDemo') }}
           </button>
@@ -113,9 +121,10 @@
               :key="j"
               class="word"
               :class="[wordClass(w), { 'word-active': expandedWordIdx === j, 'word-clickable': w.phones?.length }]"
+              :title="w.phones?.length ? t('pronunciation.clickForPhonemes') : (isWeak(w) ? t('pronunciation.notRecognized') : '')"
               @click="w.phones?.length && toggleWord(j)"
             >
-              {{ w.word }}
+              {{ w.word }}<span v-if="w.phones?.length" class="word-caret">▾</span><span v-else-if="isWeak(w)" class="word-warn">⚠️</span>
             </span>
           </div>
 
@@ -189,6 +198,9 @@ const { t } = useI18n()
 const scenarios = CONFIG.SCENARIOS
 const selectedScenario = ref(null)
 const sentences = ref([])
+// Per-sentence words with dictionary IPA: [{text, words:[{word, ipa_us}]}].
+// Used to show standard phonetics on every word before/independent of scoring.
+const sentencesFull = ref([])
 const currentIndex = ref(-1)
 // Per-sentence scoring history: { index: [attempt, attempt, ...] }.
 // Each attempt is a full assess result; we keep every retry so the user can
@@ -229,6 +241,13 @@ const recordBtnText = computed(() => {
   return t('pronunciation.start')
 })
 
+// Dictionary IPA for the active sentence's words (standard phonetics, shown
+// always). Empty when the corpus has no IPA data (fallback sentences).
+const currentWords = computed(() => {
+  const full = sentencesFull.value[currentIndex.value]
+  return full?.words || []
+})
+
 async function selectScenario(s) {
   selectedScenario.value = s
   attempts.value = {}
@@ -241,6 +260,7 @@ async function selectScenario(s) {
     if (res.ok) {
       const data = await res.json()
       sentences.value = data.sentences
+      sentencesFull.value = data.sentences_full || []
     } else {
       throw new Error()
     }
@@ -251,6 +271,7 @@ async function selectScenario(s) {
       "Could you help me with this, please?",
       "I would like to improve my English speaking.",
     ]
+    sentencesFull.value = []
   }
 }
 
@@ -431,6 +452,13 @@ function wordClass(w) {
   return 'word-poor'
 }
 
+// A word worth attention (mispronounced or low score). Used to explain why a
+// flagged word has no drill-down: it wasn't clearly recognized, so retry.
+function isWeak(w) {
+  if (w.error_type && w.error_type !== 'none' && w.error_type !== 'None') return true
+  return typeof w.accuracy_score === 'number' && w.accuracy_score < 60
+}
+
 function phoneClass(p) {
   if (p.accuracy_score == null) return ''
   if (p.accuracy_score >= 80) return 'phone-good'
@@ -560,6 +588,33 @@ function phoneClass(p) {
   color: var(--color-text);
   line-height: 1.7;
   font-weight: 500;
+}
+
+/* Layout A: each word + its dictionary IPA form one vertical block; blocks
+   flex-wrap so a word and its phonetics never split across lines. */
+.ipa-sentence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-4);
+}
+.ipa-word {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.ipa-word-text {
+  font-size: var(--text-xl);
+  color: var(--color-text);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.ipa-word-ipa {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 .demo-btn {
@@ -710,7 +765,8 @@ function phoneClass(p) {
   font-weight: 500;
   transition: transform var(--transition-fast);
 }
-.word:hover { transform: scale(1.1); }
+/* Only clickable words react to hover, so "can I drill in?" is unambiguous. */
+.word-clickable:hover { transform: scale(1.1); }
 
 .word-good { background: var(--color-beginner-bg); color: var(--color-beginner); }
 .word-ok { background: var(--color-intermediate-bg); color: #b45309; }
@@ -718,6 +774,10 @@ function phoneClass(p) {
 .word-error { background: var(--color-error-light); color: var(--color-error); text-decoration: underline wavy; }
 .word-clickable { cursor: pointer; }
 .word-active { box-shadow: 0 0 0 2px var(--color-primary); }
+/* ▾ marks a word whose per-phoneme detail can be opened; ⚠️ marks a flagged
+   word that has no phoneme data (wasn't recognized) so the user knows why. */
+.word-caret { font-size: 0.7em; margin-left: 2px; opacity: 0.7; }
+.word-warn { font-size: 0.8em; margin-left: 2px; }
 
 /* Per-sentence scoring spinner (card corner) */
 .sent-spinner {

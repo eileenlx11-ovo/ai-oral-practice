@@ -144,6 +144,8 @@ export default {
     scoreUnit: '',
     focusPhone: 'Focus on',
     tipHint: 'this phoneme scored low — compare with the demo and repeat',
+    clickForPhonemes: 'Click to see per-phoneme scores',
+    notRecognized: "This word wasn't clearly recognized — try reading the sentence again",
     recordingTooShort: 'Recording is too short or too quiet. Move closer to the microphone and try again.',
     noValidScore: 'No valid pronunciation score was returned. The recording may be too short or not recognized.',
     summaryTitle: 'Practice summary',

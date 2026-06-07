@@ -678,118 +678,16 @@ def get_voice_for_custom_partner(country: str, partner_name: str = "") -> str:
     if any(w in country_lower for w in ["india", "mumbai"]):
         return VOICES["indian_male"]["id"]
     return VOICES["american_male"]["id"]
-PRACTICE_SENTENCES = {
-    "coffee_shop": [
-        "I'd like a medium latte with oat milk, please.",
-        "Could I also get a blueberry muffin to go?",
-        "Do you have any seasonal specials today?",
-        "Can I pay with my phone?",
-    ],
-    "grocery": [
-        "Excuse me, where can I find the pasta sauce?",
-        "Do you have any organic vegetables in stock?",
-        "I'd like half a pound of sliced turkey, please.",
-        "Is this item on sale this week?",
-    ],
-    "doctor": [
-        "I've been having a headache for about three days now.",
-        "The pain gets worse in the morning and evening.",
-        "I'm not currently taking any medication.",
-        "Should I schedule a follow-up appointment?",
-    ],
-    "restaurant": [
-        "I'd like to start with the soup of the day, please.",
-        "Could you tell me what the chef recommends?",
-        "I have a nut allergy. Is this dish safe for me?",
-        "Could we get the check when you have a moment?",
-    ],
-    "delivery": [
-        "I'm in the building on the left side of the street.",
-        "You need to enter the code one two three four at the gate.",
-        "I'll come downstairs to meet you at the entrance.",
-        "The apartment number is three zero five on the third floor.",
-    ],
-    "interview": [
-        "I have three years of experience in software development.",
-        "My biggest strength is my ability to learn quickly.",
-        "I led a team of five engineers on that project.",
-        "I'm looking for a role where I can grow technically.",
-    ],
-    "meeting": [
-        "I'd like to share a quick update on our progress.",
-        "We're currently on track to meet the deadline.",
-        "I think we should consider an alternative approach.",
-        "Let me summarize the action items from today.",
-    ],
-    "coworker": [
-        "Hey, do you want to grab coffee after this meeting?",
-        "I'm thinking about taking a vacation next month.",
-        "Have you tried the new restaurant down the street?",
-        "The deadline got pushed back to next Friday.",
-    ],
-    "phone_call": [
-        "Thank you for taking the time to speak with me today.",
-        "I'd like to discuss the timeline for the next deliverable.",
-        "Could you send me that in writing after our call?",
-        "Let me confirm the next steps before we hang up.",
-    ],
-    "salary": [
-        "I appreciate the offer and I'm very excited about the role.",
-        "Based on my research, I was hoping for something closer to ninety thousand.",
-        "Could you tell me more about the equity package?",
-        "I'd like a few days to review the complete offer.",
-    ],
-    "airport": [
-        "I'd like a window seat if one is available, please.",
-        "I have one checked bag and one carry-on.",
-        "What time does boarding start for my flight?",
-        "Is there a lounge I can access with this ticket?",
-    ],
-    "hotel": [
-        "I have a reservation under the name Johnson for three nights.",
-        "Is breakfast included with my room?",
-        "Could you recommend a good restaurant nearby?",
-        "What time is checkout tomorrow morning?",
-    ],
-    "directions": [
-        "Excuse me, could you tell me how to get to the museum?",
-        "Is it within walking distance from here?",
-        "Should I take the first or second left turn?",
-        "Thank you so much for your help. I appreciate it.",
-    ],
-    "travel": [
-        "I'd like to rent a mid-size sedan for five days.",
-        "Does the insurance cover damage to the windshield?",
-        "What's your policy on returning the car with a full tank?",
-        "Can I drop off the car at a different location?",
-    ],
-    "smalltalk": [
-        "I've been really into cooking lately. It's so relaxing.",
-        "The weather has been great this week, hasn't it?",
-        "I just started watching a new show on Netflix.",
-        "Do you have any plans for the weekend?",
-    ],
-    "party": [
-        "It's nice to meet you! I'm a friend of a friend.",
-        "So what do you do for work? That sounds really interesting.",
-        "Have you been to one of these parties before?",
-        "We should definitely exchange numbers and hang out sometime.",
-    ],
-    "neighbor": [
-        "Hi there! The neighborhood seems really nice and quiet.",
-        "Do you know if there's a good coffee shop nearby?",
-        "I noticed there's a park down the street. Is it nice?",
-        "Thanks for the tip! I'll definitely check it out.",
-    ],
-    "gym": [
-        "I usually work out about four times a week.",
-        "I've been focusing on building upper body strength.",
-        "Do you have any tips for improving my deadlift form?",
-        "I try to get at least eight hours of sleep for recovery.",
-    ],
-}
+# Practice sentences live in a generated data module (per-word IPA).
+# Regenerate with: python -m scripts.gen_ipa --write
+from .practice_sentences_data import PRACTICE_SENTENCES
+
+
+def get_practice_sentences_full(scenario_id: str) -> list[dict]:
+    """Practice sentences with per-word IPA: [{text, words:[{word, ipa_us}]}]."""
+    return PRACTICE_SENTENCES.get(scenario_id, PRACTICE_SENTENCES["smalltalk"])
 
 
 def get_practice_sentences(scenario_id: str) -> list[str]:
-    """Get pronunciation practice sentences for a scenario."""
-    return PRACTICE_SENTENCES.get(scenario_id, PRACTICE_SENTENCES["smalltalk"])
+    """Plain sentence strings (backward-compatible view of the full corpus)."""
+    return [s["text"] for s in get_practice_sentences_full(scenario_id)]

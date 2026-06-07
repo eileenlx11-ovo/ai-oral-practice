@@ -144,6 +144,8 @@ export default {
     scoreUnit: '分',
     focusPhone: '重点练习',
     tipHint: '这个音素得分偏低，对照标准发音多读几遍',
+    clickForPhonemes: '点击查看每个音素的评分',
+    notRecognized: '这个词没有清晰识别到，建议重读这一句',
     recordingTooShort: '录音太短或没有检测到有效声音，请靠近麦克风再读一遍',
     noValidScore: '没有拿到有效发音分数，可能是录音过短或服务未识别到朗读内容',
     summaryTitle: '本次练习总结',
