@@ -25,7 +25,6 @@ const PORT = 8001
 app.use(cors())
 app.use(express.json())
 
-// ========== Mock Data ==========
 
 const SCENARIOS = [
   { id: 'coffee_shop', icon: '☕', name: 'Coffee Shop', category: 'daily', difficulty: 'beginner', description: '在咖啡店点饮品', objective: 'Successfully order a customized coffee drink', greeting: "Hey there! Welcome to Bean & Brew. What can I get started for you today?", character: { name: 'Maya', avatar: '👩‍🦱' } },
@@ -203,7 +202,6 @@ function getNextReply(scenario) {
   return reply
 }
 
-// ========== Routes ==========
 
 // --- Categories ---
 app.get('/api/categories', (req, res) => {
@@ -524,7 +522,6 @@ app.post('/api/integrations/talent-agent/sync', upload.none(), (req, res) => {
   res.json({ synced: false, error: 'Talent Agent not configured (mock mode)' })
 })
 
-// ========== Custom Topic ==========
 app.post('/api/sessions/topic', upload.none(), (req, res) => {
   const topic = req.body?.topic || 'general conversation'
   const name = req.body?.partner_name || 'Alex'
@@ -551,7 +548,6 @@ app.get('/api/topics/trending', (req, res) => {
   ]})
 })
 
-// ========== Scenario Learning Guide ==========
 app.get('/api/scenarios/:id/guide', (req, res) => {
   // Return coffee_shop guide as sample for any scenario
   res.json({
@@ -571,6 +567,20 @@ app.get('/api/scenarios/:id/guide', (req, res) => {
     dialogue: [
       { speaker: "A", text: "Hey! Welcome to Bean & Brew. What can I get started for you?", translation: "嘿！欢迎来到 Bean & Brew。想喝点什么？", notes: [{ term: "get started for you", explanation: "咖啡店开场用语" }] },
       { speaker: "B", text: "Could I get a medium oat milk latte to go?", translation: "我要一杯中杯燕麦拿铁外带。", notes: [{ term: "to go", explanation: "外带；反义 for here" }] },
+    ],
+  })
+})
+
+// --- Session Playback ---
+app.get('/api/sessions/:id/turns-full', (req, res) => {
+  res.json({
+    id: req.params.id,
+    scenario: 'interview',
+    started_at: '2026-06-05T10:00:00Z',
+    turns: [
+      { user_text: "I have three years of experience in web development.", reply_text: "That's great! Can you tell me about a challenging project you worked on?", corrections: [{ original: "I have three years experience", corrected: "I have three years of experience", explanation: "Use 'of' between quantity and noun" }] },
+      { user_text: "I led a team to build a real-time dashboard.", reply_text: "Impressive! What technologies did you use for that?", corrections: [] },
+      { user_text: "We used React and Node.js for the backend.", reply_text: "Good choices. How did you handle scalability?", corrections: [{ original: "for the backend", corrected: "on the backend", explanation: "Use 'on' when referring to the platform/layer" }] },
     ],
   })
 })
@@ -606,7 +616,25 @@ app.post('/api/checkin', (req, res) => {
   res.json({ date: new Date().toISOString().slice(0, 10), streak: 4 })
 })
 
-// ========== Start ==========
+app.get('/api/sessions/:id/recording/:turn', (req, res) => {
+  // Minimal valid MP3 frame (silent)
+  const silentMp3 = Buffer.from(
+    'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRwmHAAAAAAD/+1DEAAAHAAGf9AAAIgAAM/8AAABM',
+    'base64'
+  )
+  res.setHeader('Content-Type', 'audio/mpeg')
+  res.setHeader('Content-Length', silentMp3.length)
+  res.end(silentMp3)
+})
+
+app.post('/api/sessions/:id/review', (req, res) => {
+  setTimeout(() => {
+    res.json({
+      review: '整体表现：你在面试场景中的表达比较流利，能够清楚地描述自己的工作经验和技术栈。\n\n主要错误模式：介词使用偶尔不准确（如 "for the backend" 应为 "on the backend"），以及名词短语中遗漏 "of" 等小词。\n\n改进建议：建议多注意介词搭配的固定用法，可以通过阅读技术文章来积累常见的表达方式。整体来看进步明显，继续保持练习节奏。',
+    })
+  }, 800)
+})
+
 app.listen(PORT, () => {
   console.log(`\n🎯 Mock Server running at http://localhost:${PORT}`)
   console.log(`   API endpoints ready:`)

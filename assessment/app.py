@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from openai import AsyncOpenAI
 from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, get_practice_sentences, build_custom_interview_prompt, build_custom_topic_prompt, get_voice_for_custom_partner, SPEED_PRESETS
 from .characters import get_character
@@ -33,6 +33,22 @@ load_dotenv()
 # Audio output directory
 AUDIO_DIR = Path(__file__).parent / "audio_cache"
 AUDIO_DIR.mkdir(exist_ok=True)
+
+# Recordings directory for session playback
+RECORDINGS_DIR = Path(__file__).parent / "data" / "recordings"
+RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _save_recording(session_id: str, turn_index: int, audio_path: str):
+    """Copy the temp audio file to recordings directory for later playback."""
+    import shutil
+    dest_dir = RECORDINGS_DIR / session_id
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_file = dest_dir / f"{turn_index}.webm"
+    try:
+        shutil.copy2(audio_path, str(dest_file))
+    except Exception:
+        pass  # Recording save is non-critical
 
 
 @asynccontextmanager
@@ -304,7 +320,9 @@ async def chat_stream(
 
             # 4. Save to session & update affinity
             try:
-                store.add_turn(session_id, user_text, reply_text, corrections)
+                turn = store.add_turn(session_id, user_text, reply_text, corrections)
+                turn_index = turn.get("index", 0) if isinstance(turn, dict) else 0
+                _save_recording(session_id, turn_index, tmp.name)
                 profile_store.increment_affinity(DEFAULT_USER_ID, scenario)
             except ValueError:
                 pass
@@ -733,6 +751,64 @@ async def get_session_summary(session_id: str):
         return store.get_summary(session_id)
     except ValueError as e:
         raise HTTPException(404, str(e))
+
+
+@app.get("/api/sessions/{session_id}/turns-full")
+async def get_session_turns_full(session_id: str):
+    """Get full session data including all turns for playback."""
+    session = store.get_session(session_id)
+    if session is None:
+        raise HTTPException(404, "Session not found")
+    return session
+
+
+@app.get("/api/sessions/{session_id}/recording/{turn_index}")
+async def get_session_recording(session_id: str, turn_index: int):
+    """Serve the recorded audio file for a specific turn."""
+    recording_path = RECORDINGS_DIR / session_id / f"{turn_index}.webm"
+    if not recording_path.exists():
+        raise HTTPException(404, "Recording not found")
+    return FileResponse(str(recording_path), media_type="audio/webm")
+
+
+@app.post("/api/sessions/{session_id}/review")
+async def generate_session_review(session_id: str):
+    """Generate an AI review of the full session conversation."""
+    session = store.get_session(session_id)
+    if session is None:
+        raise HTTPException(404, "Session not found")
+
+    # Build transcript from turns
+    turns = session.get("turns", [])
+    transcript_lines = []
+    for t in turns:
+        transcript_lines.append(f"User: {t.get('user_text', '')}")
+        transcript_lines.append(f"AI: {t.get('reply_text', '')}")
+    transcript = "\n".join(transcript_lines)
+
+    prompt = f"""请根据以下英语口语练习对话记录，用中文给出详细的复盘评价。
+
+对话记录：
+{transcript}
+
+请从以下三个方面进行评价：
+1. 整体表现：总体评估学生的口语表达能力
+2. 主要错误模式：归纳出现的语法、用词或表达问题
+3. 改进建议：给出具体可操作的改进方向
+
+请直接输出评价内容，不要加标题格式。"""
+
+    try:
+        resp = await llm.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.5,
+            max_tokens=600,
+        )
+        review_text = resp.choices[0].message.content or ""
+        return {"review": review_text}
+    except Exception:
+        return {"review": "无法生成评价，请稍后重试。"}
 
 
 @app.get("/api/progress")
