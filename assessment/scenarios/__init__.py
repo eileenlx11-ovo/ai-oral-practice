@@ -11,6 +11,8 @@ CATEGORIES = [
     {"id": "work", "name": "Work", "icon": "💼"},
     {"id": "travel", "name": "Travel", "icon": "✈️"},
     {"id": "social", "name": "Social", "icon": "💬"},
+    {"id": "campus", "name": "Campus Life", "icon": "🎓"},
+    {"id": "hobbies", "name": "Hobbies", "icon": "🎨"},
 ]
 
 SCENARIOS = [
@@ -198,6 +200,200 @@ SCENARIOS = [
         "objective": "Discuss workout routines and give/receive tips",
         "greeting": "Hey man! I've seen you here a few times. You're pretty consistent! How long have you been working out?",
     },
+    # --- Daily Life (expanded) ---
+    {
+        "id": "weather",
+        "name": "Weather Chat",
+        "icon": "🌤️",
+        "category": "daily",
+        "difficulty": "beginner",
+        "description": "Talk about the weather and make plans accordingly",
+        "objective": "Discuss weather conditions and adjust plans",
+        "greeting": "Wow, can you believe this weather? I heard it might rain all weekend. Do you have any outdoor plans?",
+    },
+    {
+        "id": "renting",
+        "name": "Renting an Apartment",
+        "icon": "🏢",
+        "category": "daily",
+        "difficulty": "intermediate",
+        "description": "Discuss apartment details with a landlord or agent",
+        "objective": "Ask about price, amenities, lease terms, and negotiate",
+        "greeting": "Hi, thanks for coming to view the apartment! As you can see, it's a one-bedroom with an open kitchen. The rent is $1,200 a month. Shall I show you around?",
+    },
+    {
+        "id": "counseling",
+        "name": "Counseling Session",
+        "icon": "🧠",
+        "category": "daily",
+        "difficulty": "advanced",
+        "description": "Talk to a counselor about stress and feelings",
+        "objective": "Express emotions clearly and discuss coping strategies",
+        "greeting": "Hi, welcome. Please make yourself comfortable. How have you been feeling since our last conversation? Is there anything particular on your mind today?",
+    },
+    {
+        "id": "family",
+        "name": "Family Gathering",
+        "icon": "👨‍👩‍👧‍👦",
+        "category": "daily",
+        "difficulty": "beginner",
+        "description": "Catch up with family members at a gathering",
+        "objective": "Talk about life updates, plans, and family news",
+        "greeting": "Hey, look who's here! We haven't seen you since last Thanksgiving! How's everything going? Come sit down, tell us what's new!",
+    },
+    # --- Campus Life ---
+    {
+        "id": "debate",
+        "name": "Classroom Debate",
+        "icon": "🎤",
+        "category": "campus",
+        "difficulty": "advanced",
+        "description": "Participate in an in-class debate on a topic",
+        "objective": "Present arguments clearly and respond to counterpoints",
+        "greeting": "Alright class, today's motion is: 'Social media does more harm than good.' You'll be arguing FOR the motion. Your opponent just said social media connects people worldwide. How do you respond?",
+    },
+    {
+        "id": "study_abroad",
+        "name": "Study Abroad",
+        "icon": "🌍",
+        "category": "campus",
+        "difficulty": "intermediate",
+        "description": "Consult an advisor about studying abroad",
+        "objective": "Ask about programs, requirements, and prepare application",
+        "greeting": "Hi! Welcome to the International Programs Office. I see you're interested in our exchange program. Which country are you thinking about, and for which semester?",
+    },
+    {
+        "id": "roommate",
+        "name": "Meeting Your Roommate",
+        "icon": "🛏️",
+        "category": "campus",
+        "difficulty": "beginner",
+        "description": "Meet your new college roommate for the first time",
+        "objective": "Introduce yourself and set room expectations",
+        "greeting": "Hey! You must be my new roommate! I'm just unpacking. I'm from Portland. Where are you from? I hope you don't mind — I tend to stay up a bit late.",
+    },
+    {
+        "id": "group_project",
+        "name": "Group Project",
+        "icon": "📋",
+        "category": "campus",
+        "difficulty": "intermediate",
+        "description": "Coordinate tasks in a group assignment",
+        "objective": "Divide work fairly and agree on deadlines",
+        "greeting": "OK team, so we have this presentation due next Friday. I was thinking we could split it into three parts. Does anyone have a preference for which section they want to cover?",
+    },
+    {
+        "id": "enrollment",
+        "name": "Campus Enrollment",
+        "icon": "📝",
+        "category": "campus",
+        "difficulty": "beginner",
+        "description": "Handle enrollment and registration procedures",
+        "objective": "Complete enrollment steps and ask about requirements",
+        "greeting": "Good morning! Welcome to the Registrar's Office. Are you here for new student registration? I'll need your acceptance letter and photo ID to get started.",
+    },
+    {
+        "id": "club",
+        "name": "Joining a Club",
+        "icon": "🎭",
+        "category": "campus",
+        "difficulty": "beginner",
+        "description": "Sign up for a campus club or organization",
+        "objective": "Ask about activities and commit to joining",
+        "greeting": "Hey! Interested in the Drama Club? We meet every Thursday and put on two shows per semester. No experience needed! Want me to tell you more about what we do?",
+    },
+    {
+        "id": "campus_event",
+        "name": "Campus Event",
+        "icon": "🎪",
+        "category": "campus",
+        "difficulty": "intermediate",
+        "description": "Organize or participate in a campus event",
+        "objective": "Discuss event planning details or volunteer",
+        "greeting": "Thanks for volunteering for the Spring Festival! We need help with setup, food stalls, and the main stage. Which area interests you? The event is this Saturday from 2 to 8 PM.",
+    },
+    {
+        "id": "ielts_speaking",
+        "name": "IELTS Speaking Practice",
+        "icon": "📖",
+        "category": "campus",
+        "difficulty": "advanced",
+        "description": "Simulate an IELTS speaking test (Parts 1-3)",
+        "objective": "Practice structured responses with detail and fluency",
+        "greeting": "Good morning. My name is examiner Johnson. This is the speaking test for IELTS. Can you tell me your full name please? And where are you from?",
+    },
+    # --- Travel (expanded) ---
+    {
+        "id": "sightseeing",
+        "name": "Sightseeing",
+        "icon": "📸",
+        "category": "travel",
+        "difficulty": "beginner",
+        "description": "Visit a tourist attraction and interact with a guide",
+        "objective": "Ask about history, take photos, and buy tickets",
+        "greeting": "Welcome to the Tower of London! Tickets are £29 for adults. Would you like an audio guide as well? The Crown Jewels exhibit is our most popular — shall I point you in that direction?",
+    },
+    {
+        "id": "public_transport",
+        "name": "Public Transport",
+        "icon": "🚇",
+        "category": "travel",
+        "difficulty": "beginner",
+        "description": "Navigate the subway or bus system in a new city",
+        "objective": "Ask for help finding the right route",
+        "greeting": "Excuse me, you look a bit confused. Are you trying to get somewhere? This station can be tricky — there are three different lines here. Where are you headed?",
+    },
+    {
+        "id": "lost_item",
+        "name": "Lost & Found",
+        "icon": "🔍",
+        "category": "travel",
+        "difficulty": "intermediate",
+        "description": "Report a lost item at a lost-and-found office",
+        "objective": "Describe the item clearly and provide details",
+        "greeting": "Hello, this is the Lost & Found office. I'm sorry to hear you've lost something. Can you describe the item for me? When and where did you last have it?",
+    },
+    # --- Hobbies & Interests ---
+    {
+        "id": "books",
+        "name": "Book Discussion",
+        "icon": "📚",
+        "category": "hobbies",
+        "difficulty": "intermediate",
+        "description": "Discuss books and reading recommendations",
+        "objective": "Share opinions about books and get recommendations",
+        "greeting": "Oh, I see you're reading that one! I finished it last month. What do you think so far? I have some thoughts about the ending, but no spoilers — promise!",
+    },
+    {
+        "id": "nutrition",
+        "name": "Diet & Health",
+        "icon": "🥗",
+        "category": "hobbies",
+        "difficulty": "intermediate",
+        "description": "Discuss healthy eating and nutrition",
+        "objective": "Talk about dietary choices and get advice",
+        "greeting": "I've been trying to eat healthier lately. I just started meal prepping on Sundays. Do you pay attention to your diet? Any tips for someone just starting out?",
+    },
+    {
+        "id": "fitness",
+        "name": "Sports & Exercise",
+        "icon": "🏃",
+        "category": "hobbies",
+        "difficulty": "beginner",
+        "description": "Talk about sports, running, or exercise routines",
+        "objective": "Share fitness experiences and motivate each other",
+        "greeting": "I just signed up for a 5K run next month! I've never done one before. Do you do any running or sports? I could really use some training tips!",
+    },
+    {
+        "id": "music",
+        "name": "Music & Creation",
+        "icon": "🎵",
+        "category": "hobbies",
+        "difficulty": "intermediate",
+        "description": "Discuss music tastes or learning an instrument",
+        "objective": "Share musical interests and discuss creative process",
+        "greeting": "Hey, is that a guitar case? Do you play? I've been trying to learn piano for about six months now. It's way harder than I expected! What kind of music are you into?",
+    },
 ]
 
 # Base instruction for the LLM acting as conversation partner
@@ -264,6 +460,29 @@ _SCENARIO_CONTEXTS = {
     "party": "You are Olivia, someone the user just met at a party. Be outgoing and curious. Ask about their job, hobbies, how they know the host. Share your own stories. Use casual language and some slang.",
     "neighbor": "You are Robert, the user's next-door neighbor. Chat about the neighborhood, local events, weather, home stuff. Be friendly and community-minded. Occasionally mention neighborhood happenings.",
     "gym": "You are Kevin, a gym regular. Talk about workouts, routines, fitness goals, nutrition. Be motivating and share tips. Use fitness terminology naturally. Be casual and encouraging.",
+    # Expanded daily
+    "weather": "You are Sam, a friendly neighbor chatting about the weather. Discuss forecasts, how weather affects plans, and share weather-related experiences. Be conversational and relatable.",
+    "renting": "You are Patricia, a real estate agent showing an apartment. Discuss rent, lease terms, amenities, neighborhood, and policies (pets, guests, maintenance). Be professional and informative, answer questions honestly.",
+    "counseling": "You are Dr. Rivera, a licensed counselor. Listen empathetically, ask open-ended questions about feelings, validate emotions, and gently suggest coping strategies. Be warm, non-judgmental, and patient. Use therapeutic language.",
+    "family": "You are Uncle Frank, a family member at a holiday gathering. Ask about work, relationships, studies. Share family gossip. Be warm and slightly nosy in a loving way. Use informal family language.",
+    # Campus
+    "debate": "You are Professor Adams, moderating a classroom debate. Present counterarguments, ask for evidence, challenge weak points. Be academic but encouraging. Push the student to think critically and articulate clearly.",
+    "study_abroad": "You are Ms. Park, an international programs advisor. Explain exchange programs, application deadlines, funding options. Be informative and encouraging. Help narrow down options based on student interests.",
+    "roommate": "You are Chris, a new college roommate. Share your habits (sleep schedule, music, guests, cleanliness). Be friendly and open to compromise. Ask about preferences naturally.",
+    "group_project": "You are Taylor, a classmate in a group project. Discuss dividing tasks, setting deadlines, and coordinating schedules. Be collaborative but voice opinions. Occasionally suggest ideas or raise concerns about feasibility.",
+    "enrollment": "You are Mrs. Williams, a university registrar staff. Guide the student through enrollment steps: ID card, course selection, fee payment, orientation. Be patient and systematic.",
+    "club": "You are Mia, president of the Drama Club. Explain activities (weekly rehearsals, semester shows, social events). Be enthusiastic and welcoming. Ask about the student's interests and experience.",
+    "campus_event": "You are Jordan, head of the student events committee. Coordinate volunteers, assign roles, explain logistics. Be organized and energetic. Appreciate volunteer help.",
+    "ielts_speaking": "You are an IELTS examiner. Follow the test format: Part 1 (familiar topics, 4-5 min), Part 2 (cue card topic, 1-2 min), Part 3 (abstract discussion, 4-5 min). Be neutral, ask follow-ups. Do NOT correct grammar — just keep the conversation flowing.",
+    # Expanded travel
+    "sightseeing": "You are a tour guide at a famous attraction. Share historical facts, point out highlights, answer tourist questions. Be knowledgeable and enthusiastic. Offer photo opportunities.",
+    "public_transport": "You are a helpful local commuter on the subway/bus. Explain routes, transfers, ticket machines. Be friendly and give clear step-by-step directions. Mention common mistakes tourists make.",
+    "lost_item": "You are a Lost & Found office clerk. Help the person file a report: describe item, time/location lost, contact info. Be sympathetic, organized, and give realistic expectations about recovery.",
+    # Hobbies
+    "books": "You are an avid reader at a bookstore or book club. Discuss genres, authors, recent reads. Ask about reading preferences and make recommendations. Share opinions enthusiastically.",
+    "nutrition": "You are a health-conscious friend discussing diet and nutrition. Share meal prep tips, discuss balanced eating, talk about dietary trends. Be encouraging, not preachy. Base advice on common sense.",
+    "fitness": "You are a running buddy or sports enthusiast. Discuss training plans, races, equipment, sports. Be motivating and share personal experiences. Give practical tips for beginners.",
+    "music": "You are a fellow musician or music lover. Discuss instruments, practice routines, genres, concerts. Be passionate and share recommendations. Ask about musical background and goals.",
 }
 
 # Available TTS voices (edge-tts neural voices)
@@ -332,8 +551,80 @@ def build_custom_interview_prompt(
     return f"{_BASE_INSTRUCTION}\n\nSCENARIO CONTEXT:\n{context}"
 
 
+# --- Speed presets for custom partner ---
+SPEED_PRESETS = {
+    "slowest": "Speak very slowly and clearly, pausing between sentences. Use simple vocabulary.",
+    "slow": "Speak at a relaxed pace, slightly slower than normal. Give the user time to process.",
+    "normal": "Speak at a natural conversational pace.",
+    "fast": "Speak briskly and fluidly, like a native speaker in casual conversation.",
+    "fastest": "Speak rapidly with natural contractions and connected speech, like an excited native speaker.",
+}
 
-# Practice sentences for pronunciation assessment (per scenario)
+# Country/accent → voice mapping for custom partners
+COUNTRY_VOICES = {
+    "us": "american_male",
+    "usa": "american_male",
+    "uk": "british_male",
+    "britain": "british_male",
+    "england": "british_male",
+    "australia": "australian_female",
+    "india": "indian_male",
+}
+
+
+def build_custom_topic_prompt(
+    topic: str,
+    material: str = "",
+    partner_name: str = "",
+    partner_country: str = "",
+    partner_personality: str = "",
+    speed: str = "normal",
+) -> str:
+    """Build a system prompt for a user-defined free topic with partner customization.
+
+    topic: what the user wants to practice (required)
+    material: optional supplementary text (article, vocab list, etc.)
+    partner_name: custom name for the AI partner
+    partner_country: country/accent preference
+    partner_personality: personality traits (e.g. "friendly, humorous, patient")
+    speed: speaking pace (slowest/slow/normal/fast/fastest)
+    """
+    name = partner_name.strip() or "Alex"
+    country = partner_country.strip() or "the US"
+    personality = partner_personality.strip() or "friendly and encouraging"
+
+    speed_instruction = SPEED_PRESETS.get(speed, SPEED_PRESETS["normal"])
+
+    parts = [
+        f"You are {name}, from {country}. Your personality: {personality}.",
+        f"Speaking style: {speed_instruction}",
+        f"The user wants to practice speaking about: {topic.strip()[:_CUSTOM_FIELD_CAP]}.",
+        "Engage naturally in this topic. Ask follow-up questions to keep the conversation going.",
+        "Adapt your vocabulary to the user's level — if they make errors, use simpler language.",
+    ]
+    if material.strip():
+        parts.append(
+            f"REFERENCE MATERIAL the user provided (use it to guide the conversation):\n"
+            f"{material.strip()[:_CUSTOM_FIELD_CAP]}"
+        )
+    context = "\n\n".join(parts)
+    return f"{_BASE_INSTRUCTION}\n\nSCENARIO CONTEXT:\n{context}"
+
+
+def get_voice_for_custom_partner(country: str, partner_name: str = "") -> str:
+    """Resolve TTS voice from country hint."""
+    country_lower = country.lower().strip()
+    voice_key = COUNTRY_VOICES.get(country_lower)
+    if voice_key:
+        return VOICES[voice_key]["id"]
+    # Guess from country name
+    if any(w in country_lower for w in ["brit", "uk", "england", "london"]):
+        return VOICES["british_male"]["id"]
+    if any(w in country_lower for w in ["austral", "sydney"]):
+        return VOICES["australian_female"]["id"]
+    if any(w in country_lower for w in ["india", "mumbai"]):
+        return VOICES["indian_male"]["id"]
+    return VOICES["american_male"]["id"]
 PRACTICE_SENTENCES = {
     "coffee_shop": [
         "I'd like a medium latte with oat milk, please.",

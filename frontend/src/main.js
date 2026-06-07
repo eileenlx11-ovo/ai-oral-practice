@@ -8,6 +8,7 @@ const routes = [
   { path: '/pronunciation', name: 'Pronunciation', component: () => import('../pronunciation/PronunciationView.vue') },
   { path: '/dashboard', name: 'Dashboard', component: () => import('../dashboard/DashboardView.vue') },
   { path: '/assessment', name: 'Assessment', component: () => import('../assessment/LevelTest.vue') },
+  { path: '/topic', name: 'CustomTopic', component: () => import('../topic/CustomTopicView.vue') },
 ]
 
 const router = createRouter({

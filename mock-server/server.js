@@ -46,6 +46,29 @@ const SCENARIOS = [
   { id: 'party', icon: '🎉', name: 'Party Chat', category: 'social', difficulty: 'intermediate', description: '派对认识新朋友', objective: 'Introduce yourself and find common interests', greeting: "Hi! I don't think we've met — I'm Olivia. How do you know the host?", character: { name: 'Olivia', avatar: '🎉' } },
   { id: 'neighbor', icon: '🏠', name: 'Neighbor Chat', category: 'social', difficulty: 'beginner', description: '邻居日常寒暄', objective: 'Have a friendly exchange', greeting: "Oh hello! I noticed you moved in recently. How are you settling in?", character: { name: 'Robert', avatar: '🏠' } },
   { id: 'gym', icon: '💪', name: 'Gym Buddy', category: 'social', difficulty: 'intermediate', description: '健身房社交', objective: 'Discuss fitness and share tips', greeting: "Hey! I've seen you here a few times. How long have you been working out?", character: { name: 'Kevin', avatar: '💪' } },
+  // Daily expanded
+  { id: 'weather', icon: '🌤️', name: 'Weather Chat', category: 'daily', difficulty: 'beginner', description: '聊天气做计划', objective: 'Discuss weather and adjust plans', greeting: "Wow, can you believe this weather?", character: { name: 'Sam', avatar: '🌤️' } },
+  { id: 'renting', icon: '🏢', name: 'Renting an Apartment', category: 'daily', difficulty: 'intermediate', description: '租房看房', objective: 'Ask about price and amenities', greeting: "Hi! The rent is $1,200/month. Shall I show you around?", character: { name: 'Patricia', avatar: '🏢' } },
+  { id: 'counseling', icon: '🧠', name: 'Counseling Session', category: 'daily', difficulty: 'advanced', description: '心理咨询', objective: 'Express feelings and discuss strategies', greeting: "How have you been feeling since our last conversation?", character: { name: 'Dr. Rivera', avatar: '🧠' } },
+  { id: 'family', icon: '👨‍👩‍👧‍👦', name: 'Family Gathering', category: 'daily', difficulty: 'beginner', description: '家庭聚会闲聊', objective: 'Share life updates with family', greeting: "Hey, we haven't seen you since Thanksgiving! What's new?", character: { name: 'Uncle Frank', avatar: '👨‍👩‍👧‍👦' } },
+  // Campus
+  { id: 'debate', icon: '🎤', name: 'Classroom Debate', category: 'campus', difficulty: 'advanced', description: '课堂辩论', objective: 'Present arguments clearly', greeting: "Today's motion: 'Social media does more harm than good.' Your response?", character: { name: 'Prof. Adams', avatar: '🎤' } },
+  { id: 'study_abroad', icon: '🌍', name: 'Study Abroad', category: 'campus', difficulty: 'intermediate', description: '出国留学咨询', objective: 'Ask about programs and requirements', greeting: "Which country are you thinking about for exchange?", character: { name: 'Ms. Park', avatar: '🌍' } },
+  { id: 'roommate', icon: '🛏️', name: 'Meeting Your Roommate', category: 'campus', difficulty: 'beginner', description: '认识新舍友', objective: 'Introduce yourself and set expectations', greeting: "Hey! You must be my new roommate! Where are you from?", character: { name: 'Chris', avatar: '🛏️' } },
+  { id: 'group_project', icon: '📋', name: 'Group Project', category: 'campus', difficulty: 'intermediate', description: '小组作业分工', objective: 'Divide work and set deadlines', greeting: "OK team, presentation due next Friday. How do we split it?", character: { name: 'Taylor', avatar: '📋' } },
+  { id: 'enrollment', icon: '📝', name: 'Campus Enrollment', category: 'campus', difficulty: 'beginner', description: '入校手续', objective: 'Complete registration steps', greeting: "Welcome! Are you here for new student registration?", character: { name: 'Mrs. Williams', avatar: '📝' } },
+  { id: 'club', icon: '🎭', name: 'Joining a Club', category: 'campus', difficulty: 'beginner', description: '社团报名', objective: 'Learn about activities and join', greeting: "Interested in the Drama Club? No experience needed!", character: { name: 'Mia', avatar: '🎭' } },
+  { id: 'campus_event', icon: '🎪', name: 'Campus Event', category: 'campus', difficulty: 'intermediate', description: '校园活动', objective: 'Participate in event planning', greeting: "Thanks for volunteering! Which area interests you?", character: { name: 'Jordan', avatar: '🎪' } },
+  { id: 'ielts_speaking', icon: '📖', name: 'IELTS Speaking Practice', category: 'campus', difficulty: 'advanced', description: '雅思口语真题', objective: 'Practice structured IELTS responses', greeting: "Can you tell me your full name and where you are from?", character: { name: 'Examiner Johnson', avatar: '📖' } },
+  // Travel expanded
+  { id: 'sightseeing', icon: '📸', name: 'Sightseeing', category: 'travel', difficulty: 'beginner', description: '景区浏览', objective: 'Ask about history and buy tickets', greeting: "Welcome! Tickets are £29. Would you like an audio guide?", character: { name: 'William', avatar: '📸' } },
+  { id: 'public_transport', icon: '🚇', name: 'Public Transport', category: 'travel', difficulty: 'beginner', description: '搭乘地铁/公交', objective: 'Find the right route', greeting: "You look confused. Where are you headed? I can help!", character: { name: 'Aisha', avatar: '🚇' } },
+  { id: 'lost_item', icon: '🔍', name: 'Lost & Found', category: 'travel', difficulty: 'intermediate', description: '物品遗失', objective: 'Report and describe lost item', greeting: "Can you describe the item? When did you last have it?", character: { name: 'Officer Chen', avatar: '🔍' } },
+  // Hobbies
+  { id: 'books', icon: '📚', name: 'Book Discussion', category: 'hobbies', difficulty: 'intermediate', description: '阅读与书籍', objective: 'Discuss books and get recommendations', greeting: "I see you're reading that one! What do you think so far?", character: { name: 'Eleanor', avatar: '📚' } },
+  { id: 'nutrition', icon: '🥗', name: 'Diet & Health', category: 'hobbies', difficulty: 'intermediate', description: '饮食与健康', objective: 'Discuss healthy eating', greeting: "I started meal prepping. Do you pay attention to diet?", character: { name: 'Marcus', avatar: '🥗' } },
+  { id: 'fitness', icon: '🏃', name: 'Sports & Exercise', category: 'hobbies', difficulty: 'beginner', description: '运动锻炼', objective: 'Share fitness experiences', greeting: "I just signed up for a 5K! Do you do any running?", character: { name: 'Diana', avatar: '🏃' } },
+  { id: 'music', icon: '🎵', name: 'Music & Creation', category: 'hobbies', difficulty: 'intermediate', description: '音乐创作', objective: 'Discuss music and instruments', greeting: "Is that a guitar case? I've been learning piano. What music are you into?", character: { name: 'Ethan', avatar: '🎵' } },
 ]
 
 // Mock AI replies per scenario (cycles through them)
@@ -499,6 +522,33 @@ app.post('/api/integrations/talent-agent/interview-prep', upload.none(), (req, r
 
 app.post('/api/integrations/talent-agent/sync', upload.none(), (req, res) => {
   res.json({ synced: false, error: 'Talent Agent not configured (mock mode)' })
+})
+
+// ========== Custom Topic ==========
+app.post('/api/sessions/topic', upload.none(), (req, res) => {
+  const topic = req.body?.topic || 'general conversation'
+  const name = req.body?.partner_name || 'Alex'
+  const country = req.body?.partner_country || 'US'
+  const personality = req.body?.partner_personality || 'friendly'
+  const speed = req.body?.speed || 'normal'
+  const sessionId = randomUUID().slice(0, 12)
+  res.json({
+    session_id: sessionId,
+    topic,
+    greeting: `Hey! I'm ${name} from ${country}. So you want to chat about ${topic}? That's interesting! Tell me more.`,
+    partner: { name, country, personality, speed, voice_id: 'en-US-GuyNeural' },
+  })
+})
+
+app.get('/api/topics/trending', (req, res) => {
+  res.json({ topics: [
+    { title: 'AI in Daily Life', description: '讨论人工智能如何改变我们的日常生活' },
+    { title: 'Remote Work Culture', description: '聊聊远程工作的利弊和未来趋势' },
+    { title: 'Sustainable Living', description: '环保生活方式和可持续发展' },
+    { title: 'Social Media Impact', description: '社交媒体对人际关系的影响' },
+    { title: 'Space Exploration', description: '太空探索的最新进展和未来' },
+    { title: 'Mental Health Awareness', description: '心理健康意识和自我关怀' },
+  ]})
 })
 
 // ========== Start ==========
