@@ -7,6 +7,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
 import subprocess
 import tempfile
@@ -14,6 +15,8 @@ import threading
 import time
 import uuid
 from urllib.parse import quote, urlencode
+
+logger = logging.getLogger("assessment.tencent")
 
 try:
     import websocket
@@ -32,7 +35,9 @@ _ENGINE_MODEL_TYPE = "16k_en"
 _OPEN_TIMEOUT_SECONDS = 25
 # Total connection attempts on network-class failures (see _is_retryable).
 _MAX_ATTEMPTS = 3
-_DONE_TIMEOUT_SECONDS = 60
+# SOE is now only a fallback (Azure is primary). Fail fast instead of hanging:
+# a real SOE response arrives in seconds, so a 60s wait just means a dead socket.
+_DONE_TIMEOUT_SECONDS = 22
 
 
 class TencentSOEError(RuntimeError):
@@ -100,16 +105,28 @@ def _is_retryable(exc: TencentSOEError) -> bool:
 def _ensure_wav(audio_path: str) -> str:
     """Convert input audio to 16k mono PCM WAV for SOE New Edition."""
     if audio_path.lower().endswith(".wav"):
+        # Already .wav: SOE gets it as-is, ffmpeg is skipped. If the upstream
+        # suffix was guessed from a misleading content-type, this could forward
+        # non-wav bytes — log the size so that case is visible in the diagnosis.
+        logger.info("SOE _ensure_wav: passthrough .wav path=%s size=%dB",
+                    audio_path, os.path.getsize(audio_path))
         return audio_path
 
     wav_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
     wav_tmp.close()
     try:
-        subprocess.run(
+        proc = subprocess.run(
             ["ffmpeg", "-y", "-i", audio_path, "-ar", "16000", "-ac", "1", wav_tmp.name],
             capture_output=True,
             check=True,
         )
+        out_size = os.path.getsize(wav_tmp.name)
+        # 44-byte WAV header + samples. <100B means an empty/0-duration decode,
+        # which SOE scores as completeness 0 (the silent-audio failure mode).
+        dur_s = max(0.0, (out_size - 44) / (16000 * 2))
+        logger.info("SOE ffmpeg: in=%s -> wav=%dB (~%.2fs) stderr_tail=%s",
+                    audio_path, out_size, dur_s,
+                    proc.stderr.decode("utf-8", "replace")[-200:])
         return wav_tmp.name
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
         try:
@@ -144,9 +161,13 @@ def _run_ws_assessment(audio_path: str, reference_text: str) -> dict:
             state["done"].set()
             ws.close()
             return
+        logger.info("SOE on_open: sent %dB audio + end frame", len(audio_bytes))
         state["opened"].set()
 
     def on_message(ws, message):
+        # Log every frame SOE returns — this is the single most useful signal for
+        # the "0 score" diagnosis (reveals code, message, and completeness).
+        logger.info("SOE on_message: %s", message[:500])
         try:
             payload = json.loads(message)
         except json.JSONDecodeError as exc:
@@ -306,6 +327,12 @@ def _normalize(response: dict) -> dict:
     fluency = _first_number(result, "pron_fluency", "PronFluency", "fluency_score", "FluencyScore")
     completeness = _first_number(result, "pron_completion", "PronCompletion", "completeness_score", "CompletenessScore")
     suggested = _first_number(result, "suggested_score", "SuggestedScore", "overall_score", "OverallScore", "score", "Score")
+
+    # SuggestedScore = PronAccuracy x PronCompletion x (2 - PronCompletion), so a
+    # 0 score means completeness collapsed — log the parsed scores + how many
+    # words SOE matched to pinpoint whether the audio reached SOE intact.
+    logger.info("SOE parsed: suggested=%s accuracy=%s fluency=%s completeness=%s words=%d",
+                suggested, accuracy, fluency, completeness, len(words))
 
     return {
         "accuracy_score": accuracy,

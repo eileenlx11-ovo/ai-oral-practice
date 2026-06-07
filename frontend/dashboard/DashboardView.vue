@@ -1027,16 +1027,17 @@ h2 {
 .playback-btn {
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
-  border: 1px solid #1f4e79;
-  border-radius: 4px;
-  background: white;
-  color: #1f4e79;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-primary);
   cursor: pointer;
   font-weight: 600;
+  transition: all var(--transition-fast);
 }
 
 .playback-btn:hover {
-  background: #1f4e79;
+  background: var(--color-primary);
   color: white;
 }
 
@@ -1047,41 +1048,44 @@ h2 {
 
 .time-range-picker {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin-bottom: 1.2rem;
 }
 
 .range-btn {
   padding: 0.4rem 1rem;
-  border: 1px solid #ddd;
-  border-radius: 20px;
-  background: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
   cursor: pointer;
   font-size: 0.85rem;
-  transition: all 0.2s;
+  font-weight: 600;
+  transition: all var(--transition-fast);
 }
 
 .range-btn.active {
-  background: #1f4e79;
+  background: var(--color-primary);
   color: white;
-  border-color: #1f4e79;
+  border-color: var(--color-primary);
 }
 
 .range-btn:hover:not(.active) {
-  border-color: #1f4e79;
-  color: #1f4e79;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .analytics-card {
-  background: white;
-  border-radius: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   margin-bottom: 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .analytics-card h3 {
-  color: #333;
+  color: var(--color-text);
   margin-bottom: 1rem;
   font-size: 1.1rem;
 }
@@ -1101,34 +1105,34 @@ h2 {
 .bar-label {
   min-width: 100px;
   font-size: 0.85rem;
-  color: #555;
+  color: var(--color-text-secondary);
   text-transform: capitalize;
 }
 
 .bar-track {
   flex: 1;
   height: 20px;
-  background: #f0f0f0;
+  background: var(--color-border-light);
   border-radius: 10px;
   overflow: hidden;
 }
 
 .bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #e67e22, #f39c12);
+  background: linear-gradient(90deg, var(--color-accent), var(--color-warning));
   border-radius: 10px;
   transition: width 0.4s ease;
 }
 
 .bar-fill.scenario-bar {
-  background: linear-gradient(90deg, #1f4e79, #2980b9);
+  background: linear-gradient(90deg, var(--color-primary-dark), var(--color-primary));
 }
 
 .bar-value {
   min-width: 30px;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text);
   text-align: right;
 }
 
@@ -1146,11 +1150,11 @@ h2 {
   display: block;
   font-size: 2rem;
   font-weight: 700;
-  color: #1f4e79;
+  color: var(--color-primary);
 }
 
 .stat-label {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--color-text-muted);
 }
 </style>

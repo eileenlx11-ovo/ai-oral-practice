@@ -24,7 +24,7 @@ from .auth import (
     PHONE_RE,
 )
 from .sms import send_verification_code, verify_code
-from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, get_practice_sentences, build_custom_interview_prompt, build_custom_topic_prompt, get_voice_for_custom_partner, SPEED_PRESETS
+from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, get_practice_sentences, get_practice_sentences_full, build_custom_interview_prompt, build_custom_topic_prompt, get_voice_for_custom_partner, SPEED_PRESETS
 from .characters import CHARACTERS, get_character, list_characters
 from .correction import extract_corrections
 from .scoring import assess_pronunciation, active_provider
@@ -333,9 +333,18 @@ async def get_scenario(scenario_id: str):
 
 @app.get("/api/scenarios/{scenario_id}/sentences")
 async def get_sentences(scenario_id: str):
-    """Get pronunciation practice sentences for a scenario."""
-    sentences = get_practice_sentences(scenario_id)
-    return {"scenario_id": scenario_id, "sentences": sentences}
+    """Pronunciation practice sentences for a scenario.
+
+    `sentences` stays a plain string list (backward compatible; also what the
+    scoring reference_text needs). `sentences_full` adds per-word en-US IPA
+    [{text, words:[{word, ipa_us}]}] for the dictionary-phonetics UI.
+    """
+    full = get_practice_sentences_full(scenario_id)
+    return {
+        "scenario_id": scenario_id,
+        "sentences": [s["text"] for s in full],
+        "sentences_full": full,
+    }
 
 
 @app.get("/api/scenarios/{scenario_id}/guide")
@@ -388,7 +397,8 @@ async def chat(
 
     try:
         # 2. ASR via Whisper
-        user_text = await _transcribe(tmp.name)
+        current_session = store.get_session(session_id)
+        user_text = await _transcribe(tmp.name, (current_session or {}).get("language", "en"))
         if not user_text.strip():
             raise HTTPException(400, "No speech detected")
 
@@ -400,7 +410,6 @@ async def chat(
 
         scene_advanced = False
         story_completed = False
-        current_session = store.get_session(session_id)
         if current_session and current_session.get("story_id"):
             current_scene = int(current_session.get("story_scene_index", 0))
             if scene_marker_seen:
@@ -464,6 +473,7 @@ async def chat_stream(
 
     # Resolve system prompt: session-level custom prompt overrides scenario prompt.
     existing = store.get_session(session_id)
+    session_language = (existing or {}).get("language", "en")
     is_story_session = bool(existing and existing.get("story_id"))
     story_id = existing.get("story_id") if existing else None
     story_scene_index = int(existing.get("story_scene_index", 0)) if existing else 0
@@ -489,7 +499,7 @@ async def chat_stream(
         try:
             # 1. ASR
             try:
-                user_text = await _transcribe(tmp.name)
+                user_text = await _transcribe(tmp.name, session_language)
             except Exception:
                 yield _sse_error(
                     "asr",
@@ -797,7 +807,7 @@ def _build_asr_providers() -> list[dict]:
 _asr_providers = _build_asr_providers()
 
 
-async def _transcribe(filepath: str) -> str:
+async def _transcribe(filepath: str, language: str = "en") -> str:
     """Transcribe audio via the configured ASR providers in order.
 
     Tries each provider until one succeeds. Word-level timestamps are requested
@@ -812,11 +822,11 @@ async def _transcribe(filepath: str) -> str:
     for provider in _asr_providers:
         try:
             if provider["call_style"] == "chat_audio":
-                text = await _transcribe_chat_audio(provider, filepath)
+                text = await _transcribe_chat_audio(provider, filepath, language)
                 _transcribe._last_words = None  # chat-style ASR has no word timestamps
                 return text
 
-            kwargs = {"model": provider["model"], "language": "en"}
+            kwargs = {"model": provider["model"], "language": language if language in {"en", "zh"} else "en"}
             if provider["word_timestamps"]:
                 kwargs["response_format"] = "verbose_json"
                 kwargs["timestamp_granularities"] = ["word"]
@@ -856,7 +866,7 @@ def _audio_mime(filepath: str) -> str:
     }.get(ext, "audio/wav")
 
 
-async def _transcribe_chat_audio(provider: dict, filepath: str) -> str:
+async def _transcribe_chat_audio(provider: dict, filepath: str, language: str = "en") -> str:
     """Transcribe via a chat/completions ASR model (Qwen-ASR on DashScope).
 
     Unlike Whisper-style providers, Qwen-ASR takes the audio as an input_audio
@@ -869,12 +879,19 @@ async def _transcribe_chat_audio(provider: dict, filepath: str) -> str:
         b64 = base64.b64encode(f.read()).decode("ascii")
     data_uri = f"data:{_audio_mime(filepath)};base64,{b64}"
 
+    language_name = "Chinese" if language == "zh" else "English"
     resp = await provider["client"].chat.completions.create(
         model=provider["model"],
-        messages=[{
-            "role": "user",
-            "content": [{"type": "input_audio", "input_audio": {"data": data_uri}}],
-        }],
+        messages=[
+            {
+                "role": "system",
+                "content": f"Transcribe the audio in {language_name}. Output only the transcript.",
+            },
+            {
+                "role": "user",
+                "content": [{"type": "input_audio", "input_audio": {"data": data_uri}}],
+            },
+        ],
         extra_body={"asr_options": {"enable_itn": False}},
     )
     return (resp.choices[0].message.content or "").strip()
@@ -1096,6 +1113,7 @@ async def create_topic_session(
     partner_country: str = Form(""),
     partner_personality: str = Form(""),
     speed: str = Form("normal"),
+    user: dict | None = Depends(get_optional_user),
 ):
     """Start a session with a user-defined free topic and customizable partner.
 
@@ -1124,6 +1142,7 @@ async def create_topic_session(
     session = store.create_session(
         "custom_topic",
         custom_prompt=prompt,
+        user_id=_user_id(user),
         metadata={
             "partner_name": name,
             "partner_country": partner_country.strip() or "US",
@@ -1133,28 +1152,7 @@ async def create_topic_session(
         },
     )
 
-    # Generate greeting via LLM
     greeting = f"Hi there! I'm {name}. Let's chat about {topic.strip()}. What's on your mind?"
-    try:
-        resp = await llm.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": "[SYSTEM] Generate a short friendly greeting to start the conversation. Just the greeting, 1-2 sentences. Stay in character."},
-            ],
-            temperature=0.7,
-            max_tokens=100,
-        )
-        if resp.choices[0].message.content:
-            raw = resp.choices[0].message.content.strip()
-            # Strip format markers if LLM adds them
-            raw = raw.replace("[REPLY]", "").replace("[END]", "").strip()
-            if raw:
-                greeting = raw
-    except Exception:
-        pass
-
-    # Persist greeting so handoff endpoint can return it
     store.update_session_fields(session["id"], greeting=greeting)
 
     return {
@@ -1343,29 +1341,39 @@ async def get_session_summary(
 
 
 @app.get("/api/sessions/{session_id}/turns-full")
-async def get_session_turns_full(session_id: str):
+async def get_session_turns_full(
+    session_id: str,
+    user: dict | None = Depends(get_optional_user),
+):
     """Get full session data including all turns for playback."""
-    session = store.get_session(session_id)
-    if session is None:
-        raise HTTPException(404, "Session not found")
-    return session
+    return _require_session_owner(session_id, user)
 
 
 @app.get("/api/sessions/{session_id}/recording/{turn_index}")
-async def get_session_recording(session_id: str, turn_index: int):
-    """Serve the recorded audio file for a specific turn."""
-    recording_path = RECORDINGS_DIR / session_id / f"{turn_index}.webm"
-    if not recording_path.exists():
+async def get_session_recording(
+    session_id: str,
+    turn_index: int,
+    user: dict | None = Depends(get_optional_user),
+):
+    """Serve the recorded audio file for a specific turn (owner only)."""
+    # Ownership check also rejects any session_id with path separators, since
+    # such an id can never match a stored session.
+    _require_session_owner(session_id, user)
+    # Defense in depth: resolve the path and confirm it stays under RECORDINGS_DIR.
+    base = RECORDINGS_DIR.resolve()
+    recording_path = (base / session_id / f"{turn_index}.webm").resolve()
+    if base not in recording_path.parents or not recording_path.exists():
         raise HTTPException(404, "Recording not found")
     return FileResponse(str(recording_path), media_type="audio/webm")
 
 
 @app.post("/api/sessions/{session_id}/review")
-async def generate_session_review(session_id: str):
-    """Generate an AI review of the full session conversation."""
-    session = store.get_session(session_id)
-    if session is None:
-        raise HTTPException(404, "Session not found")
+async def generate_session_review(
+    session_id: str,
+    user: dict | None = Depends(get_optional_user),
+):
+    """Generate an AI review of the full session conversation (owner only)."""
+    session = _require_session_owner(session_id, user)
 
     # Build transcript from turns
     turns = session.get("turns", [])

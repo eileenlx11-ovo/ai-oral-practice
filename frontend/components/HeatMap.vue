@@ -71,6 +71,8 @@ function levelFor(count) {
   overflow-x: auto;
   overscroll-behavior-x: contain;
   padding-bottom: var(--space-1);
+  display: flex;
+  justify-content: center;
 }
 
 .heatmap-grid {

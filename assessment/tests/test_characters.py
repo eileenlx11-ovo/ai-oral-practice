@@ -108,3 +108,39 @@ def test_talent_agent_oral_interview_session_creates_custom_prompt(tmp_path, mon
     assert handoff.status_code == 200
     assert handoff.json()["greeting"].startswith("你好")
     assert handoff.json()["language"] == "zh"
+
+
+def test_custom_topic_session_returns_without_llm_greeting(tmp_path, monkeypatch):
+    class BlockingLLM:
+        class chat:
+            class completions:
+                @staticmethod
+                async def create(*args, **kwargs):
+                    raise AssertionError("custom topic session creation must not wait for LLM")
+
+    test_store = SessionStore(data_dir=tmp_path)
+    monkeypatch.setattr(app_module, "store", test_store)
+    monkeypatch.setattr(app_module, "llm", BlockingLLM())
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/sessions/topic",
+        data={
+            "topic": "AI in education",
+            "partner_name": "Jordan",
+            "partner_country": "UK",
+            "partner_personality": "patient",
+            "speed": "slow",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["session_id"]
+    assert body["greeting"] == "Hi there! I'm Jordan. Let's chat about AI in education. What's on your mind?"
+
+    session = test_store.get_session(body["session_id"])
+    assert session["scenario"] == "custom_topic"
+    assert session["partner_name"] == "Jordan"
+    assert session["partner_country"] == "UK"
+    assert "AI in education" in session["custom_prompt"]

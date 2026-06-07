@@ -32,3 +32,6 @@ assessment/audio_cache/
 
 # Local planning notes (not for the repo)
 .plan.md
+
+# coreview tool runtime state (the review notes under reviews/ are kept)
+reviews/.coreview/

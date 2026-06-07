@@ -94,6 +94,7 @@
 
       <button type="submit" class="start-btn" :disabled="!topic.trim() || loading">
         <span v-if="loading" class="spinner"></span>
+        <span v-if="loading">创建中...</span>
         <span v-else>开始练习 →</span>
       </button>
     </form>

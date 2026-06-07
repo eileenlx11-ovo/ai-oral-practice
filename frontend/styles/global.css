@@ -35,14 +35,14 @@ body {
 }
 
 [data-theme="dark"] body {
-  /* Deep blue-violet base sweep + soft color blooms, so dark mode reads as an
-     intentional gradient rather than flat near-black */
-  background-color: #0b1120;
+  /* Layered deep gradient with visible color movement in dark mode. */
+  background-color: #08111f;
   background-image:
-    radial-gradient(at 18% 18%, rgba(59, 130, 246, 0.18) 0px, transparent 55%),
-    radial-gradient(at 84% 6%, rgba(139, 92, 246, 0.16) 0px, transparent 50%),
-    radial-gradient(at 72% 90%, rgba(14, 165, 233, 0.12) 0px, transparent 55%),
-    linear-gradient(160deg, #0f172a 0%, #0b1120 55%, #131c33 100%);
+    radial-gradient(circle at 12% 16%, rgba(45, 212, 191, 0.18) 0 0, transparent 34rem),
+    radial-gradient(circle at 88% 10%, rgba(99, 102, 241, 0.24) 0 0, transparent 32rem),
+    radial-gradient(circle at 76% 86%, rgba(245, 158, 11, 0.12) 0 0, transparent 30rem),
+    linear-gradient(145deg, #0b1220 0%, #101827 42%, #172033 70%, #0a1524 100%);
+  background-blend-mode: screen, screen, screen, normal;
 }
 
 /* Scrollbar */
@@ -70,6 +70,9 @@ body {
 button {
   font-family: inherit;
   font-size: inherit;
+  /* Inherit text color so themed text (esp. dark mode) never falls back to the
+     UA default black on buttons that don't set their own color. */
+  color: inherit;
   border: none;
   background: none;
   cursor: pointer;

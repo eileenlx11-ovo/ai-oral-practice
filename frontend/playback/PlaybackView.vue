@@ -53,6 +53,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { CONFIG } from '../../shared/config'
+import { getAuthHeaders } from '../composables/useAuth'
 
 const route = useRoute()
 const sessionId = route.params.sessionId
@@ -67,7 +68,9 @@ const reviewLoading = ref(false)
 
 onMounted(async () => {
   try {
-    const res = await fetch(`${API}/api/sessions/${sessionId}/turns-full`)
+    const res = await fetch(`${API}/api/sessions/${sessionId}/turns-full`, {
+      headers: getAuthHeaders(),
+    })
     if (!res.ok) {
       error.value = `Failed to load session (${res.status})`
       return
@@ -84,10 +87,18 @@ onMounted(async () => {
 async function playRecording(turnIndex) {
   playingIndex.value = turnIndex
   try {
-    const url = `${API}/api/sessions/${sessionId}/recording/${turnIndex}`
-    const audio = new Audio(url)
-    audio.onended = () => { playingIndex.value = null }
-    audio.onerror = () => { playingIndex.value = null }
+    // Fetch with auth (owner-only route) then play the blob — `new Audio(url)`
+    // can't carry Authorization headers.
+    const res = await fetch(`${API}/api/sessions/${sessionId}/recording/${turnIndex}`, {
+      headers: getAuthHeaders(),
+    })
+    if (!res.ok) { playingIndex.value = null; return }
+    const blob = await res.blob()
+    const objectUrl = URL.createObjectURL(blob)
+    const audio = new Audio(objectUrl)
+    const cleanup = () => { playingIndex.value = null; URL.revokeObjectURL(objectUrl) }
+    audio.onended = cleanup
+    audio.onerror = cleanup
     await audio.play()
   } catch {
     playingIndex.value = null
@@ -99,7 +110,7 @@ async function generateReview() {
   try {
     const res = await fetch(`${API}/api/sessions/${sessionId}/review`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     })
     if (res.ok) {
       const data = await res.json()

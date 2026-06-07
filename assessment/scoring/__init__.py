@@ -16,12 +16,29 @@ Returned dict schema (uniform across providers):
      provider}
 All scores are 0-100.
 """
+import logging
 import os
 
 from . import azure, tencent, mock
+from . import quota
 
-# Standard: SOE first (low latency, quota-friendly), Azure fallback, mock last.
-_STANDARD_PROVIDERS = [tencent, azure, mock]
+# Self-contained logger with its own stream handler. app.py's lifespan only wires
+# the `assessment` logger to uvicorn handlers IF they already exist at startup,
+# which on this deploy they don't — so request-flow INFO logs were invisible. This
+# dedicated handler guarantees provider/score diagnostics reach `docker logs`.
+logger = logging.getLogger("assessment.scoring")
+if not logger.handlers:
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+    logger.addHandler(_h)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+# Standard: Azure first. The VPS->Tencent SOE path has 4-20s TLS handshakes
+# (measured) and SOE's completeness multiplier crushes scores when the flaky link
+# truncates audio; Azure (koreacentral) handshakes in ~0.1s and scores reliably.
+# SOE stays as fallback, mock last.
+_STANDARD_PROVIDERS = [azure, tencent, mock]
 # Advanced: Azure first (prosody + miscue), SOE and mock as fallback.
 _ADVANCED_PROVIDERS = [azure, tencent, mock]
 
@@ -57,12 +74,27 @@ async def assess_pronunciation(
     for p in providers:
         if p is mock and not _allow_mock():
             continue
+        # Azure quota guard: once the monthly soft cap is hit, skip Azure so the
+        # request falls back to SOE instead of overrunning into paid usage.
+        if p is azure and not quota.under_cap():
+            logger.info("ASSESS skip azure: monthly quota reached (%.0fs used)",
+                        quota.seconds_used())
+            continue
         if not p.available():
             continue
         try:
             result = await p.assess(audio_path, reference_text)
-        except Exception:
+        except Exception as exc:
+            logger.info("provider %s raised %s: %s",
+                        p.__name__.rsplit(".", 1)[-1], type(exc).__name__, str(exc)[:200])
             continue
         if result is not None:
+            # Bill Azure usage against the monthly quota (approx from word count).
+            if p is azure:
+                quota.record(quota.estimate_seconds(reference_text))
+            n_phones = sum(len(w.get("phones", [])) for w in result.get("words", []))
+            logger.info("ASSESS provider=%s score=%s completeness=%s words=%d phones=%d",
+                        result.get("provider"), result.get("pronunciation_score"),
+                        result.get("completeness_score"), len(result.get("words", [])), n_phones)
             return result
     return None

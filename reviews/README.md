@@ -2,10 +2,10 @@
 
 ## Current Review Gate
 
-- Scope: talent-agent oral interview handoff
-- Review file: `reviews/2026-06-07_talent_agent_oral_interview.md`
-- Status: Approved for local commit
+- Scope: architecture/security full-project scan + custom-topic start fix
+- Review file: `reviews/2026-06-07_arch_security.md`
+- Status: Not approved for deploy until Critical session access-control findings are fixed or explicitly accepted as demo-only risk
 - Verification:
-  - `python -m pytest assessment\tests` - 32 passed
-  - `python -c "from assessment.app import app; print('OK')"` - OK
+  - `python -m pytest assessment\tests` - 46 passed
   - `cd frontend && npm run build` - OK
+  - `python -c "from assessment.app import app; print('OK')"` - OK
