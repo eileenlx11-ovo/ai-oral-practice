@@ -4,15 +4,15 @@
 
     <!-- Intro screen -->
     <div v-if="phase === 'intro'" class="intro">
-      <h1>🎓 英语水平评估</h1>
-      <p>通过 5 个简短的口语问题，快速评估你的英语水平</p>
+      <h1>🎓 {{ t('level.title') }}</h1>
+      <p>{{ t('level.intro') }}</p>
       <ul class="info-list">
-        <li>⏱️ 大约 3 分钟</li>
-        <li>🎤 每题录音回答</li>
-        <li>📊 获取 CEFR 等级 (A1-C1)</li>
+        <li>⏱️ {{ t('level.duration') }}</li>
+        <li>🎤 {{ t('level.recordEach') }}</li>
+        <li>📊 {{ t('level.cefr') }}</li>
       </ul>
-      <button class="start-btn" @click="startTest">开始评估</button>
-      <button class="skip-btn" @click="$router.push('/')">跳过，直接练习</button>
+      <button class="start-btn" @click="startTest">{{ t('level.start') }}</button>
+      <button class="skip-btn" @click="$router.push('/')">{{ t('level.skip') }}</button>
     </div>
 
     <!-- Question screen -->
@@ -20,8 +20,8 @@
       <div class="progress-bar">
         <div class="progress-fill" :style="{ width: `${((currentIndex + 1) / questions.length) * 100}%` }"></div>
       </div>
-      <p class="question-count">问题 {{ currentIndex + 1 }} / {{ questions.length }}</p>
-      <p class="difficulty-label">难度: {{ questions[currentIndex]?.difficulty }}</p>
+      <p class="question-count">{{ t('level.question') }} {{ currentIndex + 1 }} / {{ questions.length }}</p>
+      <p class="difficulty-label">{{ t('level.difficulty') }}: {{ questions[currentIndex]?.difficulty }}</p>
 
       <div class="question-card">
         <p class="question-text">{{ questions[currentIndex]?.prompt }}</p>
@@ -35,7 +35,7 @@
           :disabled="isProcessing"
           @click="handleRecord"
         >
-          🎙️ {{ isRecording ? '停止录音' : '开始录音' }}
+          🎙️ {{ isRecording ? t('level.stopRecording') : t('level.startRecording') }}
         </button>
         <p v-if="currentTranscript" class="transcript">
           "{{ currentTranscript }}"
@@ -45,7 +45,7 @@
           class="next-btn"
           @click="nextQuestion"
         >
-          {{ currentIndex < questions.length - 1 ? '下一题 →' : '提交评估' }}
+          {{ currentIndex < questions.length - 1 ? t('level.next') : t('level.submit') }}
         </button>
       </div>
     </div>
@@ -53,12 +53,12 @@
     <!-- Analyzing screen -->
     <div v-else-if="phase === 'analyzing'" class="analyzing">
       <div class="spinner"></div>
-      <p>正在分析你的回答...</p>
+      <p>{{ t('level.analyzing') }}</p>
     </div>
 
     <!-- Result screen -->
     <div v-else-if="phase === 'result'" class="result">
-      <h1>评估结果</h1>
+      <h1>{{ t('level.result') }}</h1>
       <div class="level-badge">{{ result.level }}</div>
       <p class="level-desc">{{ levelDescriptions[result.level] }}</p>
       <p class="summary">{{ result.summary }}</p>
@@ -73,43 +73,43 @@
 
       <div class="scores-grid">
         <div class="score-item">
-          <span class="score-label">语法</span>
+          <span class="score-label">{{ t('level.grammar') }}</span>
           <div class="score-bar"><div :style="{ width: `${(result.scores?.grammar || 0) * 10}%` }"></div></div>
           <span class="score-num">{{ result.scores?.grammar }}/10</span>
         </div>
         <div class="score-item">
-          <span class="score-label">词汇</span>
+          <span class="score-label">{{ t('level.vocabulary') }}</span>
           <div class="score-bar"><div :style="{ width: `${(result.scores?.vocabulary || 0) * 10}%` }"></div></div>
           <span class="score-num">{{ result.scores?.vocabulary }}/10</span>
         </div>
         <div class="score-item">
-          <span class="score-label">流利度</span>
+          <span class="score-label">{{ t('level.fluency') }}</span>
           <div class="score-bar"><div :style="{ width: `${(result.scores?.fluency || 0) * 10}%` }"></div></div>
           <span class="score-num">{{ result.scores?.fluency }}/10</span>
         </div>
         <div class="score-item">
-          <span class="score-label">任务完成</span>
+          <span class="score-label">{{ t('level.taskCompletion') }}</span>
           <div class="score-bar"><div :style="{ width: `${(result.scores?.task_completion || 0) * 10}%` }"></div></div>
           <span class="score-num">{{ result.scores?.task_completion }}/10</span>
         </div>
       </div>
 
       <div v-if="result.strengths?.length" class="section">
-        <h3>✅ 优势</h3>
+        <h3>✅ {{ t('level.strengths') }}</h3>
         <ul><li v-for="s in result.strengths" :key="s">{{ s }}</li></ul>
       </div>
 
       <div v-if="result.weaknesses?.length" class="section">
-        <h3>🎯 待提升</h3>
+        <h3>🎯 {{ t('level.weaknesses') }}</h3>
         <ul><li v-for="w in result.weaknesses" :key="w">{{ w }}</li></ul>
       </div>
 
       <div v-if="result.recommendations?.length" class="section">
-        <h3>💡 建议</h3>
+        <h3>💡 {{ t('level.recommendations') }}</h3>
         <ul><li v-for="r in result.recommendations" :key="r">{{ r }}</li></ul>
       </div>
 
-      <button class="start-btn" @click="$router.push('/')">开始练习 →</button>
+      <button class="start-btn" @click="$router.push('/')">{{ t('level.startPractice') }}</button>
     </div>
   </div>
 </template>
@@ -120,9 +120,11 @@ import { useRouter } from 'vue-router'
 import { useRecorder } from '../../voice/audio/useRecorder'
 import { recognizeOnly } from '../../voice/asr/service'
 import { CONFIG } from '../../shared/config'
+import { useI18n } from '../composables/useI18n'
 import Toast from '../components/Toast.vue'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const phase = ref('intro') // intro | question | analyzing | result
 const questions = ref([])
@@ -157,7 +159,7 @@ const { start, stop, isRecording } = useRecorder({
   },
 })
 
-const recordStatus = ref('点击麦克风开始录音')
+const recordStatus = ref(t('level.idleStatus'))
 
 async function startTest() {
   try {
@@ -185,13 +187,13 @@ async function handleRecord() {
     await finishRecording()
   } else {
     currentTranscript.value = ''
-    recordStatus.value = '🔴 录音中...'
+    recordStatus.value = `🔴 ${t('level.recordingStatus')}`
     try {
       await start()
     } catch {
-      toast.message = '麦克风权限被拒绝'
+      toast.message = t('level.micDenied')
       toast.type = 'warning'
-      recordStatus.value = '点击麦克风开始录音'
+      recordStatus.value = t('level.idleStatus')
     }
   }
 }
@@ -199,21 +201,21 @@ async function handleRecord() {
 async function finishRecording() {
   const blob = await stop()
   if (!blob) {
-    recordStatus.value = '点击麦克风开始录音'
+    recordStatus.value = t('level.idleStatus')
     return
   }
 
   isProcessing.value = true
-  recordStatus.value = '⏳ 识别中...'
+  recordStatus.value = `⏳ ${t('level.recognizingStatus')}`
 
   try {
     const result = await recognizeOnly(blob)
     currentTranscript.value = result.text
-    recordStatus.value = '✅ 识别完成'
+    recordStatus.value = `✅ ${t('level.recognizedStatus')}`
   } catch (e) {
-    toast.message = '语音识别失败，请重试'
+    toast.message = t('level.asrFailed')
     toast.type = 'error'
-    recordStatus.value = '点击麦克风开始录音'
+    recordStatus.value = t('level.idleStatus')
   } finally {
     isProcessing.value = false
   }
@@ -225,7 +227,7 @@ function nextQuestion() {
     text: currentTranscript.value,
   })
   currentTranscript.value = ''
-  recordStatus.value = '点击麦克风开始录音'
+  recordStatus.value = t('level.idleStatus')
 
   if (currentIndex.value < questions.value.length - 1) {
     currentIndex.value++
@@ -250,7 +252,7 @@ async function submitAssessment() {
     result.value = data.assessment
     phase.value = 'result'
   } catch (e) {
-    toast.message = '评估失败，请重试'
+    toast.message = t('level.assessFailed')
     toast.type = 'error'
     phase.value = 'question'
   }

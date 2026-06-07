@@ -1,0 +1,145 @@
+/**
+ * Global base styles and utility classes
+ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Subtle drifting gradient wash over the base background */
+  background: var(--color-bg);
+  background-image:
+    radial-gradient(at 18% 22%, var(--color-primary-50) 0px, transparent 55%),
+    radial-gradient(at 82% 8%, var(--color-accent-light, #ede9fe) 0px, transparent 50%),
+    radial-gradient(at 70% 88%, var(--color-primary-100) 0px, transparent 55%);
+  background-size: 180% 180%;
+  background-attachment: fixed;
+  animation: bg-drift 24s ease-in-out infinite;
+}
+
+@keyframes bg-drift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body { animation: none; }
+}
+
+[data-theme="dark"] body {
+  /* Deep blue-violet base sweep + soft color blooms, so dark mode reads as an
+     intentional gradient rather than flat near-black */
+  background-color: #0b1120;
+  background-image:
+    radial-gradient(at 18% 18%, rgba(59, 130, 246, 0.18) 0px, transparent 55%),
+    radial-gradient(at 84% 6%, rgba(139, 92, 246, 0.16) 0px, transparent 50%),
+    radial-gradient(at 72% 90%, rgba(14, 165, 233, 0.12) 0px, transparent 55%),
+    linear-gradient(160deg, #0f172a 0%, #0b1120 55%, #131c33 100%);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Focus visible */
+:focus-visible {
+  outline: 2px solid var(--color-primary-light);
+  outline-offset: 2px;
+}
+
+/* Button reset */
+button {
+  font-family: inherit;
+  font-size: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Link reset */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Form controls inherit theme tokens so they never flash default white in
+   dark mode. Component-level rules may still override border/padding. */
+input,
+textarea,
+select {
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-text-muted);
+}
+/* Normalize the native checkbox/radio accent to the brand color */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-primary);
+}
+
+/* Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bounce-subtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.animate-fade-in {
+  animation: fade-in var(--transition-base) both;
+}
+
+.animate-scale-in {
+  animation: scale-in var(--transition-base) both;
+}

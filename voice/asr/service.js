@@ -109,7 +109,7 @@ export function streamChat(audioBlob, scenario, history = [], sessionId = '', ca
               callbacks.onDone?.(data)
               break
             case 'error':
-              callbacks.onError?.(data.message)
+              callbacks.onError?.(data.message, data)
               break
           }
         }

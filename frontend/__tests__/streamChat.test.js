@@ -120,13 +120,14 @@ describe('streamChat SSE parsing', () => {
   it('should dispatch onError for event: error', async () => {
     const callbacks = { onError: vi.fn() }
 
-    const body = createMockStream([sseEvent('error', { message: 'No speech detected' })])
+    const payload = { phase: 'asr', code: 'no_speech', message: 'No speech detected', action: 'retry' }
+    const body = createMockStream([sseEvent('error', payload)])
     global.fetch.mockResolvedValue({ ok: true, body })
 
     streamChat(new Blob(), 'coffee_shop', [], '', callbacks)
     await new Promise((r) => setTimeout(r, 50))
 
-    expect(callbacks.onError).toHaveBeenCalledWith('No speech detected')
+    expect(callbacks.onError).toHaveBeenCalledWith('No speech detected', payload)
   })
 
   it('should call onError on non-ok HTTP response', async () => {

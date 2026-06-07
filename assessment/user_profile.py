@@ -4,7 +4,6 @@ Stores user preferences, level assessment results, and conversation memories.
 File-based JSON storage (MVP).
 """
 import json
-import uuid
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -86,7 +85,7 @@ class UserProfileStore:
 
     def get_memory(self, user_id: str, scenario_id: str) -> list[str]:
         """Get stored conversation memories for a user-character pair."""
-        memory_file = self.memory_dir / f"{user_id}_{scenario_id}.json"
+        memory_file = self.memory_dir / f"{_safe_user_id(user_id)}_{scenario_id}.json"
         if not memory_file.exists():
             return []
         try:
@@ -97,7 +96,7 @@ class UserProfileStore:
 
     def add_memory(self, user_id: str, scenario_id: str, memory: str):
         """Add a conversation memory (extracted key fact about the user)."""
-        memory_file = self.memory_dir / f"{user_id}_{scenario_id}.json"
+        memory_file = self.memory_dir / f"{_safe_user_id(user_id)}_{scenario_id}.json"
         data = {"memories": []}
         if memory_file.exists():
             try:
@@ -119,7 +118,7 @@ class UserProfileStore:
     # --- Private helpers ---
 
     def _load_profile(self, user_id: str) -> dict | None:
-        path = self.data_dir / f"{user_id}.json"
+        path = self.data_dir / f"{_safe_user_id(user_id)}.json"
         if not path.exists():
             return None
         try:
@@ -128,9 +127,19 @@ class UserProfileStore:
             return None
 
     def _save_profile(self, profile: dict):
-        path = self.data_dir / f"{profile['id']}.json"
+        path = self.data_dir / f"{_safe_user_id(profile['id'])}.json"
         path.write_text(json.dumps(profile, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 # Global instance
 profile_store = UserProfileStore()
+
+
+def _safe_user_id(user_id: str) -> str:
+    return (
+        user_id.replace("/", "_")
+        .replace("\\", "_")
+        .replace("..", "_")
+        .replace("@", "_at_")
+        .replace(".", "_")
+    )

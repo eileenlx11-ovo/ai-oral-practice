@@ -1,11 +1,11 @@
 {
-  "name": "AI English Oral Practice",
-  "short_name": "AI Oral",
+  "name": "SpeakFlow - AI English Oral Practice",
+  "short_name": "SpeakFlow",
   "description": "AI-powered English speaking practice with real-time feedback",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1f4e79",
+  "background_color": "#0f172a",
+  "theme_color": "#1a56db",
   "orientation": "portrait",
   "icons": [
     {

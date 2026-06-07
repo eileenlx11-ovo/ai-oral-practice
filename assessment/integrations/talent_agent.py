@@ -13,7 +13,6 @@ This module enables:
 3. Using talent-agent's project matching to personalize interview scenarios
 """
 import os
-import json
 import httpx
 from typing import Optional
 
@@ -34,7 +33,7 @@ class TalentAgentClient:
     def headers(self) -> dict:
         h = {"Content-Type": "application/json"}
         if self.token:
-            h["Authorization"] = f"Bearer {self.token}"
+            h["X-Internal-Token"] = self.token
         return h
 
     async def _get_client(self) -> httpx.AsyncClient:
@@ -164,22 +163,23 @@ class TalentAgentClient:
         Args:
             session_data: Our session summary (scenario, turns, scores, corrections)
         """
+        if not self.token:
+            return {"synced": False, "error": "TALENT_AGENT_TOKEN is not configured"}
         try:
             client = await self._get_client()
-            # Use a custom endpoint or application tracking
             resp = await client.post(
-                "/applications",
+                "/integrations/oral-practice/result",
                 json={
-                    "title": f"Oral Practice: {session_data.get('scenario', 'unknown')}",
-                    "status": "applied",
-                    "notes": json.dumps({
-                        "type": "oral_practice_sync",
-                        "session_id": session_data.get("session_id"),
-                        "scenario": session_data.get("scenario"),
-                        "total_turns": session_data.get("total_turns", 0),
-                        "avg_pronunciation": session_data.get("avg_pronunciation"),
-                        "avg_fluency": session_data.get("avg_fluency"),
-                    }),
+                    "type": "oral_practice_sync",
+                    "session_id": session_data.get("session_id"),
+                    "scenario": session_data.get("scenario"),
+                    "total_turns": session_data.get("total_turns", 0),
+                    "total_corrections": session_data.get("total_corrections", 0),
+                    "avg_pronunciation": session_data.get("avg_pronunciation"),
+                    "avg_fluency": session_data.get("avg_fluency"),
+                    "avg_accuracy": session_data.get("avg_accuracy"),
+                    "common_errors": session_data.get("common_errors", []),
+                    "report": session_data.get("report", ""),
                 },
             )
             resp.raise_for_status()

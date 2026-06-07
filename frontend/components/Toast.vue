@@ -49,32 +49,40 @@ function close() {
 <style scoped>
 .toast {
   position: fixed;
-  top: 1rem;
+  top: var(--space-4);
   left: 50%;
   transform: translateX(-50%);
-  padding: 0.75rem 1.25rem;
-  border-radius: 8px;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 9999;
-  font-size: 0.9rem;
+  gap: var(--space-3);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-toast);
+  font-size: var(--text-sm);
+  font-weight: 500;
   max-width: 90vw;
+  backdrop-filter: blur(8px);
 }
-.toast.info { background: #e3f2fd; color: #1565c0; }
-.toast.success { background: #e8f5e9; color: #2e7d32; }
-.toast.warning { background: #fff3e0; color: #e65100; }
-.toast.error { background: #fbe9e7; color: #c62828; }
+
+.toast.info { background: rgba(219, 234, 254, 0.95); color: #1e40af; border: 1px solid var(--color-primary-200); }
+.toast.success { background: rgba(209, 250, 229, 0.95); color: #065f46; border: 1px solid #a7f3d0; }
+.toast.warning { background: rgba(254, 243, 199, 0.95); color: #92400e; border: 1px solid #fde68a; }
+.toast.error { background: rgba(254, 226, 226, 0.95); color: #991b1b; border: 1px solid #fecaca; }
 
 .toast-close {
-  background: none; border: none; font-size: 1.2rem;
-  cursor: pointer; opacity: 0.6; margin-left: 0.5rem;
+  font-size: 1.1rem;
+  opacity: 0.5;
+  margin-left: var(--space-2);
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  color: inherit;
 }
-.toast-close:hover { opacity: 1; }
+.toast-close:hover { opacity: 1; background: rgba(0, 0, 0, 0.05); }
 
-.toast-slide-enter-active { transition: all 0.3s ease; }
-.toast-slide-leave-active { transition: all 0.2s ease; }
-.toast-slide-enter-from { opacity: 0; transform: translateX(-50%) translateY(-1rem); }
+.toast-slide-enter-active { transition: all 300ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.toast-slide-leave-active { transition: all 200ms ease; }
+.toast-slide-enter-from { opacity: 0; transform: translateX(-50%) translateY(-1rem) scale(0.95); }
 .toast-slide-leave-to { opacity: 0; transform: translateX(-50%) translateY(-0.5rem); }
 </style>
