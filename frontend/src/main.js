@@ -10,6 +10,7 @@ const routes = [
   { path: '/dashboard', name: 'Dashboard', component: () => import('../dashboard/DashboardView.vue') },
   { path: '/assessment', name: 'Assessment', component: () => import('../assessment/LevelTest.vue') },
   { path: '/topic', name: 'CustomTopic', component: () => import('../topic/CustomTopicView.vue') },
+  { path: '/achievements', name: 'Achievements', component: () => import('../achievements/AchievementsView.vue') },
 ]
 
 const router = createRouter({

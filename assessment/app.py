@@ -837,6 +837,7 @@ async def get_character_memory(scenario_id: str):
     return {"memories": memories, "affinity_level": affinity}
 
 
+
 # --- Real-time Pronunciation (WebSocket) ---
 
 from fastapi import WebSocket as _WebSocket
@@ -847,6 +848,50 @@ async def ws_realtime_pronunciation(websocket: _WebSocket):
     """WebSocket endpoint for real-time pronunciation feedback."""
     from .realtime import realtime_pronunciation_endpoint
     await realtime_pronunciation_endpoint(websocket)
+
+# --- Achievements & Check-in ---
+
+@app.get("/api/achievements")
+async def get_achievements():
+    """Get all achievements with unlock status for current user."""
+    progress = store.get_progress()
+    all_sessions = []
+    for f in sorted(store.data_dir.glob("*.json")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            all_sessions.append(data)
+        except (json.JSONDecodeError, KeyError):
+            continue
+
+    all_pron = [sc for s in all_sessions for sc in s["scores"]["pronunciation"]]
+    unique_scenarios = set(s["scenario"] for s in all_sessions)
+
+    stats = {
+        "sessions": progress["total_sessions"],
+        "turns": progress["total_turns"],
+        "max_pronunciation": max(all_pron) if all_pron else 0,
+        "unique_scenarios": len(unique_scenarios),
+    }
+
+    from .achievements import achievement_store
+    achievements = achievement_store.check_achievements(DEFAULT_USER_ID, stats)
+    return {"achievements": achievements, "stats": stats}
+
+
+@app.get("/api/streak")
+async def get_streak():
+    """Get current streak and check-in calendar."""
+    from .achievements import achievement_store
+    streak = achievement_store.get_streak(DEFAULT_USER_ID)
+    calendar = achievement_store.get_checkin_calendar(DEFAULT_USER_ID)
+    return {"streak": streak, "calendar": calendar}
+
+
+@app.post("/api/checkin")
+async def checkin():
+    """Record daily check-in (called when a session ends)."""
+    from .achievements import achievement_store
+    return achievement_store.record_checkin(DEFAULT_USER_ID)
 
 
 # --- Talent Agent Integration ---
