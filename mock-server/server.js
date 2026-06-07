@@ -501,6 +501,39 @@ app.post('/api/integrations/talent-agent/sync', upload.none(), (req, res) => {
   res.json({ synced: false, error: 'Talent Agent not configured (mock mode)' })
 })
 
+// --- Session Playback ---
+app.get('/api/sessions/:id/turns-full', (req, res) => {
+  res.json({
+    id: req.params.id,
+    scenario: 'interview',
+    started_at: '2026-06-05T10:00:00Z',
+    turns: [
+      { user_text: "I have three years of experience in web development.", reply_text: "That's great! Can you tell me about a challenging project you worked on?", corrections: [{ original: "I have three years experience", corrected: "I have three years of experience", explanation: "Use 'of' between quantity and noun" }] },
+      { user_text: "I led a team to build a real-time dashboard.", reply_text: "Impressive! What technologies did you use for that?", corrections: [] },
+      { user_text: "We used React and Node.js for the backend.", reply_text: "Good choices. How did you handle scalability?", corrections: [{ original: "for the backend", corrected: "on the backend", explanation: "Use 'on' when referring to the platform/layer" }] },
+    ],
+  })
+})
+
+app.get('/api/sessions/:id/recording/:turn', (req, res) => {
+  // Minimal valid MP3 frame (silent)
+  const silentMp3 = Buffer.from(
+    'SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRwmHAAAAAAD/+1DEAAAHAAGf9AAAIgAAM/8AAABM',
+    'base64'
+  )
+  res.setHeader('Content-Type', 'audio/mpeg')
+  res.setHeader('Content-Length', silentMp3.length)
+  res.end(silentMp3)
+})
+
+app.post('/api/sessions/:id/review', (req, res) => {
+  setTimeout(() => {
+    res.json({
+      review: '整体表现：你在面试场景中的表达比较流利，能够清楚地描述自己的工作经验和技术栈。\n\n主要错误模式：介词使用偶尔不准确（如 "for the backend" 应为 "on the backend"），以及名词短语中遗漏 "of" 等小词。\n\n改进建议：建议多注意介词搭配的固定用法，可以通过阅读技术文章来积累常见的表达方式。整体来看进步明显，继续保持练习节奏。',
+    })
+  }, 800)
+})
+
 // ========== Start ==========
 app.listen(PORT, () => {
   console.log(`\n🎯 Mock Server running at http://localhost:${PORT}`)

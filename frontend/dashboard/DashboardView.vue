@@ -56,6 +56,7 @@
             <span v-if="s.avg_fluency" class="score-badge">
               🗣️ {{ s.avg_fluency.toFixed(0) }}
             </span>
+            <button class="playback-btn" @click.stop="$router.push('/playback/' + s.session_id)">回放</button>
           </div>
         </div>
       </div>
@@ -439,5 +440,21 @@ h2 {
 
 .close-btn:hover {
   background: #163a5c;
+}
+
+.playback-btn {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid #1f4e79;
+  border-radius: 4px;
+  background: white;
+  color: #1f4e79;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.playback-btn:hover {
+  background: #1f4e79;
+  color: white;
 }
 </style>
