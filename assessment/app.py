@@ -388,7 +388,8 @@ async def chat(
 
     try:
         # 2. ASR via Whisper
-        user_text = await _transcribe(tmp.name)
+        current_session = store.get_session(session_id)
+        user_text = await _transcribe(tmp.name, (current_session or {}).get("language", "en"))
         if not user_text.strip():
             raise HTTPException(400, "No speech detected")
 
@@ -400,7 +401,6 @@ async def chat(
 
         scene_advanced = False
         story_completed = False
-        current_session = store.get_session(session_id)
         if current_session and current_session.get("story_id"):
             current_scene = int(current_session.get("story_scene_index", 0))
             if scene_marker_seen:
@@ -464,6 +464,7 @@ async def chat_stream(
 
     # Resolve system prompt: session-level custom prompt overrides scenario prompt.
     existing = store.get_session(session_id)
+    session_language = (existing or {}).get("language", "en")
     is_story_session = bool(existing and existing.get("story_id"))
     story_id = existing.get("story_id") if existing else None
     story_scene_index = int(existing.get("story_scene_index", 0)) if existing else 0
@@ -489,7 +490,7 @@ async def chat_stream(
         try:
             # 1. ASR
             try:
-                user_text = await _transcribe(tmp.name)
+                user_text = await _transcribe(tmp.name, session_language)
             except Exception:
                 yield _sse_error(
                     "asr",
@@ -789,7 +790,7 @@ def _build_asr_providers() -> list[dict]:
 _asr_providers = _build_asr_providers()
 
 
-async def _transcribe(filepath: str) -> str:
+async def _transcribe(filepath: str, language: str = "en") -> str:
     """Transcribe audio via the configured ASR providers in order.
 
     Tries each provider until one succeeds. Word-level timestamps are requested
@@ -804,11 +805,11 @@ async def _transcribe(filepath: str) -> str:
     for provider in _asr_providers:
         try:
             if provider["call_style"] == "chat_audio":
-                text = await _transcribe_chat_audio(provider, filepath)
+                text = await _transcribe_chat_audio(provider, filepath, language)
                 _transcribe._last_words = None  # chat-style ASR has no word timestamps
                 return text
 
-            kwargs = {"model": provider["model"], "language": "en"}
+            kwargs = {"model": provider["model"], "language": language if language in {"en", "zh"} else "en"}
             if provider["word_timestamps"]:
                 kwargs["response_format"] = "verbose_json"
                 kwargs["timestamp_granularities"] = ["word"]
@@ -848,7 +849,7 @@ def _audio_mime(filepath: str) -> str:
     }.get(ext, "audio/wav")
 
 
-async def _transcribe_chat_audio(provider: dict, filepath: str) -> str:
+async def _transcribe_chat_audio(provider: dict, filepath: str, language: str = "en") -> str:
     """Transcribe via a chat/completions ASR model (Qwen-ASR on DashScope).
 
     Unlike Whisper-style providers, Qwen-ASR takes the audio as an input_audio
@@ -861,12 +862,19 @@ async def _transcribe_chat_audio(provider: dict, filepath: str) -> str:
         b64 = base64.b64encode(f.read()).decode("ascii")
     data_uri = f"data:{_audio_mime(filepath)};base64,{b64}"
 
+    language_name = "Chinese" if language == "zh" else "English"
     resp = await provider["client"].chat.completions.create(
         model=provider["model"],
-        messages=[{
-            "role": "user",
-            "content": [{"type": "input_audio", "input_audio": {"data": data_uri}}],
-        }],
+        messages=[
+            {
+                "role": "system",
+                "content": f"Transcribe the audio in {language_name}. Output only the transcript.",
+            },
+            {
+                "role": "user",
+                "content": [{"type": "input_audio", "input_audio": {"data": data_uri}}],
+            },
+        ],
         extra_body={"asr_options": {"enable_itn": False}},
     )
     return (resp.choices[0].message.content or "").strip()

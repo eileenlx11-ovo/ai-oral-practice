@@ -143,57 +143,35 @@
 
       <!-- Summary panel (shown after all sentences are done) -->
       <div v-if="showSummary" class="summary-panel">
-        <h3>📊 本次练习总结</h3>
+        <h3>📊 {{ t('pronunciation.summaryTitle') }}</h3>
         <div class="summary-scores">
           <div class="summary-item">
             <span class="summary-value" :class="scoreClass(avgScore('pronunciation_score'))">{{ avgScore('pronunciation_score') }}</span>
-            <span class="summary-label">平均总分</span>
+            <span class="summary-label">{{ t('pronunciation.avgTotal') }}</span>
           </div>
           <div class="summary-item">
             <span class="summary-value" :class="scoreClass(avgScore('accuracy_score'))">{{ avgScore('accuracy_score') }}</span>
-            <span class="summary-label">平均准确度</span>
+            <span class="summary-label">{{ t('pronunciation.avgAccuracy') }}</span>
           </div>
           <div class="summary-item">
             <span class="summary-value" :class="scoreClass(avgScore('fluency_score'))">{{ avgScore('fluency_score') }}</span>
-            <span class="summary-label">平均流利度</span>
+            <span class="summary-label">{{ t('pronunciation.avgFluency') }}</span>
           </div>
           <div class="summary-item">
             <span class="summary-value" :class="scoreClass(avgScore('completeness_score'))">{{ avgScore('completeness_score') }}</span>
-            <span class="summary-label">平均完整度</span>
+            <span class="summary-label">{{ t('pronunciation.avgCompleteness') }}</span>
           </div>
         </div>
         <div class="summary-detail">
-          <p>共练习 <strong>{{ practicedCount }}</strong> / {{ sentences.length }} 句</p>
+          <p>{{ t('pronunciation.practicedPrefix') }} <strong>{{ practicedCount }}</strong> / {{ sentences.length }} {{ t('pronunciation.sentenceUnit') }}</p>
           <p v-if="weakWords.length">
-            <span class="weak-title">需加强的单词：</span>
+            <span class="weak-title">{{ t('pronunciation.weakWords') }}</span>
             <span v-for="w in weakWords" :key="w" class="weak-word">{{ w }}</span>
           </p>
         </div>
         <button class="summary-btn" @click="selectedScenario = null; showSummary = false">
-          返回选择场景
+          {{ t('pronunciation.backToScenarios') }}
         </button>
-      </div>
-    </div>
-
-    <!-- Realtime Mode -->
-    <div class="realtime-section">
-      <h2>🎙️ 实时纠音模式</h2>
-      <p class="realtime-desc">边说边看发音反馈，实时高亮每个词的发音质量</p>
-      <button class="realtime-btn" :class="{ active: realtimeActive }" @click="toggleRealtime">
-        <span class="rt-btn-dot" :class="{ active: realtimeActive }"></span>
-        {{ realtimeActive ? '停止' : '开始实时纠音' }}
-      </button>
-
-      <div v-if="realtimeActive || realtimeWords.length" class="realtime-display">
-        <div class="realtime-words" v-if="realtimeWords.length">
-          <span v-for="(w, i) in realtimeWords" :key="i" class="rt-word" :class="rtWordClass(w)" :title="'Score: ' + w.score">{{ w.word }}</span>
-        </div>
-        <div v-if="realtimeScore !== null" class="realtime-score">
-          总分: <strong :class="scoreClass(realtimeScore)">{{ realtimeScore }}</strong>
-        </div>
-        <div v-if="realtimeActive" class="realtime-listening">
-          <span class="pulse-dot"></span> 正在倾听...
-        </div>
       </div>
     </div>
   </div>
@@ -226,6 +204,7 @@ const playingDemo = ref(false)
 const demoAudio = ref(null)
 const showSummary = ref(false)
 let currentAudio = null
+const MIN_RECORDING_BYTES = 1500
 
 const toast = reactive({ message: '', type: 'info' })
 
@@ -296,6 +275,11 @@ async function handleRecord() {
 async function finishRecording() {
   const blob = await stop()
   if (!blob) return
+  if (blob.size < MIN_RECORDING_BYTES) {
+    toast.message = t('pronunciation.recordingTooShort')
+    toast.type = 'warning'
+    return
+  }
   // Fire scoring in the background so the user can move to the next sentence
   // immediately; the score backfills onto this sentence's card when it returns.
   const idx = currentIndex.value
@@ -318,6 +302,9 @@ async function submitForScoring(idx, blob, referenceText) {
       throw error
     }
     const data = await res.json()
+    if (!hasUsableScore(data)) {
+      throw Object.assign(new Error(t('pronunciation.noValidScore')), { status: 422 })
+    }
     if (!attempts.value[idx]) attempts.value[idx] = []
     attempts.value[idx].push(data)
     viewAttempt.value[idx] = attempts.value[idx].length - 1
@@ -335,6 +322,11 @@ function latestScore(i) {
   const list = attempts.value[i]
   if (!list?.length) return null
   return list[list.length - 1].pronunciation_score
+}
+
+function hasUsableScore(data) {
+  const scoreKeys = ['pronunciation_score', 'accuracy_score', 'fluency_score', 'completeness_score']
+  return scoreKeys.some((key) => Number.isFinite(data?.[key]) && data[key] > 0)
 }
 
 function hasResult(i) {
@@ -444,57 +436,6 @@ function phoneClass(p) {
   if (p.accuracy_score >= 80) return 'phone-good'
   if (p.accuracy_score >= 60) return 'phone-ok'
   return 'phone-poor'
-}
-
-// --- Realtime Mode ---
-const realtimeActive = ref(false)
-const realtimeWords = ref([])
-const realtimeScore = ref(null)
-let rtWebSocket = null
-let rtMediaRecorder = null
-let rtStream = null
-
-function rtWordClass(w) {
-  if (w.score >= 80) return 'rt-good'
-  if (w.score >= 60) return 'rt-ok'
-  return 'rt-poor'
-}
-
-async function toggleRealtime() {
-  if (realtimeActive.value) { stopRealtime() } else { await startRealtime() }
-}
-
-async function startRealtime() {
-  realtimeWords.value = []
-  realtimeScore.value = null
-  try { rtStream = await navigator.mediaDevices.getUserMedia({ audio: true }) }
-  catch { toast.message = '麦克风权限被拒绝'; toast.type = 'warning'; return }
-
-  const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-  rtWebSocket = new WebSocket(`${wsProto}//${location.host}/ws/realtime-pronunciation`)
-  rtWebSocket.onopen = () => {
-    rtWebSocket.send(JSON.stringify({ reference_text: sentences.value[currentIndex.value] || '' }))
-    realtimeActive.value = true
-    rtMediaRecorder = new MediaRecorder(rtStream, { mimeType: 'audio/webm;codecs=opus' })
-    rtMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0 && rtWebSocket?.readyState === WebSocket.OPEN) rtWebSocket.send(e.data) }
-    rtMediaRecorder.start(2500)
-  }
-  rtWebSocket.onmessage = (event) => {
-    const msg = JSON.parse(event.data)
-    if (msg.type === 'assessment' && msg.words?.length) {
-      realtimeWords.value = [...realtimeWords.value, ...msg.words]
-      if (msg.overall_score != null) realtimeScore.value = msg.overall_score
-    }
-  }
-  rtWebSocket.onerror = () => { toast.message = 'WebSocket 连接失败'; toast.type = 'error'; stopRealtime() }
-  rtWebSocket.onclose = () => { realtimeActive.value = false }
-}
-
-function stopRealtime() {
-  realtimeActive.value = false
-  if (rtMediaRecorder?.state !== 'inactive') rtMediaRecorder?.stop()
-  rtWebSocket?.close(); rtWebSocket = null
-  rtStream?.getTracks().forEach(t => t.stop()); rtStream = null
 }
 </script>
 
@@ -867,15 +808,15 @@ function stopRealtime() {
 
 /* Summary panel */
 .summary-panel {
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   margin-top: 1.5rem;
   text-align: center;
 }
 .summary-panel h3 {
-  color: #1f4e79;
+  color: var(--color-text);
   margin-bottom: 1.2rem;
 }
 .summary-scores {
@@ -897,12 +838,12 @@ function stopRealtime() {
 .summary-value.poor { color: #c62828; }
 .summary-label {
   font-size: 0.8rem;
-  color: #888;
+  color: var(--color-text-muted);
 }
 .summary-detail {
   margin-bottom: 1rem;
   font-size: 0.9rem;
-  color: #555;
+  color: var(--color-text-secondary);
 }
 .weak-title {
   font-weight: 600;
@@ -919,39 +860,12 @@ function stopRealtime() {
 }
 .summary-btn {
   padding: 0.7rem 1.5rem;
-  background: #1f4e79;
+  background: var(--color-primary);
   color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   font-size: 0.95rem;
 }
-.summary-btn:hover { background: #2a6399; }
-
-.realtime-section { margin-top: var(--space-10); padding-top: var(--space-8); border-top: 1px solid var(--color-border); text-align: center; }
-.realtime-desc { color: var(--color-text-secondary); font-size: var(--text-sm); margin-bottom: var(--space-4); }
-.realtime-btn {
-  display: inline-flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-3) var(--space-8); background: var(--color-primary); color: #fff;
-  border: none; border-radius: var(--radius-full); font-size: var(--text-base); font-weight: 600;
-  cursor: pointer; transition: background var(--transition-fast);
-}
-.realtime-btn:hover { background: var(--color-primary-dark); }
-.realtime-btn.active { background: var(--color-error); }
-.realtime-btn.active:hover { background: var(--color-error); filter: brightness(0.92); }
-.rt-btn-dot { width: 10px; height: 10px; border-radius: var(--radius-full); background: #fff; transition: border-radius var(--transition-fast); }
-.rt-btn-dot.active { border-radius: 2px; animation: pulse-anim 1.2s infinite; }
-.realtime-display {
-  margin-top: var(--space-6); padding: var(--space-6); background: var(--color-bg);
-  border-radius: var(--radius-lg); border: 1px solid var(--color-border); text-align: left;
-}
-.realtime-words { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
-.rt-word { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); font-size: var(--text-base); font-weight: 500; }
-.rt-good { background: var(--color-success-light); color: var(--color-success); }
-.rt-ok { background: var(--color-warning-light); color: #b45309; }
-.rt-poor { background: var(--color-error-light); color: var(--color-error); }
-.realtime-score { font-size: var(--text-lg); margin-bottom: var(--space-2); color: var(--color-text); }
-.realtime-listening { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); }
-.pulse-dot { width: 10px; height: 10px; background: var(--color-error); border-radius: var(--radius-full); animation: pulse-anim 1.2s infinite; }
-@keyframes pulse-anim { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+.summary-btn:hover { background: var(--color-primary-dark); }
 </style>
