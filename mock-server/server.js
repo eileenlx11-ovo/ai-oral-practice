@@ -551,6 +551,30 @@ app.get('/api/topics/trending', (req, res) => {
   ]})
 })
 
+// ========== Scenario Learning Guide ==========
+app.get('/api/scenarios/:id/guide', (req, res) => {
+  // Return coffee_shop guide as sample for any scenario
+  res.json({
+    title: req.params.id,
+    vocabulary: [
+      { word: "latte", phonetic: "/ˈlɑːteɪ/", meaning: "拿铁咖啡", example: "I'd like a medium latte, please." },
+      { word: "espresso", phonetic: "/eˈspresəʊ/", meaning: "浓缩咖啡", example: "Can I get a double espresso?" },
+      { word: "oat milk", phonetic: "/əʊt mɪlk/", meaning: "燕麦奶", example: "Could I have that with oat milk?" },
+    ],
+    expressions: [
+      { phrase: "What can I get you?", phonetic: "/wɒt kæn aɪ ɡet juː/", meaning: "您要点什么？", example: "Hi! What can I get you today?" },
+      { phrase: "for here or to go", phonetic: "/fɔːr hɪər ɔːr tə ɡəʊ/", meaning: "堂食还是外带", example: "Is that for here or to go?" },
+    ],
+    tips: [
+      { title: "用 Could I have 代替 I want", description: "点单时更礼貌自然", example: "Could I have a medium latte?", note: "母语者几乎不在点餐时说 I want" },
+    ],
+    dialogue: [
+      { speaker: "A", text: "Hey! Welcome to Bean & Brew. What can I get started for you?", translation: "嘿！欢迎来到 Bean & Brew。想喝点什么？", notes: [{ term: "get started for you", explanation: "咖啡店开场用语" }] },
+      { speaker: "B", text: "Could I get a medium oat milk latte to go?", translation: "我要一杯中杯燕麦拿铁外带。", notes: [{ term: "to go", explanation: "外带；反义 for here" }] },
+    ],
+  })
+})
+
 // ========== Start ==========
 app.listen(PORT, () => {
   console.log(`\n🎯 Mock Server running at http://localhost:${PORT}`)

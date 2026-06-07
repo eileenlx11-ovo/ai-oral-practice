@@ -50,7 +50,10 @@
       >
         <div class="card-header">
           <span class="icon">{{ s.icon }}</span>
-          <span class="diff-badge" :class="s.difficulty">{{ s.difficulty }}</span>
+          <div class="card-actions">
+            <button class="guide-btn" @click.stop="$router.push(`/guide/${s.id}`)" title="学习指南">📖</button>
+            <span class="diff-badge" :class="s.difficulty">{{ s.difficulty }}</span>
+          </div>
         </div>
         <h3>{{ s.name }}</h3>
         <p>{{ s.description }}</p>
@@ -210,6 +213,26 @@ h1 {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.8rem;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.guide-btn {
+  background: none;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 0.2rem 0.4rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.guide-btn:hover {
+  background: #f0f7ff;
+  border-color: #1f4e79;
 }
 
 .icon { font-size: 2rem; }
