@@ -25,7 +25,11 @@ except ImportError:
 _HOST = "soe.cloud.tencent.com"
 _PATH = "/soe/api"
 _ENGINE_MODEL_TYPE = "16k_en"
-_OPEN_TIMEOUT_SECONDS = 10
+# This VPS → Tencent SOE path has slow, jittery TCP handshakes (2-9s observed),
+# so the open timeout is generous. SOE also drops the session if no audio
+# arrives within 15s of connect (error 4008), which is why we send the audio
+# from inside on_open rather than after a main-thread round-trip.
+_OPEN_TIMEOUT_SECONDS = 25
 _DONE_TIMEOUT_SECONDS = 60
 
 
@@ -100,7 +104,21 @@ def _run_ws_assessment(audio_path: str, reference_text: str) -> dict:
         "error": None,
     }
 
+    # Pre-read so we can fire the audio the instant the socket opens — SOE
+    # closes the session if no audio lands within 15s of connect (error 4008),
+    # and this VPS's connect latency eats much of that window.
+    with open(audio_path, "rb") as f:
+        audio_bytes = f.read()
+
     def on_open(ws):
+        try:
+            ws.send_binary(audio_bytes)
+            ws.send(json.dumps({"type": "end"}))
+        except Exception as exc:
+            state["error"] = TencentSOEError(f"Failed to send audio: {exc}")
+            state["done"].set()
+            ws.close()
+            return
         state["opened"].set()
 
     def on_message(ws, message):
@@ -144,14 +162,13 @@ def _run_ws_assessment(audio_path: str, reference_text: str) -> dict:
     thread = threading.Thread(target=ws.run_forever, daemon=True)
     thread.start()
 
+    # Audio is sent inside on_open; this just confirms the socket opened and
+    # the send succeeded before we wait for the final result.
     if not state["opened"].wait(_OPEN_TIMEOUT_SECONDS):
         ws.close()
+        if state["error"] is not None:
+            raise state["error"]
         raise TencentSOEError("Tencent SOE websocket did not open in time")
-
-    with open(audio_path, "rb") as f:
-        ws.sock.send_binary(f.read())
-
-    ws.sock.send(json.dumps({"type": "end"}))
 
     if not state["done"].wait(_DONE_TIMEOUT_SECONDS):
         ws.close()
