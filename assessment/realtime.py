@@ -49,18 +49,34 @@ class RealtimeSession:
         self.audio_buffer.clear()
 
         try:
-            # ASR
+            # ASR with fallback
             from openai import AsyncOpenAI
-            asr_client = AsyncOpenAI(
-                api_key=os.getenv("ASR_API_KEY") or os.getenv("GROQ_API_KEY") or "sk-placeholder",
-                base_url=os.getenv("ASR_BASE_URL", "https://api.groq.com/openai/v1"),
-            )
-            with open(tmp.name, "rb") as f:
-                resp = await asr_client.audio.transcriptions.create(
-                    model=os.getenv("ASR_MODEL", "whisper-large-v3-turbo"),
-                    file=f, language="en",
-                )
-            text = resp.text.strip() if hasattr(resp, "text") else str(resp).strip()
+            asr_base_url = os.getenv("ASR_BASE_URL", "https://api.groq.com/openai/v1")
+            asr_key = os.getenv("ASR_API_KEY") or os.getenv("GROQ_API_KEY") or "sk-placeholder"
+            asr_model = os.getenv("ASR_MODEL", "whisper-large-v3-turbo")
+            asr_client = AsyncOpenAI(api_key=asr_key, base_url=asr_base_url)
+
+            text = None
+            try:
+                with open(tmp.name, "rb") as f:
+                    resp = await asr_client.audio.transcriptions.create(
+                        model=asr_model, file=f, language="en",
+                    )
+                text = resp.text.strip() if hasattr(resp, "text") else str(resp).strip()
+            except Exception:
+                # Fallback to Qwen3-ASR
+                fallback_key = os.getenv("DASHSCOPE_API_KEY", "")
+                if fallback_key:
+                    fallback_client = AsyncOpenAI(
+                        api_key=fallback_key,
+                        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+                    )
+                    fallback_model = os.getenv("ASR_FALLBACK_MODEL", "qwen3-asr")
+                    with open(tmp.name, "rb") as f:
+                        resp = await fallback_client.audio.transcriptions.create(
+                            model=fallback_model, file=f, language="en",
+                        )
+                    text = resp.text.strip() if hasattr(resp, "text") else str(resp).strip()
 
             if not text:
                 await self.ws.send_json({"type": "silence"})

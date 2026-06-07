@@ -700,12 +700,14 @@ async def text_to_speech(text: str = Form(...)):
 
 # --- Internal helpers ---
 
-# ASR client — configurable provider (Groq Whisper / SiliconFlow / custom)
+# ASR clients — primary + fallback (Groq Whisper → Alibaba Qwen3-ASR)
+import httpx as _httpx
+
 _asr_base_url = os.getenv("ASR_BASE_URL", "https://api.groq.com/openai/v1")
 _asr_api_key = os.getenv("ASR_API_KEY") or os.getenv("GROQ_API_KEY") or os.getenv("SILICONFLOW_API_KEY") or "sk-placeholder"
+_asr_model = os.getenv("ASR_MODEL", "whisper-large-v3-turbo")
 
 # Groq needs proxy in China; httpx picks up standard env vars (HTTPS_PROXY / ALL_PROXY)
-import httpx as _httpx
 _asr_http_client = None
 _proxy_url = os.getenv("HTTPS_PROXY") or os.getenv("ALL_PROXY") or os.getenv("HTTP_PROXY")
 if _proxy_url and "groq" in _asr_base_url:
@@ -717,30 +719,64 @@ _asr_client = AsyncOpenAI(
     http_client=_asr_http_client,
 )
 
+# Fallback ASR: Alibaba Cloud DashScope Qwen3-ASR (OpenAI-compatible, China-direct)
+_asr_fallback_key = os.getenv("DASHSCOPE_API_KEY", "")
+_asr_fallback_client = None
+_asr_fallback_model = os.getenv("ASR_FALLBACK_MODEL", "qwen3-asr")
+if _asr_fallback_key:
+    _asr_fallback_client = AsyncOpenAI(
+        api_key=_asr_fallback_key,
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+    )
+
 
 async def _transcribe(filepath: str) -> str:
-    """Transcribe audio file via configured ASR provider (default: Groq Whisper)."""
-    model = os.getenv("ASR_MODEL", "whisper-large-v3-turbo")
+    """Transcribe audio file via ASR provider with fallback."""
+    _transcribe._last_words = None
+
+    # Try primary provider first
+    try:
+        text, words = await _do_transcribe(_asr_client, _asr_model, filepath)
+        _transcribe._last_words = words
+        return text
+    except Exception as primary_err:
+        import logging
+        logging.warning(f"Primary ASR failed: {primary_err}")
+
+    # Fallback to Qwen3-ASR if configured
+    if _asr_fallback_client:
+        try:
+            text, words = await _do_transcribe(
+                _asr_fallback_client, _asr_fallback_model, filepath
+            )
+            _transcribe._last_words = words
+            return text
+        except Exception as fallback_err:
+            import logging
+            logging.error(f"Fallback ASR (Qwen3) also failed: {fallback_err}")
+            raise fallback_err
+    else:
+        raise primary_err
+
+
+async def _do_transcribe(client, model: str, filepath: str):
+    """Call OpenAI-compatible transcription endpoint. Returns (text, words)."""
     with open(filepath, "rb") as f:
-        resp = await _asr_client.audio.transcriptions.create(
+        resp = await client.audio.transcriptions.create(
             model=model,
             file=f,
             language="en",
             response_format="verbose_json",
             timestamp_granularities=["word"],
         )
-    # Store word-level timestamps if available (for fluency analysis)
-    if hasattr(resp, 'words') and resp.words:
-        _transcribe._last_words = resp.words
-    else:
-        _transcribe._last_words = None
-
-    # Return text — handle both object and dict response formats
+    words = resp.words if hasattr(resp, 'words') and resp.words else None
     if hasattr(resp, 'text'):
-        return resp.text
-    if isinstance(resp, dict):
-        return resp.get('text', '')
-    return str(resp)
+        text = resp.text
+    elif isinstance(resp, dict):
+        text = resp.get('text', '')
+    else:
+        text = str(resp)
+    return text, words
 
 _transcribe._last_words = None
 
