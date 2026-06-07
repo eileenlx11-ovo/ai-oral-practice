@@ -112,6 +112,23 @@ async def get_sentences(scenario_id: str):
     return {"scenario_id": scenario_id, "sentences": sentences}
 
 
+@app.get("/api/scenarios/{scenario_id}/guide")
+async def get_scenario_guide(scenario_id: str):
+    """Get learning guide (vocabulary, expressions, tips, dialogue) for a scenario."""
+    from .learning_guide import get_guide, generate_guide
+    guide = get_guide(scenario_id)
+    if guide:
+        return guide
+    # Try to generate via LLM
+    scenario = next((s for s in SCENARIOS if s["id"] == scenario_id), None)
+    if not scenario:
+        raise HTTPException(404, f"Scenario '{scenario_id}' not found")
+    guide = await generate_guide(scenario_id, scenario["name"], llm, LLM_MODEL)
+    if guide:
+        return guide
+    raise HTTPException(503, "Guide generation unavailable")
+
+
 @app.post("/api/chat")
 async def chat(
     audio: UploadFile = File(...),
