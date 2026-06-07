@@ -745,6 +745,14 @@ _ASR_PROVIDER_SPECS = {
         "needs_proxy": False,
         "call_style": "transcriptions",
     },
+    "dashscope": {
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "key_envs": ("DASHSCOPE_API_KEY",),
+        "model_env": "DASHSCOPE_ASR_MODEL",
+        "default_model": "qwen3-asr",
+        "word_timestamps": True,   # Qwen3-ASR supports word-level timestamps
+        "needs_proxy": False,      # China-direct, no proxy needed
+    },
 }
 
 # Order is configurable; defaults to dashscope first, siliconflow fallback.
