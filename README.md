@@ -6,7 +6,7 @@
 
 **🌐 在线体验：https://speak.projfit.top**
 
-**🎬 Demo 视频：** <!-- TODO: 补充 bilibili/云盘链接 -->
+**🎬 Demo 视频：** [百度网盘](https://pan.baidu.com/s/1oGhWmajS27uTgIkamJLK-g?pwd=mmvx)（提取码：mmvx）
 
 ## 功能特性
 
