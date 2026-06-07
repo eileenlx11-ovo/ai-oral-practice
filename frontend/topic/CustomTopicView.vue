@@ -41,7 +41,7 @@
         <div class="config-row">
           <div class="form-group compact">
             <label for="partnerName">名字</label>
-            <input id="partnerName" v-model="partnerName" placeholder="John" maxlength="20" />
+            <input id="partnerName" type="text" v-model="partnerName" placeholder="John" maxlength="20" />
           </div>
           <div class="form-group compact">
             <label for="partnerCountry">来自</label>
@@ -58,6 +58,7 @@
           <label for="personality">性格特征</label>
           <input
             id="personality"
+            type="text"
             v-model="partnerPersonality"
             placeholder="例如：绅士、开朗、友善、幽默、耐心..."
             maxlength="100"
@@ -171,57 +172,74 @@ async function startPractice() {
 </script>
 
 <style scoped>
-.custom-topic { max-width: 640px; margin: 0 auto; padding: 2rem 1.5rem; }
-h1 { margin-bottom: 0.25rem; }
-.subtitle { color: #666; margin-bottom: 1.5rem; }
+.custom-topic { max-width: 760px; margin: 0 auto; padding: var(--space-8) var(--space-6); }
+h1 { margin-bottom: var(--space-1); color: var(--color-text); }
+.subtitle { color: var(--color-text-secondary); margin-bottom: var(--space-6); }
 
-.trending-section { margin-bottom: 1.5rem; }
-.trending-section h3 { font-size: 1rem; margin-bottom: 0.75rem; }
-.trending-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.trending-section { margin-bottom: var(--space-6); }
+.trending-section h3 { font-size: var(--text-base); margin-bottom: var(--space-3); color: var(--color-text); }
+.trending-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
 .trending-chip {
-  display: flex; flex-direction: column; gap: 0.2rem;
-  padding: 0.5rem 0.75rem; background: #f8f9fa; border: 1px solid #e0e0e0;
-  border-radius: 8px; cursor: pointer; transition: all 0.2s; max-width: 200px;
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-3) var(--space-4); background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); cursor: pointer; transition: var(--transition-fast);
 }
-.trending-chip:hover { border-color: #4a90d9; background: #f0f7ff; }
-.trending-chip strong { font-size: 0.85rem; color: #1f4e79; }
-.trending-chip span { font-size: 0.75rem; color: #666; }
+.trending-chip:hover { border-color: var(--color-primary); background: var(--color-primary-50); }
+.trending-chip strong { font-size: var(--text-sm); color: var(--color-primary); }
+.trending-chip span { font-size: var(--text-xs); color: var(--color-text-secondary); }
 
-.topic-form { display: flex; flex-direction: column; gap: 1.25rem; }
-.form-group { display: flex; flex-direction: column; gap: 0.4rem; position: relative; }
-.form-group label { font-weight: 600; font-size: 0.9rem; }
+.topic-form { display: flex; flex-direction: column; gap: var(--space-5); }
+.form-group { display: flex; flex-direction: column; gap: var(--space-2); position: relative; }
+.form-group label { font-weight: 600; font-size: var(--text-sm); color: var(--color-text); }
 .form-group.compact { flex: 1; }
-.required { color: #e74c3c; }
-.char-count { position: absolute; right: 8px; bottom: 8px; font-size: 0.7rem; color: #999; }
+.required { color: var(--color-error); }
+.char-count { position: absolute; right: 10px; bottom: 10px; font-size: var(--text-xs); color: var(--color-text-muted); }
 
-input[type="text"], textarea, select {
-  padding: 0.65rem 0.85rem; border: 1.5px solid #e0e0e0; border-radius: 8px;
-  font-size: 0.95rem; transition: border-color 0.2s;
+.topic-form input, .topic-form textarea, .topic-form select {
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px solid var(--color-border); border-radius: var(--radius-md);
+  font-size: var(--text-base); font-family: inherit;
+  background: var(--color-surface); color: var(--color-text);
+  transition: border-color var(--transition-fast);
 }
-input:focus, textarea:focus, select:focus { outline: none; border-color: #4a90d9; }
+.topic-form input::placeholder, .topic-form textarea::placeholder { color: var(--color-text-muted); }
+.topic-form input:focus, .topic-form textarea:focus, .topic-form select:focus {
+  outline: none; border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
+}
 
 .partner-config {
-  border: 1.5px solid #e8ecf0; border-radius: 12px; padding: 1rem 1.25rem;
-  display: flex; flex-direction: column; gap: 1rem;
+  border: 1.5px solid var(--color-border); border-radius: var(--radius-lg);
+  padding: var(--space-5) var(--space-6);
+  display: flex; flex-direction: column; gap: var(--space-5);
+  background: var(--color-bg);
 }
-.partner-config legend { font-weight: 600; padding: 0 0.5rem; color: #1f4e79; }
-.config-row { display: flex; gap: 1rem; }
+.partner-config legend { font-weight: 600; padding: 0 var(--space-2); color: var(--color-primary); }
+.config-row { display: flex; gap: var(--space-5); flex-wrap: wrap; }
+.config-row .form-group.compact { min-width: 180px; }
 
-.speed-options { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.speed-options { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .speed-btn {
-  padding: 0.4rem 0.75rem; border: 1px solid #ddd; border-radius: 20px;
-  background: white; cursor: pointer; font-size: 0.85rem; transition: all 0.2s;
+  padding: var(--space-2) var(--space-4); border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface); color: var(--color-text);
+  cursor: pointer; font-size: var(--text-sm); transition: var(--transition-fast);
 }
-.speed-btn.active { background: #1f4e79; color: white; border-color: #1f4e79; }
-.speed-btn:hover:not(.active) { border-color: #4a90d9; }
+.speed-btn.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.speed-btn:hover:not(.active) { border-color: var(--color-primary); }
 
 .start-btn {
-  padding: 0.85rem 2rem; background: #4a90d9; color: white; border: none;
-  border-radius: 8px; font-size: 1.05rem; font-weight: 600; cursor: pointer;
-  transition: background 0.2s;
+  padding: var(--space-4) var(--space-8); background: var(--color-primary); color: #fff; border: none;
+  border-radius: var(--radius-md); font-size: var(--text-lg); font-weight: 600; cursor: pointer;
+  transition: background var(--transition-fast);
 }
-.start-btn:hover:not(:disabled) { background: #357abd; }
-.start-btn:disabled { background: #ccc; cursor: not-allowed; }
+.start-btn:hover:not(:disabled) { background: var(--color-primary-dark); }
+.start-btn:disabled { background: var(--color-text-muted); cursor: not-allowed; }
 .spinner {
   display: inline-block; width: 18px; height: 18px;
   border: 2px solid #fff; border-top-color: transparent;

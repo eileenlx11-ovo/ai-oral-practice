@@ -54,7 +54,7 @@ export const CONFIG = {
     { id: 'doctor', icon: '🏥', name: "Doctor's Visit", category: 'daily', difficulty: 'intermediate', description: '描述症状和理解医嘱' },
     { id: 'restaurant', icon: '🍽️', name: 'Restaurant', category: 'daily', difficulty: 'beginner', description: '餐厅点餐全流程' },
     { id: 'delivery', icon: '🚴', name: 'Food Delivery', category: 'daily', difficulty: 'beginner', description: '和外卖员电话沟通' },
-    { id: 'interview', icon: '💼', name: 'Job Interview', category: 'work', difficulty: 'advanced', description: '模拟英语面试' },
+    { id: 'interview', icon: '💼', name: 'Job Interview', category: 'interview', difficulty: 'advanced', description: '模拟英语面试' },
     { id: 'meeting', icon: '📋', name: 'Team Meeting', category: 'work', difficulty: 'intermediate', description: '团队会议讨论' },
     { id: 'coworker', icon: '👩‍💻', name: 'Office Chat', category: 'work', difficulty: 'intermediate', description: '同事间日常闲聊' },
     { id: 'phone_call', icon: '📞', name: 'Business Call', category: 'work', difficulty: 'advanced', description: '商务电话沟通' },

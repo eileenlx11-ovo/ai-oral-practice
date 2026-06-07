@@ -88,7 +88,7 @@ class RealtimeSession:
             from .scoring import assess_pronunciation
             ref = self.reference_text or text
             try:
-                result = await assess_pronunciation(tmp.name, ref, mode="standard")
+                result = await assess_pronunciation(tmp.name, ref)
                 if result:
                     words = [{"word": w.get("word", ""), "score": w.get("accuracy_score", 0), "error_type": w.get("error_type", "None")} for w in result.get("words", [])]
                     await self.ws.send_json({

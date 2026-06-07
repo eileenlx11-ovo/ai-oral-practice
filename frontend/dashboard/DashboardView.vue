@@ -152,7 +152,7 @@
 
     <!-- Learning Analytics -->
     <div class="analytics-section" v-if="analytics">
-      <h2>Learning Analytics</h2>
+      <h2>{{ t('dashboard.learningAnalytics', '学习分析') }}</h2>
 
       <!-- Time Range Picker -->
       <div class="time-range-picker">
@@ -168,7 +168,7 @@
 
       <!-- Vocabulary Trend Chart -->
       <div class="analytics-card" v-if="analytics.vocabulary_trend && analytics.vocabulary_trend.length">
-        <h3>Vocabulary Growth</h3>
+        <h3>{{ t('dashboard.vocabularyGrowth', '词汇量增长') }}</h3>
         <div class="chart-container">
           <Line :data="vocabChartData" :options="vocabChartOptions" />
         </div>
@@ -176,7 +176,7 @@
 
       <!-- Error Distribution (HTML/CSS bars) -->
       <div class="analytics-card" v-if="analytics.error_distribution && Object.keys(analytics.error_distribution).length">
-        <h3>Error Distribution</h3>
+        <h3>{{ t('dashboard.errorDistribution', '错误类型分布') }}</h3>
         <div class="bar-chart-horizontal">
           <div
             v-for="(count, category) in analytics.error_distribution"
@@ -197,7 +197,7 @@
 
       <!-- Scenario Coverage (HTML/CSS bars) -->
       <div class="analytics-card" v-if="analytics.scenario_coverage && Object.keys(analytics.scenario_coverage).length">
-        <h3>Scenario Coverage</h3>
+        <h3>{{ t('dashboard.scenarioCoverage', '场景覆盖') }}</h3>
         <div class="bar-chart-horizontal">
           <div
             v-for="(count, scenario) in analytics.scenario_coverage"
@@ -220,11 +220,11 @@
       <div class="analytics-card summary-stats" v-if="analytics.summary">
         <div class="stat-item">
           <span class="stat-value">{{ analytics.summary.unique_words }}</span>
-          <span class="stat-label">Unique Words</span>
+          <span class="stat-label">{{ t('dashboard.uniqueWords', '独立词汇数') }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-value">{{ analytics.summary.total_words_spoken }}</span>
-          <span class="stat-label">Total Words Spoken</span>
+          <span class="stat-label">{{ t('dashboard.totalWordsSpoken', '累计开口词数') }}</span>
         </div>
       </div>
     </div>
@@ -254,7 +254,7 @@
             <span v-if="s.avg_fluency" class="score-badge">
               🗣️ {{ s.avg_fluency.toFixed(0) }}
             </span>
-            <button class="playback-btn" @click.stop="$router.push('/playback/' + s.session_id)">回放</button>
+            <button class="playback-btn" @click.stop="$router.push('/playback/' + s.session_id)">{{ t('dashboard.playback', '回放') }}</button>
           </div>
         </div>
       </div>
@@ -528,12 +528,12 @@ function getBarWidth(count, distribution) {
 
 function formatCategory(category) {
   const labels = {
-    grammar_tense: 'Tense',
-    grammar_articles: 'Articles',
-    grammar_prepositions: 'Prepositions',
-    vocabulary: 'Vocabulary',
-    pronunciation: 'Pronunciation',
-    other: 'Other',
+    grammar_tense: t('dashboard.catTense', '时态'),
+    grammar_articles: t('dashboard.catArticles', '冠词'),
+    grammar_prepositions: t('dashboard.catPrepositions', '介词'),
+    vocabulary: t('dashboard.catVocabulary', '词汇'),
+    pronunciation: t('dashboard.catPronunciation', '发音'),
+    other: t('dashboard.catOther', '其他'),
   }
   return labels[category] || category
 }

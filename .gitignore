@@ -26,3 +26,9 @@ Thumbs.db
 data/
 assessment/audio_cache/
 .claude/
+
+# CodeGraph index (local code knowledge graph, per-machine)
+.codegraph/
+
+# Local planning notes (not for the repo)
+.plan.md
