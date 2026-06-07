@@ -20,6 +20,8 @@ export const CONFIG = {
     SCENARIOS: '/api/scenarios',
     CATEGORIES: '/api/categories',
     SESSIONS: '/api/sessions',
+    TOPIC: '/api/sessions/topic',
+    TRENDING: '/api/topics/trending',
     HINT: '/api/hint',
     LEVEL_TEST: '/api/level-test',
     PROFILE: '/api/profile',
@@ -38,6 +40,8 @@ export const CONFIG = {
     { id: 'work', name: 'Work', icon: '💼' },
     { id: 'travel', name: 'Travel', icon: '✈️' },
     { id: 'social', name: 'Social', icon: '💬' },
+    { id: 'campus', name: 'Campus Life', icon: '🎓' },
+    { id: 'hobbies', name: 'Hobbies', icon: '🎨' },
   ],
 
   // 场景列表 (used as fallback; primary source is /api/scenarios)

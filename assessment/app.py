@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from openai import AsyncOpenAI
-from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, get_practice_sentences, build_custom_interview_prompt
+from .scenarios import SCENARIOS, CATEGORIES, VOICES, get_system_prompt, get_voice_for_scenario, get_practice_sentences, build_custom_interview_prompt, build_custom_topic_prompt, get_voice_for_custom_partner, SPEED_PRESETS
 from .characters import get_character
 from .correction import extract_corrections
 from .scoring import assess_pronunciation, active_provider
@@ -551,6 +551,115 @@ async def create_custom_session(
         "session_id": session["id"],
         "greeting": "Hello! Thanks for coming in today. I've reviewed the role and your background. To start, could you walk me through your experience and why this position interests you?",
     }
+
+
+@app.post("/api/sessions/topic")
+async def create_topic_session(
+    topic: str = Form(...),
+    material: str = Form(""),
+    partner_name: str = Form(""),
+    partner_country: str = Form(""),
+    partner_personality: str = Form(""),
+    speed: str = Form("normal"),
+):
+    """Start a session with a user-defined free topic and customizable partner.
+
+    topic: what the user wants to practice (required)
+    material: optional supplementary text
+    partner_name: name of the AI partner (e.g. "John")
+    partner_country: country/accent (e.g. "UK", "Australia")
+    partner_personality: traits (e.g. "humorous, patient, gentlemanly")
+    speed: speaking pace — slowest/slow/normal/fast/fastest
+    """
+    if not topic.strip():
+        raise HTTPException(400, "Topic is required")
+
+    prompt = build_custom_topic_prompt(
+        topic=topic,
+        material=material,
+        partner_name=partner_name,
+        partner_country=partner_country,
+        partner_personality=partner_personality,
+        speed=speed,
+    )
+    session = store.create_session("custom_topic", custom_prompt=prompt)
+
+    # Determine voice based on country
+    voice_id = get_voice_for_custom_partner(partner_country or "us", partner_name)
+
+    # Generate greeting via LLM
+    name = partner_name.strip() or "Alex"
+    greeting = f"Hi there! I'm {name}. Let's chat about {topic.strip()}. What's on your mind?"
+    try:
+        resp = await llm.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": "[SYSTEM] Generate a short friendly greeting to start the conversation. Just the greeting, 1-2 sentences. Stay in character."},
+            ],
+            temperature=0.7,
+            max_tokens=100,
+        )
+        if resp.choices[0].message.content:
+            raw = resp.choices[0].message.content.strip()
+            # Strip format markers if LLM adds them
+            raw = raw.replace("[REPLY]", "").replace("[END]", "").strip()
+            if raw:
+                greeting = raw
+    except Exception:
+        pass
+
+    return {
+        "session_id": session["id"],
+        "topic": topic.strip(),
+        "greeting": greeting,
+        "partner": {
+            "name": name,
+            "country": partner_country.strip() or "US",
+            "personality": partner_personality.strip() or "friendly and encouraging",
+            "speed": speed,
+            "voice_id": voice_id,
+        },
+    }
+
+
+@app.get("/api/topics/trending")
+async def get_trending_topics():
+    """Get trending conversation topics via LLM."""
+    try:
+        resp = await llm.chat.completions.create(
+            model=LLM_MODEL,
+            messages=[
+                {"role": "system", "content": "Generate 6 trending and interesting topics for English conversation practice. Return ONLY a JSON array of objects with 'title' (English, 3-5 words) and 'description' (Chinese, one sentence explaining the topic). Topics should be current, engaging, and suitable for oral practice."},
+                {"role": "user", "content": "Give me 6 trending topics for today."},
+            ],
+            temperature=0.9,
+            max_tokens=400,
+        )
+        import json as _json
+        text = resp.choices[0].message.content.strip()
+        # Try to parse JSON from response
+        if text.startswith("["):
+            topics = _json.loads(text)
+        else:
+            # Extract JSON from markdown code block
+            import re
+            match = re.search(r"\[.*\]", text, re.DOTALL)
+            if match:
+                topics = _json.loads(match.group())
+            else:
+                topics = []
+        return {"topics": topics[:6]}
+    except Exception:
+        # Fallback static topics
+        return {"topics": [
+            {"title": "AI in Daily Life", "description": "讨论人工智能如何改变我们的日常生活"},
+            {"title": "Remote Work Culture", "description": "聊聊远程工作的利弊和未来趋势"},
+            {"title": "Sustainable Living", "description": "环保生活方式和可持续发展"},
+            {"title": "Social Media Impact", "description": "社交媒体对人际关系的影响"},
+            {"title": "Space Exploration", "description": "太空探索的最新进展和未来"},
+            {"title": "Mental Health Awareness", "description": "心理健康意识和自我关怀"},
+        ]}
 
 
 @app.post("/api/sessions/{session_id}/turns")

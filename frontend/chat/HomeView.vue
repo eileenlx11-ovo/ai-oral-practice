@@ -30,6 +30,16 @@
       </button>
     </div>
 
+    <!-- Custom Topic Entry -->
+    <div class="custom-topic-entry" @click="$router.push('/topic')">
+      <span class="entry-icon">🎯</span>
+      <div class="entry-text">
+        <strong>自定义话题</strong>
+        <span>输入任意话题，选择对话伙伴，开始自由练习</span>
+      </div>
+      <span class="entry-arrow">→</span>
+    </div>
+
     <!-- Scenario grid -->
     <div class="scenarios">
       <div
@@ -263,5 +273,19 @@ h1 {
   transition: background 0.2s, box-shadow 0.2s;
 }
 .tool-btn:hover { background: #f0f5fa; box-shadow: 0 4px 12px rgba(31,78,121,0.12); }
+
+.custom-topic-entry {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1rem 1.5rem; margin-bottom: 1.5rem;
+  background: linear-gradient(135deg, #f0f7ff, #e8f4f8);
+  border: 1.5px solid #4a90d9; border-radius: 12px;
+  cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+}
+.custom-topic-entry:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(74, 144, 217, 0.2); }
+.entry-icon { font-size: 1.8rem; }
+.entry-text { display: flex; flex-direction: column; flex: 1; }
+.entry-text strong { font-size: 1.05rem; color: #1f4e79; }
+.entry-text span { font-size: 0.85rem; color: #666; }
+.entry-arrow { font-size: 1.3rem; color: #4a90d9; }
 </style>
 
