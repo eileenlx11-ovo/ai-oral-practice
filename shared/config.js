@@ -27,6 +27,8 @@ export const CONFIG = {
     PROFILE: '/api/profile',
     INTEGRATIONS: '/api/integrations',
     ANALYTICS: '/api/analytics',
+    DAILY_TIP: '/api/daily-tip',
+    RECOMMEND: '/api/recommend',
   },
 
   // Hint system

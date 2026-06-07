@@ -1013,3 +1013,73 @@ async def talent_agent_sync(session_id: str = Form(...)):
     client = get_talent_agent()
     result = await client.sync_practice_result(summary)
     return result
+
+
+# --- Daily Tip ---
+
+@app.get("/api/daily-tip")
+async def get_daily_tip():
+    """Return a random vocabulary/expression/tip from learning guides."""
+    import random
+    from .learning_guide import SCENARIO_GUIDES
+
+    all_items = []
+    for scenario_id, guide in SCENARIO_GUIDES.items():
+        for v in guide.get("vocabulary", []):
+            all_items.append({"type": "vocabulary", "scenario": guide["title"], **v})
+        for e in guide.get("expressions", []):
+            all_items.append({"type": "expression", "scenario": guide["title"], **e})
+        for t in guide.get("tips", []):
+            all_items.append({"type": "tip", "scenario": guide["title"], **t})
+
+    if not all_items:
+        return {"tip": None}
+
+    # Use date as seed for daily consistency
+    from datetime import date
+    today = date.today()
+    random.seed(today.isoformat())
+    tip = random.choice(all_items)
+    random.seed()  # Reset seed
+    return {"date": today.isoformat(), "tip": tip}
+
+
+# --- Scenario Difficulty Recommendation ---
+
+@app.get("/api/recommend")
+async def recommend_scenarios():
+    """Recommend scenarios based on user's assessed level."""
+    profile = profile_store.get_or_create(DEFAULT_USER_ID)
+    level = profile.get("level")
+
+    level_to_difficulty = {
+        "A1": ["beginner"],
+        "A2": ["beginner", "intermediate"],
+        "B1": ["intermediate"],
+        "B2": ["intermediate", "advanced"],
+        "C1": ["advanced"],
+        "C2": ["advanced"],
+    }
+
+    if not level:
+        # No assessment yet — recommend beginner + one intermediate
+        recommended = [s for s in SCENARIOS if s["difficulty"] == "beginner"][:4]
+        recommended += [s for s in SCENARIOS if s["difficulty"] == "intermediate"][:2]
+        return {
+            "level": None,
+            "message": "Take the level test for personalized recommendations!",
+            "scenarios": recommended,
+        }
+
+    difficulties = level_to_difficulty.get(level, ["intermediate"])
+    recommended = [s for s in SCENARIOS if s["difficulty"] in difficulties]
+
+    # Deprioritize scenarios the user has already practiced a lot
+    affinity = profile.get("character_affinity", {})
+    recommended.sort(key=lambda s: affinity.get(s["id"], 0))
+
+    return {
+        "level": level,
+        "difficulties": difficulties,
+        "scenarios": recommended[:8],
+    }
