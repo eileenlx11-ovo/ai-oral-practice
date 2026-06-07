@@ -148,10 +148,11 @@
 
     <!-- Realtime Mode -->
     <div class="realtime-section">
-      <h2>🔄 实时纠音模式</h2>
+      <h2>🎙️ 实时纠音模式</h2>
       <p class="realtime-desc">边说边看发音反馈，实时高亮每个词的发音质量</p>
       <button class="realtime-btn" :class="{ active: realtimeActive }" @click="toggleRealtime">
-        {{ realtimeActive ? '⏹ 停止' : '▶ 开始实时纠音' }}
+        <span class="rt-btn-dot" :class="{ active: realtimeActive }"></span>
+        {{ realtimeActive ? '停止' : '开始实时纠音' }}
       </button>
 
       <div v-if="realtimeActive || realtimeWords.length" class="realtime-display">
@@ -777,20 +778,30 @@ function stopRealtime() {
 }
 .summary-btn:hover { background: #2a6399; }
 
-.realtime-section { margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid #eee; text-align: center; }
-.realtime-desc { color: #666; font-size: 0.9rem; margin-bottom: 1rem; }
-.realtime-btn { padding: 0.75rem 2rem; background: #27ae60; color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
-.realtime-btn:hover { background: #219a52; }
-.realtime-btn.active { background: #e74c3c; }
-.realtime-btn.active:hover { background: #c0392b; }
-.realtime-display { margin-top: 1.5rem; padding: 1.5rem; background: #fafafa; border-radius: 12px; border: 1px solid #eee; text-align: left; }
-.realtime-words { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
-.rt-word { padding: 0.3rem 0.5rem; border-radius: 4px; font-size: 1.05rem; font-weight: 500; }
-.rt-good { background: #d4edda; color: #155724; }
-.rt-ok { background: #fff3cd; color: #856404; }
-.rt-poor { background: #f8d7da; color: #721c24; }
-.realtime-score { font-size: 1.1rem; margin-bottom: 0.5rem; }
-.realtime-listening { display: flex; align-items: center; gap: 0.5rem; color: #666; }
-.pulse-dot { width: 10px; height: 10px; background: #e74c3c; border-radius: 50%; animation: pulse-anim 1.2s infinite; }
+.realtime-section { margin-top: var(--space-10); padding-top: var(--space-8); border-top: 1px solid var(--color-border); text-align: center; }
+.realtime-desc { color: var(--color-text-secondary); font-size: var(--text-sm); margin-bottom: var(--space-4); }
+.realtime-btn {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-3) var(--space-8); background: var(--color-primary); color: #fff;
+  border: none; border-radius: var(--radius-full); font-size: var(--text-base); font-weight: 600;
+  cursor: pointer; transition: background var(--transition-fast);
+}
+.realtime-btn:hover { background: var(--color-primary-dark); }
+.realtime-btn.active { background: var(--color-error); }
+.realtime-btn.active:hover { background: var(--color-error); filter: brightness(0.92); }
+.rt-btn-dot { width: 10px; height: 10px; border-radius: var(--radius-full); background: #fff; transition: border-radius var(--transition-fast); }
+.rt-btn-dot.active { border-radius: 2px; animation: pulse-anim 1.2s infinite; }
+.realtime-display {
+  margin-top: var(--space-6); padding: var(--space-6); background: var(--color-bg);
+  border-radius: var(--radius-lg); border: 1px solid var(--color-border); text-align: left;
+}
+.realtime-words { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
+.rt-word { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); font-size: var(--text-base); font-weight: 500; }
+.rt-good { background: var(--color-success-light); color: var(--color-success); }
+.rt-ok { background: var(--color-warning-light); color: #b45309; }
+.rt-poor { background: var(--color-error-light); color: var(--color-error); }
+.realtime-score { font-size: var(--text-lg); margin-bottom: var(--space-2); color: var(--color-text); }
+.realtime-listening { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); }
+.pulse-dot { width: 10px; height: 10px; background: var(--color-error); border-radius: var(--radius-full); animation: pulse-anim 1.2s infinite; }
 @keyframes pulse-anim { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
 </style>

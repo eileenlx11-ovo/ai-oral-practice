@@ -121,7 +121,13 @@
 
     <!-- Empty state -->
     <div v-if="filteredScenarios.length === 0" class="empty-state">
-      <p>😅 {{ t('home.empty') }}</p>
+      <p>😅 {{ t('home.emptyFiltered', '当前筛选下没有匹配的场景') }}</p>
+      <p v-if="activeCategory === 'work'" class="empty-hint">
+        {{ t('home.workNoBeginner', '职场场景以中级和高级为主，初级筛选下没有内容') }}
+      </p>
+      <button v-if="hasActiveFilter" class="clear-filter-btn" @click="clearFilters">
+        {{ t('home.clearFilters', '清除筛选') }}
+      </button>
     </div>
   </div>
 </template>
@@ -151,7 +157,10 @@ function diffLabel(d) {
 
 const filteredScenarios = computed(() => {
   let list = scenarios.value
-  if (activeCategory.value !== 'all') {
+  if (activeCategory.value === 'all') {
+    // Interview lives in the dedicated "AI 口语面试" entry, not the scenario grid
+    list = list.filter((s) => s.category !== 'interview')
+  } else {
     list = list.filter((s) => s.category === activeCategory.value)
   }
   if (activeDifficulty.value !== 'all') {
@@ -159,6 +168,15 @@ const filteredScenarios = computed(() => {
   }
   return list
 })
+
+function clearFilters() {
+  activeCategory.value = 'all'
+  activeDifficulty.value = 'all'
+}
+
+const hasActiveFilter = computed(
+  () => activeCategory.value !== 'all' || activeDifficulty.value !== 'all'
+)
 
 onMounted(async () => {
   try {
@@ -453,6 +471,22 @@ onMounted(async () => {
   padding: var(--space-12);
   color: var(--color-text-muted);
 }
+.empty-hint {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-2);
+}
+.clear-filter-btn {
+  margin-top: var(--space-4);
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transition: background var(--transition-fast);
+}
+.clear-filter-btn:hover { background: var(--color-primary-dark); }
 
 /* Responsive */
 @media (max-width: 768px) {

@@ -785,9 +785,9 @@ async function toggleTranslate(msg) {
   width: 100%;
   max-width: 1080px;
   min-height: 0;
-  background: color-mix(in srgb, var(--color-surface) 78%, transparent);
-  backdrop-filter: blur(18px) saturate(1.2);
-  border: 1px solid color-mix(in srgb, var(--color-surface) 60%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 64%, transparent);
+  backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid color-mix(in srgb, var(--color-surface) 50%, transparent);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl);
   overflow: hidden;
@@ -808,7 +808,7 @@ async function toggleTranslate(msg) {
   inset: 0;
   background-size: cover;
   background-position: center;
-  opacity: 0.55;
+  opacity: 0.7;
   animation: fade-in 600ms ease both;
 }
 
