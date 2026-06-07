@@ -25,11 +25,14 @@ class SessionStore:
         scenario: str,
         custom_prompt: str | None = None,
         user_id: str = "default_user",
+        metadata: dict | None = None,
     ) -> dict:
         """Start a new practice session.
 
         custom_prompt: optional full system prompt that overrides the scenario
         prompt for this session (used by /api/sessions/custom).
+        metadata: optional extra fields stored on the session (e.g. partner
+        info for custom_topic sessions).
         """
         session = {
             "id": uuid.uuid4().hex[:12],
@@ -46,6 +49,8 @@ class SessionStore:
             },
             "corrections_count": 0,
         }
+        if metadata:
+            session.update(metadata)
         self._save(session)
         return session
 
